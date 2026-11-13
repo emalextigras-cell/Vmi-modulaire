@@ -27,20 +27,20 @@ Fermer VMI+ avant de se connecter : la VMI n'accepte qu'une seule connexion simu
 - Les commandes sont envoyées séquentiellement et leur état est vérifié par retour de la VMI.
 - Aucun pilotage automatique par IA n'est activé.
 - Les données sont conservées localement dans IndexedDB.
-- Les indicateurs hygrométriques sont indicatifs. Sans mesure de débit et de consommation électrique, l'application ne peut pas calculer un optimum énergétique réel.
+- Les indicateurs hygrométriques sont indicatifs. La valeur « Debit » exportée par VMI+ est conservée et tracée comme valeur brute (unité non précisée). Sans mesure fiable de consommation électrique et sans validation de l'unité du débit, l'application ne calcule pas d'optimum énergétique réel.
 
 ## Tests locaux
 
 - Installer une version récente de Node.js.
 - Lancer `npm test` pour exécuter les tests de conversion des exports VMI+.
-- Les tests vérifient la lecture de la colonne `Vitesse` du CSV, conservent sa valeur brute et isolent les calculs de comparaison des trois vitesses manuelles.
+- Les tests vérifient la lecture des colonnes `Vitesse` et `Debit` du CSV, conservent les valeurs brutes et isolent les calculs de comparaison des trois vitesses manuelles.
 
 ## Vérifications à effectuer sur la VMI réelle
 
 1. Connexion et déconnexion Bluetooth.
 2. Mesures en direct et état de la VMI.
 3. Téléchargement de l'historique depuis la VMI.
-4. Import d'un export XLSX VMI+.
+4. Import d'un export CSV ou XLSX VMI+.
 5. Graphiques et comparaison des vitesses.
 6. Export CSV, sauvegarde JSON et restauration.
 7. Commandes manuelles, en vérifiant leur effet réel sur la VMI.
