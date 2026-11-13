@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fillMissing } from '../js/modules/chart-renderer.js';
+import { fillMissing, hasBlockedBetween } from '../js/modules/chart-renderer.js';
 
 test('une absence isolée ordinaire reste interpolable', () => {
   const points = [
@@ -39,3 +39,5 @@ test('une mesure aberrante au milieu de plusieurs absences bloque toute interpol
   assert.deepEqual(result.map(point => point.v), [10, null, 20]);
   assert.equal(result[1].blocked, true);
 });
+
+test('le moteur de tracé détecte une anomalie entre deux points valides', () => {\n  const points = [\n    { t: 0, v: 10, blocked: false },\n    { t: 60_000, v: null, blocked: true },\n    { t: 120_000, v: 20, blocked: false }\n  ];\n  assert.equal(hasBlockedBetween(points, 0, 120_000), true);\n  assert.equal(hasBlockedBetween(points, 0, 60_000), false);\n  assert.equal(hasBlockedBetween(points, 60_000, 120_000), false);\n});\n
