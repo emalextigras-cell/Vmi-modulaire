@@ -11,7 +11,7 @@ import { armDownloadTimeout } from './modules/sync.js';
 import { parseCell, recFrom } from './modules/dataio.js';
 import { fixClock } from './modules/clock-correction.js';
 import { absoluteHumidity, dewPoint, psychro, validTemp } from './modules/psychrometry.js';
-import { summarizeDataQuality, isPlausibleHumidity, isPlausibleTemperature } from './modules/data-quality.js';
+import { summarizeDataQuality, isPlausibleHumidity, isPlausibleTemperature, normalizeTemperatureRecord } from './modules/data-quality.js';
 
 'use strict';
 
@@ -414,7 +414,7 @@ function makeBackup(){return createBackupSnapshot({hist,live,meta})}
 function restoreBackup(obj){
  const previousLastSync=meta.lastSync;
  const result=mergeBackupData({backup:obj,currentHist:hist,currentLive:live,currentMeta:meta,minValid:MIN_VALID});
- hist=result.hist;live=result.live;meta=result.meta;
+ hist=result.hist.map(normalizeTemperatureRecord);live=result.live;meta=result.meta;
  pruneHist();dbSet('hist',hist);dbSet('live',live);
  if(meta.lastSync!==previousLastSync)dbSet('meta',meta);
  return {add:result.addedHistory,addL:result.addedLive};
