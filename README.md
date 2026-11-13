@@ -32,7 +32,7 @@ Fermer VMI+ avant de se connecter : la VMI n'accepte qu'une seule connexion simu
 
 - Installer une version récente de Node.js.
 - Lancer `npm test` pour exécuter les tests de conversion des exports VMI+.
-- Les tests vérifient la lecture de la colonne `Vitesse` du CSV et conservent sa valeur brute. Sa correspondance avec les trois vitesses manuelles de l'interface reste à confirmer avant toute comparaison.
+- Les tests vérifient la lecture de la colonne `Vitesse` du CSV, conservent sa valeur brute et isolent les calculs de comparaison des trois vitesses manuelles.
 
 ## Vérifications à effectuer sur la VMI réelle
 
