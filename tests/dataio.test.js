@@ -106,10 +106,8 @@ test('fromOldRow convertit les colonnes historiques sans inventer une vitesse', 
   assert.equal(record.sh, 62);
   assert.equal(record.t1, 17.7);
   assert.equal(record.h1, 73);
-  assert.equal(record.vmiAbsP0, 9.05);
   assert.equal(record.te, 17.6);
   assert.equal(record.he, 74);
-  assert.equal(record.vmiAbsP1, 9.12);
   assert.equal(record.rpm, 1376);
   assert.equal(record.fil, 90);
   assert.equal(record.vit, null);
@@ -174,8 +172,10 @@ test('recFrom lit correctement une ligne représentative de l’export VMI+ rée
   assert.equal(record.rpm, 1376);
   assert.equal(record.t1, 17.7);
   assert.equal(record.h1, 73);
+  assert.equal(record.vmiAbsP0, 9.05);
   assert.equal(record.te, 17.6);
   assert.equal(record.he, 74);
+  assert.equal(record.vmiAbsP1, 9.12);
   assert.equal(record.st, 19.7);
   assert.equal(record.sh, 62);
   assert.equal(record.vit, null);
