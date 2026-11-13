@@ -1,4 +1,5 @@
 import { DAY, pad, localDay, dayStart, shiftDay, fmt, num, MIN_VALID, HIST_MAX } from './modules/date-utils.js';
+import { pruneHistory } from './modules/history.js';
 import { $, sleep, APP_VERSION } from './modules/core.js';
 import { createStore } from './modules/store.js';
 import { fromOldRow } from './modules/legacy-migration.js';
@@ -88,8 +89,9 @@ async function init(){
  $('liveCount').textContent=live.length;render();
 }
 function pruneHist(){
- hist=hist.filter(r=>r&&(r.st!=null||r.sh!=null||r.te!=null||r.he!=null||r.rpm!=null||r.t1!=null||r.h1!=null));
- if(hist.length>HIST_MAX){hist=hist.slice(hist.length-HIST_MAX);log(`Historique limité à ${HIST_MAX} relevés (les plus anciens supprimés).`)}
+ const result=pruneHistory(hist,HIST_MAX);
+ hist=result.records;
+ if(result.removed)log(`Historique limité à ${HIST_MAX} relevés (les plus anciens supprimés).`);
 }
 
 /* Psychrométrie : approximation de Magnus */
