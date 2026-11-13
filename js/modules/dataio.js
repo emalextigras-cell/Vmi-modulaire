@@ -1,5 +1,21 @@
 /** Conversion des dates et des lignes d'export VMI+/tableur. */
 import { DAY, pad, num } from './date-utils.js';
+
+// Index des colonnes observés dans l'export CSV VMI+ utilisé pour la v13.
+// La colonne 22 est explicitement nommée « Vitesse » dans l'en-tête de l'export.
+const VMI_PLUS_COLUMN = Object.freeze({
+  durationDays: 11,
+  filter: 20,
+  speed: 22,
+  rpm: 25,
+  probeTemp: 40,
+  probeHumidity: 41,
+  incomingTemp: 43,
+  incomingHumidity: 44,
+  salonTemp: 117,
+  salonHumidity: 118
+});
+
 export function parseCell(value, spreadsheet = window.XLSX) {
   if (typeof value === 'number' && value > 30000 && spreadsheet) {
     const c = spreadsheet.SSF.parse_date_code(value);
@@ -15,14 +31,29 @@ export function parseCell(value, spreadsheet = window.XLSX) {
   }
   return null;
 }
+
 export function recFrom(row, spreadsheet = window.XLSX) {
   const parsed = parseCell(row[0], spreadsheet);
   if (!parsed) return null;
-  const record = { t:parsed.t, rk:parsed.rk, d:num(row[11]), st:num(row[117]), sh:num(row[118]),
-    t1:num(row[40]), h1:num(row[41]), te:num(row[43]), he:num(row[44]), rpm:num(row[25]),
-    fil:num(row[20]), vit:null, boost:null, hol:null };
+  const record = {
+    t: parsed.t,
+    rk: parsed.rk,
+    d: num(row[VMI_PLUS_COLUMN.durationDays]),
+    st: num(row[VMI_PLUS_COLUMN.salonTemp]),
+    sh: num(row[VMI_PLUS_COLUMN.salonHumidity]),
+    t1: num(row[VMI_PLUS_COLUMN.probeTemp]),
+    h1: num(row[VMI_PLUS_COLUMN.probeHumidity]),
+    te: num(row[VMI_PLUS_COLUMN.incomingTemp]),
+    he: num(row[VMI_PLUS_COLUMN.incomingHumidity]),
+    rpm: num(row[VMI_PLUS_COLUMN.rpm]),
+    fil: num(row[VMI_PLUS_COLUMN.filter]),
+    vit: num(row[VMI_PLUS_COLUMN.speed]),
+    boost: null,
+    hol: null
+  };
   return ['st','sh','t1','h1','te','he','rpm','fil'].some(key=>record[key]!=null) ? record : null;
 }
+
 export const dayNumber = timestamp => {
   const d = new Date(timestamp);
   return Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DAY);

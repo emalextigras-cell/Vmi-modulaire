@@ -28,6 +28,12 @@ Fermer VMI+ avant de se connecter : la VMI n'accepte qu'une seule connexion simu
 - Les données sont conservées localement dans IndexedDB.
 - Les indicateurs hygrométriques sont indicatifs. Sans mesure de débit et de consommation électrique, l'application ne peut pas calculer un optimum énergétique réel.
 
+## Tests locaux
+
+- Installer une version récente de Node.js.
+- Lancer `npm test` pour exécuter les tests de conversion des exports VMI+.
+- Les tests portent notamment sur la conservation de la vitesse déclarée dans la colonne `Vitesse` du CSV.
+
 ## Vérifications à effectuer sur la VMI réelle
 
 1. Connexion et déconnexion Bluetooth.
