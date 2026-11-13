@@ -17,6 +17,11 @@ test('absoluteHumidity donne une valeur cohérente à 20 °C et 50 %', () => {
   assert.ok(Math.abs(value - 8.62) < 0.03);
 });
 
+test('absoluteHumidity calcule correctement un relevé réel VMI+ (17,7 °C, 73 %)', () => {
+  const value = absoluteHumidity(17.7, 73);
+  assert.ok(Math.abs(value - 10.99) < 0.02);
+});
+
 test('absoluteHumidity refuse les mesures hors limites', () => {
   assert.equal(absoluteHumidity(NaN, 50), null);
   assert.equal(absoluteHumidity(20, 101), null);
