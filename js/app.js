@@ -11,7 +11,7 @@ import { armDownloadTimeout } from './modules/sync.js';
 import { parseCell, recFrom } from './modules/dataio.js';
 import { fixClock } from './modules/clock-correction.js';
 import { absoluteHumidity, dewPoint, psychro, validTemp } from './modules/psychrometry.js';
-import { summarizeDataQuality } from './modules/data-quality.js';
+import { summarizeDataQuality, isPlausibleHumidity, isPlausibleTemperature } from './modules/data-quality.js';
 
 'use strict';
 
@@ -519,7 +519,7 @@ function analyzeSpeeds(data){
 }
 function renderRecommendation(data){
  const box=$('recommendation');
- const valid=data.filter(r=>Number.isFinite(r.st)&&Number.isFinite(r.sh)&&Number.isFinite(r.te)&&Number.isFinite(r.he));
+ const valid=data.filter(r=>Number.isFinite(r.st)&&isPlausibleTemperature(r.st)&&Number.isFinite(r.sh)&&isPlausibleHumidity(r.sh)&&Number.isFinite(r.te)&&isPlausibleTemperature(r.te)&&Number.isFinite(r.he)&&isPlausibleHumidity(r.he));
  box.className='advice';
  if(!valid.length){box.textContent='Pas assez de données valides. Connecte la VMI et laisse-la enregistrer plusieurs relevés, ou importe un historique.';return}
  const recent=valid.slice(-Math.min(24,valid.length));
