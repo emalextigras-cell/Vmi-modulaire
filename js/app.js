@@ -402,11 +402,11 @@ const fmtLocal=t=>{const d=new Date(t);return `${d.getFullYear()}-${pad(d.getMon
 const fmtShort=t=>{const d=new Date(t);return `${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`};
 const decFr=v=>(v==null||!Number.isFinite(v))?'':String(Math.round(v*100)/100).replace('.',',');
 function histToCsv(rows){
- const head=['date_heure','salon_temp_C','salon_HR_pct','salon_HA_g_m3','salon_rosee_C','sonde1_temp_C','sonde1_HR_pct','air_entrant_temp_C','air_entrant_HR_pct','air_entrant_HA_g_m3','regime_tr_min','filtre_jours_usage','jours_fonctionnement','debit_vmi_plus_valeur_brute','vitesse_vmi_plus_code_brut'];
+ const head=['date_heure','salon_temp_C','salon_HR_pct','salon_HA_g_m3','salon_rosee_C','sonde1_temp_C','sonde1_HR_pct','vmi_plus_P0_Hum_abs_export','air_entrant_temp_C','air_entrant_HR_pct','vmi_plus_P1_Hum_abs_export','air_entrant_HA_g_m3','regime_tr_min','filtre_jours_usage','jours_fonctionnement','debit_vmi_plus_valeur_brute','vitesse_vmi_plus_code_brut'];
  const lines=[head.join(';')];
  for(const r of rows){
   const p=psychro({st:r.st,sh:r.sh,te:r.te,he:r.he});
-  lines.push([fmtLocal(r.t),decFr(r.st),decFr(r.sh),decFr(p.haIn),decFr(p.dewIn),decFr(r.t1),decFr(r.h1),decFr(r.te),decFr(r.he),decFr(p.haOut),decFr(r.rpm),decFr(r.fil),decFr(r.d),decFr(r.debit),decFr(r.vmiSpeedRaw)].join(';'));
+  lines.push([fmtLocal(r.t),decFr(r.st),decFr(r.sh),decFr(p.haIn),decFr(p.dewIn),decFr(r.t1),decFr(r.h1),decFr(r.vmiAbsP0),decFr(r.te),decFr(r.he),decFr(r.vmiAbsP1),decFr(p.haOut),decFr(r.rpm),decFr(r.fil),decFr(r.d),decFr(r.debit),decFr(r.vmiSpeedRaw)].join(';'));
  }
  return lines.join('\r\n');
 }
