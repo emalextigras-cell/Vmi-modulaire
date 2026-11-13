@@ -12,12 +12,13 @@ test('parseCell lit une date CSV VMI+ au format français', () => {
   assert.equal(date.getDate(), 10);
 });
 
-test('recFrom conserve la valeur brute de la colonne Vitesse sans inventer une correspondance manuelle', () => {
+test('recFrom conserve vitesse brute et débit exporté sans inventer leurs unités ou correspondances', () => {
   const row = Array(124).fill('');
   row[0] = '10/11/2026 16:45:35';
   row[11] = '186';
   row[20] = '90';
   row[22] = '3';
+  row[23] = '121';
   row[25] = '1376';
   row[40] = '17,7';
   row[41] = '73';
@@ -30,11 +31,22 @@ test('recFrom conserve la valeur brute de la colonne Vitesse sans inventer une c
   assert.ok(record);
   assert.equal(record.vit, null);
   assert.equal(record.vmiSpeedRaw, 3);
+  assert.equal(record.debit, 121);
   assert.equal(record.rpm, 1376);
   assert.equal(record.st, 19.7);
   assert.equal(record.sh, 62);
   assert.equal(record.te, 17.6);
   assert.equal(record.he, 74);
+});
+
+test('recFrom conserve une ligne qui ne contient que le débit exporté', () => {
+  const row = Array(124).fill('');
+  row[0] = '10/11/2026 16:45:35';
+  row[23] = '121';
+  const record = recFrom(row, null);
+  assert.ok(record);
+  assert.equal(record.debit, 121);
+  assert.equal(record.vit, null);
 });
 
 test('recFrom laisse la vitesse inconnue si la colonne est vide', () => {
@@ -111,6 +123,11 @@ test('pruneHistory retire les lignes vides et conserve les relevés exploitables
   const result = pruneHistory(rows, 10);
   assert.deepEqual(result.records.map(r => r.t), [2, 3, 4]);
   assert.equal(result.removed, 0);
+});
+
+test('pruneHistory conserve les relevés qui contiennent seulement le débit exporté', () => {
+  const result = pruneHistory([{ t: 1, debit: 121 }, { t: 2 }], 10);
+  assert.deepEqual(result.records.map(r => r.t), [1]);
 });
 
 test('pruneHistory applique la limite en gardant les relevés les plus récents', () => {
