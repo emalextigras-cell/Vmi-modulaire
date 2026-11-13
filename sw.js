@@ -1,0 +1,48 @@
+const CACHE_NAME = 'vmi-purevent-v13-modular-baseline-14';
+const APP_SHELL = [
+  './',
+  './index.html',
+  './manifest.json',
+  './css/style.css',
+  './js/app.js',
+  './js/modules/core.js',
+  './js/modules/store.js',
+  './js/modules/analysis.js',
+  './js/modules/charts.js',
+  './js/modules/ble.js',
+  './js/modules/sync.js',
+  './js/modules/dataio.js',
+  './js/modules/date-utils.js',
+  './js/modules/bluetooth-protocol.js',
+  './js/modules/psychrometry.js',
+  './js/modules/chart-renderer.js'
+];
+
+self.addEventListener('install', event => {
+  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))))
+      .then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
+  event.respondWith(
+    fetch(event.request)
+      .then(response => {
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request).then(cached => cached || caches.match('./index.html')))
+  );
+});
