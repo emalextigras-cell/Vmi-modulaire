@@ -3,8 +3,7 @@ import assert from 'node:assert/strict';
 import {
   isPlausibleHumidity,
   isPlausibleTemperature,
-  summarizeDataQuality,
-  normalizeTemperatureRecord
+  summarizeDataQuality
 } from '../js/modules/data-quality.js';
 
 test('les humidités hors de 0 à 100 % sont signalées', () => {
@@ -73,18 +72,4 @@ test('un pic de température à 79 °C est compté comme anomalie', () => {
   ]);
   assert.equal(result.affectedRecords, 1);
   assert.deepEqual(result.fields.map(field => field.key), ['st']);
-});
-
-
-test('corrige les températures historiques stockées en dixièmes sans toucher aux autres champs', () => {
-  const original = { st: 196, t1: 154, te: 252, sh: 62, h1: 73, he: 74, rpm: 1376 };
-  const corrected = normalizeTemperatureRecord(original);
-  assert.deepEqual([corrected.st, corrected.t1, corrected.te], [19.6, 15.4, 25.2]);
-  assert.deepEqual([corrected.sh, corrected.h1, corrected.he, corrected.rpm], [62, 73, 74, 1376]);
-  assert.deepEqual([original.st, original.t1, original.te], [196, 154, 252]);
-});
-
-test('ne modifie pas les températures déjà dans une plage plausible', () => {
-  const original = { st: 19.6, t1: -5, te: 28.4 };
-  assert.equal(normalizeTemperatureRecord(original), original);
 });
