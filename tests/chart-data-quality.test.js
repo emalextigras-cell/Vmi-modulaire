@@ -2,15 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fillMissing, hasBlockedBetween } from '../js/modules/chart-renderer.js';
 
-test('une absence isolée ordinaire reste interpolable', () => {
+test('une absence reste vide et ne fabrique pas une mesure', () => {
   const points = [
     { t: 0, v: 10 },
     { t: 60_000, v: null },
     { t: 120_000, v: 20 }
   ];
   const result = fillMissing(points);
-  assert.equal(result.length, 3);
-  assert.equal(result[1].v, 15);
+  assert.deepEqual(result.map(point => point.v), [10, null, 20]);
+  assert.equal(result[1].blocked, true);
 });
 
 test('une mesure rejetée comme aberrante reste un trou dans la courbe', () => {
@@ -27,7 +27,7 @@ test('une mesure rejetée comme aberrante reste un trou dans la courbe', () => {
   ]);
 });
 
-test('une mesure aberrante au milieu de plusieurs absences bloque toute interpolation', () => {
+test('une absence et une anomalie restent chacune à leur position exacte', () => {
   const points = [
     { t: 0, v: 10 },
     { t: 60_000, v: null },
@@ -36,8 +36,8 @@ test('une mesure aberrante au milieu de plusieurs absences bloque toute interpol
     { t: 240_000, v: 20 }
   ];
   const result = fillMissing(points);
-  assert.deepEqual(result.map(point => point.v), [10, null, 20]);
-  assert.equal(result[1].blocked, true);
+  assert.deepEqual(result.map(point => point.v), [10, null, null, null, 20]);
+  assert.equal(result[2].blocked, true);
 });
 
 test('le moteur de tracé détecte une anomalie entre deux points valides', () => {
