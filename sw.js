@@ -12,6 +12,7 @@ const APP_SHELL = [
   './js/modules/ble.js',
   './js/modules/sync.js',
   './js/modules/dataio.js',
+  './js/modules/clock-correction.js',
   './js/modules/legacy-migration.js',
   './js/modules/history.js',
   './js/modules/backup.js',
