@@ -51,3 +51,23 @@ test('fixClock sépare les épisodes éloignés de plus de trois jours', () => {
   assert.ok(first.t >= MIN_VALID);
   assert.ok(second.t >= MIN_VALID);
 });
+
+test('fixClock recale les dates 2018 avec un repère réel de novembre 2026', () => {
+  const referenceDate = new Date(2026, 10, 10, 16, 45, 35).getTime();
+  const history = [{ t: referenceDate, d: 186 }];
+  const morning = { t: new Date(2018, 3, 12, 7, 24, 2).getTime(), d: 159 };
+  const daytime = { t: new Date(2018, 3, 12, 11, 30, 0).getTime(), d: 159 };
+  const dayNumber = timestamp => {
+    const date = new Date(timestamp);
+    return Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 864e5);
+  };
+  const offset = dayNumber(referenceDate) - 186 + 159 - dayNumber(daytime.t);
+  const result = fixClock([morning, daytime], history, MIN_VALID);
+
+  assert.equal(result.fixed, 2);
+  assert.equal(result.kept.length, 2);
+  assert.equal(morning.fixed, true);
+  assert.equal(daytime.fixed, true);
+  assert.equal(morning.t, new Date(2018, 3, 12 + offset, 7, 24, 2).getTime());
+  assert.equal(daytime.t, new Date(2018, 3, 12 + offset, 11, 30, 0).getTime());
+});
