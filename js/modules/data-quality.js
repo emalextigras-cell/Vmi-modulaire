@@ -11,6 +11,7 @@ const FIELDS = [
   { key: 'h1', label: 'Humidité sonde résistances', type: 'humidity' },
   { key: 'he', label: 'Humidité air entrant', type: 'humidity' },
   { key: 'st', label: 'Température salon', type: 'temperature' },
+  { key: 'tExt', label: 'Température extérieure VMI+', type: 'temperature' },
   { key: 't1', label: 'Température sonde résistances', type: 'temperature' },
   { key: 'te', label: 'Température air entrant', type: 'temperature' }
 ];
