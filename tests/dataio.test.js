@@ -12,7 +12,7 @@ test('parseCell lit une date CSV VMI+ au format français', () => {
   assert.equal(date.getDate(), 10);
 });
 
-test('recFrom conserve la vitesse de la colonne Vitesse (index 22)', () => {
+test('recFrom conserve la valeur brute de la colonne Vitesse sans inventer une correspondance manuelle', () => {
   const row = Array(124).fill('');
   row[0] = '10/11/2026 16:45:35';
   row[11] = '186';
@@ -28,7 +28,8 @@ test('recFrom conserve la vitesse de la colonne Vitesse (index 22)', () => {
 
   const record = recFrom(row, null);
   assert.ok(record);
-  assert.equal(record.vit, 3);
+  assert.equal(record.vit, null);
+  assert.equal(record.vmiSpeedRaw, 3);
   assert.equal(record.rpm, 1376);
   assert.equal(record.st, 19.7);
   assert.equal(record.sh, 62);
