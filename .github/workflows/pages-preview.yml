@@ -1,0 +1,35 @@
+name: Preview VMI modulaire
+
+on:
+  push:
+    branches:
+      - work/modularisation-phase-1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-preview
+  cancel-in-progress: true
+
+jobs:
+  deploy-preview:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer la branche de test
+        uses: actions/checkout@v4
+      - name: Configurer GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Préparer le site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - name: Publier la prévisualisation
+        id: deployment
+        uses: actions/deploy-pages@v4
