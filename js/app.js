@@ -299,7 +299,7 @@ $('clk').onclick=setClock;
 
 /* Correction des dates historiques isolée dans clock-correction.js. */
 function ingest(recs,label){
- const {fixed,kept}=fixClock(recs);
+ const {fixed,kept}=fixClock(recs,hist);
  hist=mergeImportedHistory(hist,kept);
  pruneHist();dbSet('hist',hist);source='hist';selectedDate=null;$('dayPicker').value='';
  const lost=recs.length-kept.length;
