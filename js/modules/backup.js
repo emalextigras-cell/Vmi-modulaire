@@ -29,10 +29,10 @@ export function mergeBackupData({ backup, currentHist = [], currentLive = [], cu
   }
   const hist = [...history.values()].sort((a, b) => a.t - b.t);
 
-  const live = [...currentLive];
-  const seenLive = new Set(live.map(record => record.t));
+  let live = [...currentLive];
   let addedLive = 0;
   if (Array.isArray(backup.live)) {
+    const seenLive = new Set(live.map(record => record.t));
     for (const record of backup.live) {
       if (record && Number.isFinite(record.t) && !seenLive.has(record.t)) {
         live.push(record);
@@ -40,9 +40,9 @@ export function mergeBackupData({ backup, currentHist = [], currentLive = [], cu
         addedLive++;
       }
     }
+    live.sort((a, b) => a.t - b.t);
+    if (live.length > maxLive) live = live.slice(-maxLive);
   }
-  live.sort((a, b) => a.t - b.t);
-  if (live.length > maxLive) live.splice(0, live.length - maxLive);
 
   const meta = { ...(currentMeta || {}) };
   if (backup.meta && backup.meta.lastSync &&
