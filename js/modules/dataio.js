@@ -1,10 +1,11 @@
 /** Conversion des dates et des lignes d'export VMI+/tableur. */
 import { DAY, pad, num } from './date-utils.js';
 
+// Indices de secours du CSV VMI+ réel (en-tête sur la 4e ligne).
 const FALLBACK_COLUMN = Object.freeze({
-  event: 1, volume: 2, mode: 3, durationDays: 11, systemState: 13,
+  date: 0, event: 1, volume: 2, mode: 3, durationDays: 11, systemState: 13,
   failure: 14, filter: 20, filterIndexPct: 21, speed: 22, airflow: 23,
-  rpm: 25, pwm: 26, outdoorTemp: 39, probeTemp: 40,
+  consDp: 24, rpm: 25, pwm: 26, outdoorTemp: 39, probeTemp: 40,
   probeHumidity: 41, probeAbsHumidity: 42, incomingTemp: 43,
   incomingHumidity: 44, incomingAbsHumidity: 45, salonTemp: 117,
   salonHumidity: 118
@@ -26,17 +27,12 @@ const HEADER_ALIASES = {
   filterIndexPct: ['indice encr %', 'indice encrassement %'],
   speed: ['vitesse'],
   airflow: ['debit'],
-  rpm: ['tachy rpm', 'tachymetre rpm'],
+  consDp: ['cons dp'],
+  rpm: ['tachy rpm'],
   pwm: ['pwm 1 1000', 'pwm'],
-  outdoorTemp: ['trmn deg', 'temperature exterieure'],
-  probeTemp: ['dcint', 'sonde 1 temperature'],
-  probeHumidity: ['hydror', 'sonde 1 humidite'],
-  probeAbsHumidity: ['hum abs p0', 'p0 hum abs'],
-  incomingTemp: ['temperature air entrant', 'air entrant temperature'],
-  incomingHumidity: ['humidite air entrant', 'air entrant humidite'],
-  incomingAbsHumidity: ['hum abs p1', 'p1 hum abs'],
-  salonTemp: ['salon temperature', 'temperature salon'],
-  salonHumidity: ['salon humidite', 'humidite salon']
+  // Les colonnes des sondes sont libellées de façon générique et répétée
+  // ("Temp", "Hum rel", "Hum abs") : on garde leurs indices de secours.
+  outdoorTemp: ['tempext', 'temperature exterieure']
 };
 
 export function getColumnMapping(headerRow) {
@@ -58,7 +54,7 @@ export function parseCell(value, spreadsheet = globalThis.XLSX) {
       rk: `${pad(day)}/${pad(month)}/${year} ${pad(c.H)}:${pad(c.M)}:${pad(second)}` };
   }
   if (typeof value === 'string') {
-    const m = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    const m = value.match(/^(\\d{1,2})\\/(\\d{1,2})\\/(\\d{4})[ T](\\d{1,2}):(\\d{2})(?::(\\d{2}))?/);
     if (m) return { t: new Date(+m[3], +m[2]-1, +m[1], +m[4], +m[5], +(m[6]||0)).getTime(),
       rk: `${pad(+m[1])}/${pad(+m[2])}/${m[3]} ${pad(+m[4])}:${m[5]}:${pad(+(m[6]||0))}` };
   }
@@ -82,7 +78,7 @@ export function recFrom(row, spreadsheet = globalThis.XLSX, mapping = null) {
     sh: num(row[columns.salonHumidity]),
     t1: num(row[columns.probeTemp]),
     h1: num(row[columns.probeHumidity]),
-    // Valeurs « Hum abs » exportées par VMI+ : unité non confirmée, donc conservées brutes.
+    // Les valeurs Hum abs de VMI+ restent brutes : leur unité n'est pas confirmée.
     vmiAbsP0: num(row[columns.probeAbsHumidity]),
     te: num(row[columns.incomingTemp]),
     he: num(row[columns.incomingHumidity]),
@@ -90,9 +86,9 @@ export function recFrom(row, spreadsheet = globalThis.XLSX, mapping = null) {
     rpm: num(row[columns.rpm]),
     fil: num(row[columns.filter]),
     filterIndexPct: num(row[columns.filterIndexPct]),
-    // Codes bruts VMI+ : aucune équivalence avec les vitesses manuelles 1/2/3 n'est supposée.
     vmiSpeedRaw: num(row[columns.speed]),
     debit: num(row[columns.airflow]),
+    consDpRaw: num(row[columns.consDp]),
     vmiPwmRaw: num(row[columns.pwm]),
     vit: null, boost: null, hol: null
   };
