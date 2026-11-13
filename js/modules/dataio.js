@@ -1,26 +1,55 @@
 /** Conversion des dates et des lignes d'export VMI+/tableur. */
 import { DAY, pad, num } from './date-utils.js';
 
-// Index des colonnes observés dans l'export CSV VMI+ utilisé pour la v13.
-// Les intitulés « Vitesse » et « Debit » sont conservés comme données brutes.
-const VMI_PLUS_COLUMN = Object.freeze({
-  durationDays: 11,
-  filter: 20,
-  speed: 22,
-  airflow: 23,
-  rpm: 25,
-  outdoorTemp: 39,
-  probeTemp: 40,
-  probeHumidity: 41,
-  probeAbsHumidity: 42,
-  incomingTemp: 43,
-  incomingHumidity: 44,
-  incomingAbsHumidity: 45,
-  salonTemp: 117,
+const FALLBACK_COLUMN = Object.freeze({
+  event: 1, volume: 2, mode: 3, durationDays: 11, systemState: 13,
+  failure: 14, filter: 20, filterIndexPct: 21, speed: 22, airflow: 23,
+  rpm: 25, pwm: 26, outdoorTemp: 39, probeTemp: 40,
+  probeHumidity: 41, probeAbsHumidity: 42, incomingTemp: 43,
+  incomingHumidity: 44, incomingAbsHumidity: 45, salonTemp: 117,
   salonHumidity: 118
 });
 
-export function parseCell(value, spreadsheet = window.XLSX) {
+const normalizeHeader = value => String(value ?? '')
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .toLowerCase().replace(/[^a-z0-9%]+/g, ' ').trim();
+
+const HEADER_ALIASES = {
+  date: ['date'],
+  event: ['event', 'evenement'],
+  volume: ['vol m3', 'volume m3'],
+  mode: ['mode'],
+  durationDays: ['duree fonc j', 'duree fonctionnement j'],
+  systemState: ['etat systeme'],
+  failure: ['panne'],
+  filter: ['etat filtre'],
+  filterIndexPct: ['indice encr %', 'indice encrassement %'],
+  speed: ['vitesse'],
+  airflow: ['debit'],
+  rpm: ['tachy rpm', 'tachymetre rpm'],
+  pwm: ['pwm 1 1000', 'pwm'],
+  outdoorTemp: ['trmn deg', 'temperature exterieure'],
+  probeTemp: ['dcint', 'sonde 1 temperature'],
+  probeHumidity: ['hydror', 'sonde 1 humidite'],
+  probeAbsHumidity: ['hum abs p0', 'p0 hum abs'],
+  incomingTemp: ['temperature air entrant', 'air entrant temperature'],
+  incomingHumidity: ['humidite air entrant', 'air entrant humidite'],
+  incomingAbsHumidity: ['hum abs p1', 'p1 hum abs'],
+  salonTemp: ['salon temperature', 'temperature salon'],
+  salonHumidity: ['salon humidite', 'humidite salon']
+};
+
+export function getColumnMapping(headerRow) {
+  const headers = Array.isArray(headerRow) ? headerRow.map(normalizeHeader) : [];
+  const mapping = { ...FALLBACK_COLUMN };
+  for (const [key, aliases] of Object.entries(HEADER_ALIASES)) {
+    const index = headers.findIndex(header => aliases.includes(header));
+    if (index >= 0) mapping[key] = index;
+  }
+  return mapping;
+}
+
+export function parseCell(value, spreadsheet = globalThis.XLSX) {
   if (typeof value === 'number' && value > 30000 && spreadsheet) {
     const c = spreadsheet.SSF.parse_date_code(value);
     if (!c) return null;
@@ -36,34 +65,38 @@ export function parseCell(value, spreadsheet = window.XLSX) {
   return null;
 }
 
-export function recFrom(row, spreadsheet = window.XLSX) {
-  const parsed = parseCell(row[0], spreadsheet);
+export function recFrom(row, spreadsheet = globalThis.XLSX, mapping = null) {
+  const columns = mapping || FALLBACK_COLUMN;
+  const parsed = parseCell(row[columns.date ?? 0], spreadsheet);
   if (!parsed) return null;
   const record = {
-    t: parsed.t,
-    rk: parsed.rk,
-    d: num(row[VMI_PLUS_COLUMN.durationDays]),
-    st: num(row[VMI_PLUS_COLUMN.salonTemp]),
-    tExt: num(row[VMI_PLUS_COLUMN.outdoorTemp]),
-    sh: num(row[VMI_PLUS_COLUMN.salonHumidity]),
-    t1: num(row[VMI_PLUS_COLUMN.probeTemp]),
-    h1: num(row[VMI_PLUS_COLUMN.probeHumidity]),
-    // Valeurs « Hum abs » exportées par VMI+ : conservées brutes, unité affichée par VMI+ non confirmée.
-    vmiAbsP0: num(row[VMI_PLUS_COLUMN.probeAbsHumidity]),
-    te: num(row[VMI_PLUS_COLUMN.incomingTemp]),
-    he: num(row[VMI_PLUS_COLUMN.incomingHumidity]),
-    vmiAbsP1: num(row[VMI_PLUS_COLUMN.incomingAbsHumidity]),
-    rpm: num(row[VMI_PLUS_COLUMN.rpm]),
-    fil: num(row[VMI_PLUS_COLUMN.filter]),
-    // Valeur brute : aucune correspondance avec les vitesses manuelles 1/2/3 n'est supposée.
-    vmiSpeedRaw: num(row[VMI_PLUS_COLUMN.speed]),
-    // Valeur « Debit » de l'export VMI+ ; l'unité n'est pas indiquée dans le fichier.
-    debit: num(row[VMI_PLUS_COLUMN.airflow]),
-    vit: null,
-    boost: null,
-    hol: null
+    t: parsed.t, rk: parsed.rk,
+    eventRaw: num(row[columns.event]),
+    volumeRaw: num(row[columns.volume]),
+    vmiModeRaw: num(row[columns.mode]),
+    d: num(row[columns.durationDays]),
+    systemStateRaw: num(row[columns.systemState]),
+    failureRaw: num(row[columns.failure]),
+    st: num(row[columns.salonTemp]),
+    tExt: num(row[columns.outdoorTemp]),
+    sh: num(row[columns.salonHumidity]),
+    t1: num(row[columns.probeTemp]),
+    h1: num(row[columns.probeHumidity]),
+    // Valeurs « Hum abs » exportées par VMI+ : unité non confirmée, donc conservées brutes.
+    vmiAbsP0: num(row[columns.probeAbsHumidity]),
+    te: num(row[columns.incomingTemp]),
+    he: num(row[columns.incomingHumidity]),
+    vmiAbsP1: num(row[columns.incomingAbsHumidity]),
+    rpm: num(row[columns.rpm]),
+    fil: num(row[columns.filter]),
+    filterIndexPct: num(row[columns.filterIndexPct]),
+    // Codes bruts VMI+ : aucune équivalence avec les vitesses manuelles 1/2/3 n'est supposée.
+    vmiSpeedRaw: num(row[columns.speed]),
+    debit: num(row[columns.airflow]),
+    vmiPwmRaw: num(row[columns.pwm]),
+    vit: null, boost: null, hol: null
   };
-  return ['st','sh','tExt','t1','h1','vmiAbsP0','te','he','vmiAbsP1','rpm','fil','debit','vmiSpeedRaw'].some(key=>record[key]!=null) ? record : null;
+  return Object.keys(record).some(key => !['t','rk','vit','boost','hol'].includes(key) && record[key] != null) ? record : null;
 }
 
 export const dayNumber = timestamp => {
