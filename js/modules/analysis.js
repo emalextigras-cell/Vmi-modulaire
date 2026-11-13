@@ -1,5 +1,6 @@
 /** Analyses statistiques communes (sans effet sur les commandes VMI). */
 import { absoluteHumidity } from './psychrometry.js';
+import { isPlausibleHumidity, isPlausibleTemperature } from './data-quality.js';
 
 export function median(values) {
   const sorted = values.filter(Number.isFinite).sort((a,b)=>a-b);
@@ -15,7 +16,7 @@ export function median(values) {
 export function analyzeSpeedLevels(data, minSamples = 10, targetRH = 50) {
   const rows = data.filter(r =>
     Number.isFinite(r.vit) && r.vit >= 1 && r.vit <= 3 &&
-    Number.isFinite(r.sh) && Number.isFinite(r.st)
+    Number.isFinite(r.sh) && isPlausibleHumidity(r.sh) && Number.isFinite(r.st) && isPlausibleTemperature(r.st)
   );
   const groups = [1,2,3].map(v => {
     const samples = rows.filter(r => r.vit === v);
