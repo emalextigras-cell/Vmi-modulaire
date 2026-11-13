@@ -84,5 +84,6 @@ export function renderCharts(data,selectedDate,$){
   seriesFor(data,'he','Air entrant',COLORS[2],r=>absoluteHumidity(r.te,r.he))],selectedDate,$);
  drawChart('chartTemp','Températures',[
   seriesFor(data,'st','Salon',COLORS[0]),seriesFor(data,'t1','Sonde résistances',COLORS[1]),seriesFor(data,'te','Air entrant',COLORS[2])],selectedDate,$);
- drawChart('chartRPM','Régime ventilateur',[seriesFor(data,'rpm','Régime',COLORS[0])],selectedDate,$);\n drawChart('chartDebit','Débit exporté VMI+ (valeur brute, unité non précisée)',[seriesFor(data,'debit','Débit exporté',COLORS[1])],selectedDate,$);
+ drawChart('chartRPM','Régime ventilateur',[seriesFor(data,'rpm','Régime',COLORS[0])],selectedDate,$);
+ drawChart('chartDebit','Débit exporté VMI+ (valeur brute, unité non précisée)',[seriesFor(data,'debit','Débit exporté',COLORS[1])],selectedDate,$);
 }
