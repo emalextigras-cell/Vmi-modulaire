@@ -8,7 +8,7 @@ import { median, analyzeSpeedLevels } from './modules/analysis.js';
 import { renderCharts } from './modules/charts.js';
 import { SVC_C, CH_C, SVC_T, CH_T, crc, frame, timeFrame, hex } from './modules/ble.js';
 import { armDownloadTimeout } from './modules/sync.js';
-import { parseCell, recFrom } from './modules/dataio.js';
+import { parseCell, recFrom, getColumnMapping } from './modules/dataio.js';
 import { fixClock } from './modules/clock-correction.js';
 import { absoluteHumidity, dewPoint, psychro, validTemp } from './modules/psychrometry.js';
 import { summarizeDataQuality, isPlausibleHumidity, isPlausibleTemperature } from './modules/data-quality.js';
@@ -374,7 +374,7 @@ $('fx').onchange=async e=>{
   const sheet=wb.Sheets[wb.SheetNames[0]];
   if(!sheet)throw new Error('Aucune feuille trouvée.');
   const rows=XLSX.utils.sheet_to_json(sheet,{header:1,raw:true,defval:''});
-  const recs=[];for(let i=4;i<rows.length;i++){const r=recFrom(rows[i]);if(r)recs.push(r)}
+  const columnMapping=getColumnMapping(rows[3]||[]);\n  const recs=[];for(let i=4;i<rows.length;i++){const r=recFrom(rows[i],XLSX,columnMapping);if(r)recs.push(r)}
   ingest(recs,'Import');
  }catch(err){showError('Import impossible : '+err.message)}
  e.target.value='';
