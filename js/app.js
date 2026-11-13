@@ -374,7 +374,8 @@ $('fx').onchange=async e=>{
   const sheet=wb.Sheets[wb.SheetNames[0]];
   if(!sheet)throw new Error('Aucune feuille trouvée.');
   const rows=XLSX.utils.sheet_to_json(sheet,{header:1,raw:true,defval:''});
-  const columnMapping=getColumnMapping(rows[3]||[]);\n  const recs=[];for(let i=4;i<rows.length;i++){const r=recFrom(rows[i],XLSX,columnMapping);if(r)recs.push(r)}
+  const columnMapping=getColumnMapping(rows[3]||[]);
+  const recs=[];for(let i=4;i<rows.length;i++){const r=recFrom(rows[i],XLSX,columnMapping);if(r)recs.push(r)}
   ingest(recs,'Import');
  }catch(err){showError('Import impossible : '+err.message)}
  e.target.value='';
