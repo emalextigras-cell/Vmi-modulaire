@@ -1,21 +1,4 @@
-/** Contrôle de plausibilité et réparation des températures historiques mal mises à l'échelle. */
-
-/* Certaines lignes de l'historique Bluetooth stockent les températures en dixièmes
-   (ex. 196 pour 19,6 °C). On ne corrige que les valeurs hors plage physique usuelle
-   qui correspondent à ce codage ; les valeurs d'humidité et les données brutes restent intactes. */
-export function normalizeTemperatureRecord(record) {
-  if (!record || typeof record !== 'object') return record;
-  let changed = false;
-  const next = { ...record };
-  for (const key of ['st', 't1', 'te']) {
-    const value = next[key];
-    if (Number.isFinite(value) && value > 60 && value <= 600) {
-      next[key] = value / 10;
-      changed = true;
-    }
-  }
-  return changed ? next : record;
-}
+/** Contrôle de plausibilité des mesures, sans modifier les valeurs reçues de la VMI+. */
 
 export const isPlausibleHumidity = value =>
   !Number.isFinite(value) || (value >= 0 && value <= 100);
