@@ -9,6 +9,7 @@ import { renderCharts } from './modules/charts.js';
 import { SVC_C, CH_C, SVC_T, CH_T, crc, frame, timeFrame, hex } from './modules/ble.js';
 import { armDownloadTimeout } from './modules/sync.js';
 import { parseCell, recFrom, dayNumber } from './modules/dataio.js';
+import { fixClock } from './modules/clock-correction.js';
 import { absoluteHumidity, dewPoint, psychro, validTemp } from './modules/psychrometry.js';
 
 'use strict';
@@ -295,30 +296,7 @@ document.querySelectorAll('[data-r]').forEach(b=>b.addEventListener('click',asyn
 const setCommandsDisabled=dis=>document.querySelectorAll('[data-r]').forEach(x=>x.disabled=dis);
 $('clk').onclick=setClock;
 
-/* ---------- Dates ----------
-   - l'export tableur inverse jour et mois dans les cellules de type date (jour ≤ 12) ;
-   - surtout, la VMI date parfois ses relevés avec une horloge fausse (par ex. avril 2018) pendant des périodes
-     entières. Son compteur « jours de fonctionnement » reste juste : on s'en sert pour retrouver la vraie date. */
-const dayNo=dayNumber;
-const modeOf=a=>{const m=new Map();let best,bc=0;for(const x of a){const c=(m.get(x)||0)+1;m.set(x,c);if(c>bc){bc=c;best=x}}return best};
-/* Corrige en place les relevés datés d'avant 2025. Retourne {fixed, kept}. */
-function fixClock(recs){
- const known=hist.concat(recs).filter(r=>r.t>=MIN_VALID&&Number.isFinite(r.d)&&new Date(r.t).getHours()>=10);
- const E0=modeOf(known.map(r=>dayNo(r.t)-r.d));
- const bad=recs.filter(r=>r.t<MIN_VALID).sort((a,b)=>a.t-b.t);
- let fixed=0;
- if(E0!==undefined&&bad.length){
-  const eps=[];let cur=[];
-  for(const r of bad){if(cur.length&&r.t-cur[cur.length-1].t>3*DAY){eps.push(cur);cur=[]}cur.push(r)}
-  if(cur.length)eps.push(cur);
-  for(const ep of eps){
-   const k=modeOf(ep.filter(r=>Number.isFinite(r.d)&&new Date(r.t).getHours()>=10).map(r=>E0+r.d-dayNo(r.t)));
-   if(k===undefined)continue;
-   for(const r of ep){const x=new Date(r.t);r.t=new Date(x.getFullYear(),x.getMonth(),x.getDate()+k,x.getHours(),x.getMinutes(),x.getSeconds()).getTime();r.fixed=true;fixed++}
-  }
- }
- return {fixed,kept:recs.filter(r=>r.t>=MIN_VALID)};
-}
+/* Correction des dates historiques isolée dans clock-correction.js. */
 function ingest(recs,label){
  const {fixed,kept}=fixClock(recs);
  const map=new Map(hist.map(r=>[r.t,r]));
