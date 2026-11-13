@@ -11,8 +11,10 @@ const VMI_PLUS_COLUMN = Object.freeze({
   rpm: 25,
   probeTemp: 40,
   probeHumidity: 41,
+  probeAbsHumidity: 42,
   incomingTemp: 43,
   incomingHumidity: 44,
+  incomingAbsHumidity: 45,
   salonTemp: 117,
   salonHumidity: 118
 });
@@ -44,8 +46,11 @@ export function recFrom(row, spreadsheet = window.XLSX) {
     sh: num(row[VMI_PLUS_COLUMN.salonHumidity]),
     t1: num(row[VMI_PLUS_COLUMN.probeTemp]),
     h1: num(row[VMI_PLUS_COLUMN.probeHumidity]),
+    // Valeurs « Hum abs » exportées par VMI+ : conservées brutes, unité affichée par VMI+ non confirmée.
+    vmiAbsP0: num(row[VMI_PLUS_COLUMN.probeAbsHumidity]),
     te: num(row[VMI_PLUS_COLUMN.incomingTemp]),
     he: num(row[VMI_PLUS_COLUMN.incomingHumidity]),
+    vmiAbsP1: num(row[VMI_PLUS_COLUMN.incomingAbsHumidity]),
     rpm: num(row[VMI_PLUS_COLUMN.rpm]),
     fil: num(row[VMI_PLUS_COLUMN.filter]),
     // Valeur brute : aucune correspondance avec les vitesses manuelles 1/2/3 n'est supposée.
@@ -56,7 +61,7 @@ export function recFrom(row, spreadsheet = window.XLSX) {
     boost: null,
     hol: null
   };
-  return ['st','sh','t1','h1','te','he','rpm','fil','debit','vmiSpeedRaw'].some(key=>record[key]!=null) ? record : null;
+  return ['st','sh','t1','h1','vmiAbsP0','te','he','vmiAbsP1','rpm','fil','debit','vmiSpeedRaw'].some(key=>record[key]!=null) ? record : null;
 }
 
 export const dayNumber = timestamp => {
