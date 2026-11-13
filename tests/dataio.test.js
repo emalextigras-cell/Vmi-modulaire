@@ -227,3 +227,28 @@ test('recFrom conserve les champs VMI+ supplémentaires du CSV réel', () => {
   assert.equal(record.systemStateRaw, 4);
   assert.equal(record.failureRaw, 0);
 });
+
+test('getColumnMapping reconnaît les en-têtes exacts du CSV VMI+ fourni', () => {
+  const headers = Array(124).fill('NA');
+  Object.assign(headers, {
+    0: 'Date', 1: 'Event', 2: 'Vol(m3)', 3: 'mode',
+    11: 'Duree fonc (j)', 13: 'Etat Systeme', 14: 'Panne',
+    20: 'Etat filtre', 21: 'Indice Encr (%)', 22: 'Vitesse',
+    23: 'Debit', 24: 'Cons Dp', 25: 'Tachy (rpm)',
+    26: 'PWM (1/1000)', 39: 'Tempext', 40: 'Temp',
+    41: 'Hum rel (%)', 42: 'Hum abs (%)',
+    43: 'Temp', 44: 'Hum rel (%)', 45: 'Hum abs (%)'
+  });
+  const mapping = getColumnMapping(headers);
+  assert.deepEqual(
+    Object.fromEntries(['date','event','volume','mode','durationDays','systemState','failure','filter','filterIndexPct','speed','airflow','consDp','rpm','pwm','outdoorTemp','probeTemp','probeHumidity','probeAbsHumidity','incomingTemp','incomingHumidity','incomingAbsHumidity','salonTemp','salonHumidity'].map(key => [key, mapping[key]])),
+    {
+      date: 0, event: 1, volume: 2, mode: 3, durationDays: 11,
+      systemState: 13, failure: 14, filter: 20, filterIndexPct: 21,
+      speed: 22, airflow: 23, consDp: 24, rpm: 25, pwm: 26,
+      outdoorTemp: 39, probeTemp: 40, probeHumidity: 41,
+      probeAbsHumidity: 42, incomingTemp: 43, incomingHumidity: 44,
+      incomingAbsHumidity: 45, salonTemp: 117, salonHumidity: 118
+    }
+  );
+});
