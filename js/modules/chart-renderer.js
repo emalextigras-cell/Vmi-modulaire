@@ -1,6 +1,7 @@
 /** Rendu SVG des graphiques et infobulles tactiles. */
 import { absoluteHumidity } from './psychrometry.js';
 import { pad, dayStart } from './date-utils.js';
+import { isPlausibleHumidity, isPlausibleTemperature } from './data-quality.js';
 const COLORS=['#286348','#c16b32','#356da5'];
 const fmtTick=(t,withHour)=>{const d=new Date(t);return withHour?`${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}h`:`${pad(d.getDate())}/${pad(d.getMonth()+1)}/${String(d.getFullYear()).slice(2)}`};
 const fmtPoint=(t,daily)=>{const d=new Date(t);return daily?`${pad(d.getHours())}:${pad(d.getMinutes())}`:`${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`};
@@ -78,12 +79,12 @@ function seriesFor(data,key,name,color,derive=null){
 }
 export function renderCharts(data,selectedDate,$){
  drawChart('chartRH','Humidité relative',[
-  seriesFor(data,'sh','Salon',COLORS[0]),seriesFor(data,'h1','Sonde résistances',COLORS[1]),seriesFor(data,'he','Air entrant',COLORS[2])],selectedDate,$);
+  seriesFor(data,'sh','Salon',COLORS[0],r=>isPlausibleHumidity(r.sh)?r.sh:null),seriesFor(data,'h1','Sonde résistances',COLORS[1],r=>isPlausibleHumidity(r.h1)?r.h1:null),seriesFor(data,'he','Air entrant',COLORS[2],r=>isPlausibleHumidity(r.he)?r.he:null)],selectedDate,$);
  drawChart('chartHA','Humidité absolue',[
   seriesFor(data,'sh','Salon',COLORS[0],r=>absoluteHumidity(r.st,r.sh)),
   seriesFor(data,'he','Air entrant',COLORS[2],r=>absoluteHumidity(r.te,r.he))],selectedDate,$);
  drawChart('chartTemp','Températures',[
-  seriesFor(data,'st','Salon',COLORS[0]),seriesFor(data,'t1','Sonde résistances',COLORS[1]),seriesFor(data,'te','Air entrant',COLORS[2])],selectedDate,$);
+  seriesFor(data,'st','Salon',COLORS[0],r=>isPlausibleTemperature(r.st)?r.st:null),seriesFor(data,'t1','Sonde résistances',COLORS[1],r=>isPlausibleTemperature(r.t1)?r.t1:null),seriesFor(data,'te','Air entrant',COLORS[2],r=>isPlausibleTemperature(r.te)?r.te:null)],selectedDate,$);
  drawChart('chartRPM','Régime ventilateur',[seriesFor(data,'rpm','Régime',COLORS[0])],selectedDate,$);
  drawChart('chartDebit','Débit exporté VMI+ (valeur brute, unité non précisée)',[seriesFor(data,'debit','Débit exporté',COLORS[1])],selectedDate,$);
 }
