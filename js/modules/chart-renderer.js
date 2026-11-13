@@ -76,7 +76,10 @@ function seriesFor(data,key,name,color,derive=null,invalid=null){
 export function renderCharts(data,selectedDate,$){
  drawChart('chartRH','Humidité relative',[
   seriesFor(data,'sh','Salon',COLORS[0],r=>isPlausibleHumidity(r.sh)?r.sh:null,r=>Number.isFinite(r.sh)&&!isPlausibleHumidity(r.sh)),seriesFor(data,'h1','Sonde résistances',COLORS[1],r=>isPlausibleHumidity(r.h1)?r.h1:null,r=>Number.isFinite(r.h1)&&!isPlausibleHumidity(r.h1)),seriesFor(data,'he','Air entrant',COLORS[2],r=>isPlausibleHumidity(r.he)?r.he:null,r=>Number.isFinite(r.he)&&!isPlausibleHumidity(r.he))],selectedDate,$);
- drawChart('chartHA','Humidité absolue',[
+ drawChart('chartVmiAbs','Humidité absolue exportée par VMI+ (valeurs brutes, unité à confirmer)',[
+  seriesFor(data,'vmiAbsP0','P0 sortie résistance',COLORS[1]),
+  seriesFor(data,'vmiAbsP1','P1 entrée air',COLORS[2])],selectedDate,$);
+ drawChart('chartHA','Humidité absolue calculée (g/m³)',[
   seriesFor(data,'sh','Salon',COLORS[0],r=>isPlausibleTemperature(r.st)&&isPlausibleHumidity(r.sh)?absoluteHumidity(r.st,r.sh):null,r=>(Number.isFinite(r.st)&&!isPlausibleTemperature(r.st))||(Number.isFinite(r.sh)&&!isPlausibleHumidity(r.sh))),
   seriesFor(data,'h1','Sonde résistances',COLORS[1],r=>isPlausibleTemperature(r.t1)&&isPlausibleHumidity(r.h1)?absoluteHumidity(r.t1,r.h1):null,r=>(Number.isFinite(r.t1)&&!isPlausibleTemperature(r.t1))||(Number.isFinite(r.h1)&&!isPlausibleHumidity(r.h1))),
   seriesFor(data,'he','Air entrant',COLORS[2],r=>isPlausibleTemperature(r.te)&&isPlausibleHumidity(r.he)?absoluteHumidity(r.te,r.he):null,r=>(Number.isFinite(r.te)&&!isPlausibleTemperature(r.te))||(Number.isFinite(r.he)&&!isPlausibleHumidity(r.he)))],selectedDate,$);
