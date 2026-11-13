@@ -1,7 +1,7 @@
 import { DAY, pad, localDay, dayStart, shiftDay, fmt, num, MIN_VALID, HIST_MAX } from './modules/date-utils.js';
 import { $, sleep, APP_VERSION } from './modules/core.js';
 import { createStore } from './modules/store.js';
-import { median } from './modules/analysis.js';
+import { median, analyzeSpeedLevels } from './modules/analysis.js';
 import { renderCharts } from './modules/charts.js';
 import { SVC_C, CH_C, SVC_T, CH_T, crc, frame, timeFrame, hex } from './modules/ble.js';
 import { armDownloadTimeout } from './modules/sync.js';
@@ -526,26 +526,19 @@ function selectedData(){
  if(daysSetting&&data.length){const end=data[data.length-1].t;return data.filter(r=>r.t>=end-daysSetting*86400000)}
  return data;
 }
-/* Comparaison prudente par vitesse (médianes) */
+/* Affichage de la comparaison calculée par le module d'analyse. */
 function analyzeSpeeds(data){
  const min=Number($('minSamples').value),target=Number($('targetRH').value);
- const rows=data.filter(r=>Number.isFinite(r.vit)&&r.vit>=1&&r.vit<=3&&Number.isFinite(r.sh)&&Number.isFinite(r.st));
- const groups=[1,2,3].map(v=>{
-  const a=rows.filter(r=>r.vit===v);
-  return {v,n:a.length,rh:median(a.map(r=>r.sh)),ha:median(a.map(r=>absoluteHumidity(r.st,r.sh))),delta:median(a.map(r=>{const x=absoluteHumidity(r.st,r.sh),y=absoluteHumidity(r.te,r.he);return x!=null&&y!=null?x-y:null}))};
- });
+ const result=analyzeSpeedLevels(data,min,target);
+ const {groups}=result;
  let html='<table><thead><tr><th>Vitesse</th><th>Relevés</th><th>HR médiane</th><th>HA salon</th><th>Écart HA</th></tr></thead><tbody>';
  for(const g of groups)html+=`<tr><td>${g.v}</td><td>${g.n}</td><td>${g.rh==null?'–':fmt(g.rh)+' %'}</td><td>${g.ha==null?'–':fmt(g.ha)+' g/m³'}</td><td>${g.delta==null?'–':fmt(g.delta)+' g/m³'}</td></tr>`;
  html+='</tbody></table>';
- const sufficient=groups.filter(g=>g.n>=min);
  let advice='';
- if(!rows.length)advice='Aucun relevé de la période ne contient la vitesse : seuls les relevés de l\'enregistrement en direct l\'enregistrent. Choisis la source « En direct » une fois que quelques relevés ont été pris.';
- else if(!sufficient.length)advice=`Il faut au moins ${min} relevés avec la vitesse identifiée pour chaque comparaison. Continue l'enregistrement en direct.`;
- else{
-  const best=sufficient.filter(g=>g.rh!=null&&g.rh<=target).sort((a,b)=>a.v-b.v)[0];
-  if(best)advice=`Parmi les vitesses disposant d'au moins ${min} relevés, la vitesse ${best.v} est la plus basse dont l'humidité relative médiane observée est inférieure ou égale à ${target} %. C'est une piste à vérifier sur des périodes comparables, pas une preuve d'optimum.`;
-  else advice=`Aucune vitesse suffisamment documentée ne présente une humidité relative médiane inférieure ou égale à ${target} %. Vérifie aussi les sources d'humidité et la représentativité des périodes.`;
- }
+ if(result.status==='no-speed-data')advice='Aucun relevé de la période ne contient une vitesse manuelle identifiée : les valeurs brutes importées de VMI+ ne sont pas assimilées aux niveaux manuels 1/2/3. Choisis la source « En direct » pour comparer les vitesses manuelles.';
+ else if(result.status==='insufficient')advice=`Il faut au moins ${min} relevés avec la vitesse identifiée pour chaque comparaison. Continue l'enregistrement en direct.`;
+ else if(result.status==='best-found')advice=`Parmi les vitesses disposant d'au moins ${min} relevés, la vitesse ${result.bestSpeed} est la plus basse dont l'humidité relative médiane observée est inférieure ou égale à ${target} %. C'est une piste à vérifier sur des périodes comparables, pas une preuve d'optimum.`;
+ else advice=`Aucune vitesse suffisamment documentée ne présente une humidité relative médiane inférieure ou égale à ${target} %. Vérifie aussi les sources d'humidité et la représentativité des périodes.`;
  $('speedAnalysis').innerHTML=html+`<div class="advice">${advice}</div>`;
 }
 function renderRecommendation(data){
