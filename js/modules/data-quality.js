@@ -3,7 +3,7 @@ export const isPlausibleHumidity = value =>
   !Number.isFinite(value) || (value >= 0 && value <= 100);
 
 export const isPlausibleTemperature = value =>
-  !Number.isFinite(value) || (value > -40 && value < 80);
+  !Number.isFinite(value) || (value >= -30 && value <= 60);
 
 const FIELDS = [
   { key: 'sh', label: 'Humidité salon', type: 'humidity' },
