@@ -81,8 +81,8 @@ export function renderCharts(data,selectedDate,$){
  drawChart('chartRH','Humidité relative',[
   seriesFor(data,'sh','Salon',COLORS[0],r=>isPlausibleHumidity(r.sh)?r.sh:null),seriesFor(data,'h1','Sonde résistances',COLORS[1],r=>isPlausibleHumidity(r.h1)?r.h1:null),seriesFor(data,'he','Air entrant',COLORS[2],r=>isPlausibleHumidity(r.he)?r.he:null)],selectedDate,$);
  drawChart('chartHA','Humidité absolue',[
-  seriesFor(data,'sh','Salon',COLORS[0],r=>absoluteHumidity(r.st,r.sh)),
-  seriesFor(data,'he','Air entrant',COLORS[2],r=>absoluteHumidity(r.te,r.he))],selectedDate,$);
+  seriesFor(data,'sh','Salon',COLORS[0],r=>isPlausibleTemperature(r.st)&&isPlausibleHumidity(r.sh)?absoluteHumidity(r.st,r.sh):null),
+  seriesFor(data,'he','Air entrant',COLORS[2],r=>isPlausibleTemperature(r.te)&&isPlausibleHumidity(r.he)?absoluteHumidity(r.te,r.he):null)],selectedDate,$);
  drawChart('chartTemp','Températures',[
   seriesFor(data,'st','Salon',COLORS[0],r=>isPlausibleTemperature(r.st)?r.st:null),seriesFor(data,'t1','Sonde résistances',COLORS[1],r=>isPlausibleTemperature(r.t1)?r.t1:null),seriesFor(data,'te','Air entrant',COLORS[2],r=>isPlausibleTemperature(r.te)?r.te:null)],selectedDate,$);
  drawChart('chartRPM','Régime ventilateur',[seriesFor(data,'rpm','Régime',COLORS[0])],selectedDate,$);
