@@ -46,7 +46,7 @@ let manualDisconnect=false,commandQueue=Promise.resolve(),manualCommandPending=f
 let meta={},cur={},lastSeen={},live=[],hist=[],source='hist',selectedDate=null,daysSetting=30;
 let logLines=[],dlFrames=0;
 let download={on:false,rows:[],buf:'',total:0,sigs:new Set(),got:false,lastPacket:0,timeout:null};
-const DB='VMI_PUREVENT_DB',STORE='data';
+const DB='VMI_PUREVENT_DB_TEST',STORE='data';
 const { get: dbGet, set: dbSet } = createStore({ databaseName: DB, storeName: STORE, onError: message => log(message) });
 const connected=()=>!!(chC&&dev&&dev.gatt&&dev.gatt.connected);
 
@@ -569,8 +569,8 @@ $('themeBtn').onclick=()=>{
  const root=document.documentElement;
  const dark=root.dataset.theme?root.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;
  root.dataset.theme=dark?'light':'dark';
- try{localStorage.setItem('vmi_theme',root.dataset.theme)}catch(e){}
+ try{localStorage.setItem('vmi_modulaire_theme',root.dataset.theme)}catch(e){}
 };
-try{const theme=localStorage.getItem('vmi_theme');if(theme)document.documentElement.dataset.theme=theme}catch(e){}
+try{const theme=localStorage.getItem('vmi_modulaire_theme');if(theme)document.documentElement.dataset.theme=theme}catch(e){}
 if(!navigator.bluetooth)showError('Web Bluetooth indisponible : ouvre cette page en HTTPS dans Chrome sur Android.');
 init();
