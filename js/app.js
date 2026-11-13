@@ -1,5 +1,5 @@
 import { DAY, pad, localDay, dayStart, shiftDay, fmt, num, MIN_VALID, HIST_MAX } from './modules/date-utils.js';
-import { pruneHistory } from './modules/history.js';
+import { pruneHistory, mergeImportedHistory } from './modules/history.js';
 import { createBackupSnapshot, mergeBackupData } from './modules/backup.js';
 import { $, sleep, APP_VERSION } from './modules/core.js';
 import { createStore } from './modules/store.js';
@@ -299,9 +299,7 @@ $('clk').onclick=setClock;
 /* Correction des dates historiques isolée dans clock-correction.js. */
 function ingest(recs,label){
  const {fixed,kept}=fixClock(recs);
- const map=new Map(hist.map(r=>[r.t,r]));
- kept.forEach(r=>map.set(r.t,r));
- hist=[...map.values()].sort((a,b)=>a.t-b.t);
+ hist=mergeImportedHistory(hist,kept);
  pruneHist();dbSet('hist',hist);source='hist';selectedDate=null;$('dayPicker').value='';
  const lost=recs.length-kept.length;
  $('importInfo').textContent=`${label} : ${recs.length} relevés lus${fixed?`, dont ${fixed} dont la date a été corrigée (horloge de la VMI fausse)`:''}${lost?`, ${lost} ignorés (date invalide impossible à corriger)`:''}.`;
