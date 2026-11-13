@@ -53,3 +53,23 @@ test('analyseSpeedLevels ignore les humidités et températures aberrantes', asy
   assert.equal(result.sampleCount, 1);
   assert.equal(result.groups[0].n, 1);
 });
+
+test('les valeurs extrêmes compatibles avec un défaut de capteur sont rejetées', () => {
+  // Les exports fournis restent entre 1,4 et 28,4 °C.
+  // La plage élargie garde une marge pour l'air extérieur froid et chaud.
+  assert.equal(isPlausibleTemperature(28.4), true);
+  assert.equal(isPlausibleTemperature(0), true);
+  assert.equal(isPlausibleTemperature(-15), true);
+  assert.equal(isPlausibleTemperature(79), false);
+  assert.equal(isPlausibleTemperature(-35), false);
+});
+
+test('un pic de température à 79 °C est compté comme anomalie', () => {
+  const result = summarizeDataQuality([
+    { st: 19.7, sh: 62 },
+    { st: 79, sh: 62 },
+    { st: 17.6, sh: 63 }
+  ]);
+  assert.equal(result.affectedRecords, 1);
+  assert.deepEqual(result.fields.map(field => field.key), ['st']);
+});
