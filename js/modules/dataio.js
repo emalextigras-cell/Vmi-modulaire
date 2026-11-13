@@ -2,11 +2,12 @@
 import { DAY, pad, num } from './date-utils.js';
 
 // Index des colonnes observés dans l'export CSV VMI+ utilisé pour la v13.
-// La colonne 22 est explicitement nommée « Vitesse » dans l'en-tête de l'export.
+// Les intitulés « Vitesse » et « Debit » sont conservés comme données brutes.
 const VMI_PLUS_COLUMN = Object.freeze({
   durationDays: 11,
   filter: 20,
   speed: 22,
+  airflow: 23,
   rpm: 25,
   probeTemp: 40,
   probeHumidity: 41,
@@ -47,15 +48,15 @@ export function recFrom(row, spreadsheet = window.XLSX) {
     he: num(row[VMI_PLUS_COLUMN.incomingHumidity]),
     rpm: num(row[VMI_PLUS_COLUMN.rpm]),
     fil: num(row[VMI_PLUS_COLUMN.filter]),
-    // Valeur brute conservée, sans l'assimiler aux vitesses manuelles 1/2/3 de l'interface.
+    // Valeur brute : aucune correspondance avec les vitesses manuelles 1/2/3 n'est supposée.
     vmiSpeedRaw: num(row[VMI_PLUS_COLUMN.speed]),
-    // Valeur de la colonne « Debit » de l'export ; aucune unité n'est supposée.
-    debit: num(row[23]),
+    // Valeur « Debit » de l'export VMI+ ; l'unité n'est pas indiquée dans le fichier.
+    debit: num(row[VMI_PLUS_COLUMN.airflow]),
     vit: null,
     boost: null,
     hol: null
   };
-  return ['st','sh','t1','h1','te','he','rpm','fil'].some(key=>record[key]!=null) ? record : null;
+  return ['st','sh','t1','h1','te','he','rpm','fil','debit','vmiSpeedRaw'].some(key=>record[key]!=null) ? record : null;
 }
 
 export const dayNumber = timestamp => {
