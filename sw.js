@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vmi-purevent-v13-modular-baseline-14';
+const CACHE_NAME = 'vmi-purevent-v13-modular-baseline-15';
 const APP_SHELL = [
   './',
   './index.html',
@@ -12,6 +12,7 @@ const APP_SHELL = [
   './js/modules/ble.js',
   './js/modules/sync.js',
   './js/modules/dataio.js',
+  './js/modules/legacy-migration.js',
   './js/modules/date-utils.js',
   './js/modules/bluetooth-protocol.js',
   './js/modules/psychrometry.js',
