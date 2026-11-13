@@ -21,7 +21,7 @@ export function fillMissing(points){
   }
   i=j;
  }
- return out.filter(p=>p.v!=null);
+ return out.filter(p=>p.v!=null||p.blocked);
 }
 function drawChart(id,title,series,selectedDate,$){
  const el=$(id),all=series.flatMap(s=>s.points.filter(p=>Number.isFinite(p.v)));
@@ -47,7 +47,7 @@ function drawChart(id,title,series,selectedDate,$){
   const sel=pts.filter((p,i)=>i%step===0||i===pts.length-1);
   let d='',prev=null,segLen=0,dots='';
   sel.forEach(p=>{
-   if(prev===null||p.t-prev.t>gap){if(segLen===1)dots+=`<circle cx="${X(prev.t).toFixed(1)}" cy="${Y(prev.v).toFixed(1)}" r="1.8" fill="${s.color}"/>`;d+=`M${X(p.t).toFixed(1)} ${Y(p.v).toFixed(1)}`;segLen=1}
+   const blockedBetween=prev!==null&&s.points.some(q=>q.blocked&&q.t>prev.t&&q.t<p.t);\n   if(prev===null||p.t-prev.t>gap||blockedBetween){if(segLen===1)dots+=`<circle cx="${X(prev.t).toFixed(1)}" cy="${Y(prev.v).toFixed(1)}" r="1.8" fill="${s.color}"/>`;d+=`M${X(p.t).toFixed(1)} ${Y(p.v).toFixed(1)}`;segLen=1}
    else{d+=`L${X(p.t).toFixed(1)} ${Y(p.v).toFixed(1)}`;segLen++}
    prev=p;
   });
