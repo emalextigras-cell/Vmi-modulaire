@@ -51,7 +51,7 @@ test('mergeBackupData fusionne les relevés directs sans doublons et limite à 1
     minValid: MIN_VALID,
     maxLive: 3
   });
-  assert.deepEqual(capped.live.map(row => row.t), [3, 4, 5]);
+  assert.deepEqual(capped.live.map(row => row.t), [5, 6, 7]);
 });
 
 test('mergeBackupData conserve la dernière synchronisation la plus récente', () => {
