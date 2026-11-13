@@ -49,6 +49,8 @@ export function recFrom(row, spreadsheet = window.XLSX) {
     fil: num(row[VMI_PLUS_COLUMN.filter]),
     // Valeur brute conservée, sans l'assimiler aux vitesses manuelles 1/2/3 de l'interface.
     vmiSpeedRaw: num(row[VMI_PLUS_COLUMN.speed]),
+    // Valeur de la colonne « Debit » de l'export ; aucune unité n'est supposée.
+    debit: num(row[23]),
     vit: null,
     boost: null,
     hol: null
