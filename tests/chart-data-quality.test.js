@@ -22,6 +22,7 @@ test('une mesure rejetée comme aberrante reste un trou dans la courbe', () => {
   const result = fillMissing(points);
   assert.deepEqual(result, [
     { t: 0, v: 10, blocked: false },
+    { t: 60_000, v: null, blocked: true },
     { t: 120_000, v: 20, blocked: false }
   ]);
 });
@@ -35,5 +36,6 @@ test('une mesure aberrante au milieu de plusieurs absences bloque toute interpol
     { t: 240_000, v: 20 }
   ];
   const result = fillMissing(points);
-  assert.deepEqual(result.map(point => point.v), [10, null, null, null, 20]);
+  assert.deepEqual(result.map(point => point.v), [10, null, 20]);
+  assert.equal(result[1].blocked, true);
 });
