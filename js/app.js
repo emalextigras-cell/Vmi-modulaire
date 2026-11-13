@@ -8,7 +8,7 @@ import { median, analyzeSpeedLevels } from './modules/analysis.js';
 import { renderCharts } from './modules/charts.js';
 import { SVC_C, CH_C, SVC_T, CH_T, crc, frame, timeFrame, hex } from './modules/ble.js';
 import { armDownloadTimeout } from './modules/sync.js';
-import { parseCell, recFrom, dayNumber } from './modules/dataio.js';
+import { parseCell, recFrom } from './modules/dataio.js';
 import { fixClock } from './modules/clock-correction.js';
 import { absoluteHumidity, dewPoint, psychro, validTemp } from './modules/psychrometry.js';
 
