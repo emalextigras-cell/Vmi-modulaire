@@ -1,6 +1,7 @@
 import { DAY, pad, localDay, dayStart, shiftDay, fmt, num, MIN_VALID, HIST_MAX } from './modules/date-utils.js';
 import { $, sleep, APP_VERSION } from './modules/core.js';
 import { createStore } from './modules/store.js';
+import { fromOldRow } from './modules/legacy-migration.js';
 import { median, analyzeSpeedLevels } from './modules/analysis.js';
 import { renderCharts } from './modules/charts.js';
 import { SVC_C, CH_C, SVC_T, CH_T, crc, frame, timeFrame, hex } from './modules/ble.js';
@@ -51,9 +52,7 @@ function log(s){logLines.push(`${new Date().toLocaleTimeString('fr-FR')} ${s}`);
 $('logDetails').addEventListener('toggle',()=>{if($('logDetails').open)renderLog()});
 function setStatus(s,isConnected=false){$('st').textContent=s;$('bleState').textContent=isConnected?'Connecté':'Déconnecté';$('conn').disabled=isConnected;$('disc').disabled=!isConnected}
 
-/* Reprise des données des anciennes versions (heure affichée mémorisée comme de l'UTC) */
-const wallUtcToLocal=t=>{const d=new Date(t);return new Date(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate(),d.getUTCHours(),d.getUTCMinutes(),d.getUTCSeconds()).getTime()};
-const fromOldRow=a=>({t:wallUtcToLocal(a[0]),st:a[1],sh:a[2],t1:a[3],h1:a[4],te:a[5],he:a[6],rpm:a[7],fil:a[8],vit:null,boost:null,hol:null});
+/* La lecture IndexedDB ancienne reste ici ; la conversion des lignes est isolée. */
 async function readOldDatabase(){
  try{
   if(!indexedDB.databases)return null;
