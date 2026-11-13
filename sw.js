@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vmi-purevent-v13-modular-baseline-18';
+const CACHE_NAME = 'vmi-purevent-v13-modular-baseline-19';
 const APP_SHELL = [
   './',
   './index.html',
