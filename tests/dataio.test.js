@@ -157,8 +157,10 @@ test('recFrom lit correctement une ligne représentative de l’export VMI+ rée
   row[25] = '1376';
   row[40] = '17,7';
   row[41] = '73';
+  row[42] = '09,05';
   row[43] = '17,6';
   row[44] = '74';
+  row[45] = '09,12';
   row[117] = '019,7';
   row[118] = '062,0';
 
