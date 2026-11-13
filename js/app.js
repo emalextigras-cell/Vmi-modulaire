@@ -11,7 +11,7 @@ import { armDownloadTimeout } from './modules/sync.js';
 import { parseCell, recFrom } from './modules/dataio.js';
 import { fixClock } from './modules/clock-correction.js';
 import { absoluteHumidity, dewPoint, psychro, validTemp } from './modules/psychrometry.js';
-import { summarizeDataQuality, isPlausibleHumidity, isPlausibleTemperature, normalizeTemperatureRecord } from './modules/data-quality.js';
+import { summarizeDataQuality, isPlausibleHumidity, isPlausibleTemperature } from './modules/data-quality.js';
 
 'use strict';
 
@@ -82,14 +82,6 @@ async function init(){
   if(!hist.length){try{const x=JSON.parse(localStorage.getItem('vmi_hist')||'[]');if(Array.isArray(x))hist=x.map(fromOldRow)}catch(e){}}
   if(!live.length){try{const x=JSON.parse(localStorage.getItem('vmi_live')||'[]');if(Array.isArray(x))live=x}catch(e){}}
   await dbSet('migrated',true);
- }
- // Répare aussi l'historique déjà présent dans IndexedDB (pas seulement les imports/restaurations).
- const repairedHistory = hist.filter(r => normalizeTemperatureRecord(r) !== r).length;
- const repairedLive = live.filter(r => normalizeTemperatureRecord(r) !== r).length;
- hist = hist.map(normalizeTemperatureRecord);
- live = live.map(normalizeTemperatureRecord);
- if (repairedHistory || repairedLive) {
-  log(`Correction d'échelle appliquée : ${repairedHistory} relevés historiques et ${repairedLive} relevés directs.`);
  }
  /* Les relevés datés d'avant 2025 ont une date fausse (horloge de la VMI) et ne peuvent pas être corrigés
     sans leur compteur de jours : on les retire, un nouvel import ou téléchargement les rétablit avec la bonne date. */
@@ -422,7 +414,7 @@ function makeBackup(){return createBackupSnapshot({hist,live,meta})}
 function restoreBackup(obj){
  const previousLastSync=meta.lastSync;
  const result=mergeBackupData({backup:obj,currentHist:hist,currentLive:live,currentMeta:meta,minValid:MIN_VALID});
- hist=result.hist.map(normalizeTemperatureRecord);live=result.live;meta=result.meta;
+ hist=result.hist;live=result.live;meta=result.meta;
  pruneHist();dbSet('hist',hist);dbSet('live',live);
  if(meta.lastSync!==previousLastSync)dbSet('meta',meta);
  return {add:result.addedHistory,addL:result.addedLive};
