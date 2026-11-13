@@ -20,6 +20,7 @@ test('recFrom conserve vitesse brute et débit exporté sans inventer leurs unit
   row[22] = '3';
   row[23] = '121';
   row[25] = '1376';
+  row[39] = '17,6';
   row[40] = '17,7';
   row[41] = '73';
   row[42] = '09,05';
@@ -37,6 +38,7 @@ test('recFrom conserve vitesse brute et débit exporté sans inventer leurs unit
   assert.equal(record.rpm, 1376);
   assert.equal(record.st, 19.7);
   assert.equal(record.sh, 62);
+  assert.equal(record.tExt, 17.6);
   assert.equal(record.te, 17.6);
   assert.equal(record.he, 74);
 });
@@ -155,6 +157,7 @@ test('recFrom lit correctement une ligne représentative de l’export VMI+ rée
   row[22] = '3';
   row[23] = '121';
   row[25] = '1376';
+  row[39] = '17,6';
   row[40] = '17,7';
   row[41] = '73';
   row[42] = '09,05';
@@ -180,5 +183,6 @@ test('recFrom lit correctement une ligne représentative de l’export VMI+ rée
   assert.equal(record.vmiAbsP1, 9.12);
   assert.equal(record.st, 19.7);
   assert.equal(record.sh, 62);
+  assert.equal(record.tExt, 17.6);
   assert.equal(record.vit, null);
 });
