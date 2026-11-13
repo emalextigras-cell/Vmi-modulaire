@@ -46,3 +46,26 @@ test('recFrom laisse la vitesse inconnue si la colonne est vide', () => {
   assert.ok(record);
   assert.equal(record.vit, null);
 });
+
+import { analyzeSpeedLevels } from '../js/modules/analysis.js';
+
+test('analyzeSpeedLevels compare les vitesses manuelles identifiées et ignore les valeurs brutes VMI+', () => {
+  const data = [
+    { vit: 1, sh: 48, st: 20, te: 15, he: 60 },
+    { vit: 1, sh: 52, st: 20, te: 15, he: 60 },
+    { vit: 2, sh: 55, st: 20, te: 15, he: 60 },
+    { vit: 2, sh: 57, st: 20, te: 15, he: 60 },
+    { vit: 3, sh: 65, st: 20, te: 15, he: 60 },
+    { vit: null, vmiSpeedRaw: 3, sh: 40, st: 20, te: 15, he: 60 }
+  ];
+  const result = analyzeSpeedLevels(data, 2, 55);
+  assert.equal(result.sampleCount, 5);
+  assert.equal(result.status, 'best-found');
+  assert.equal(result.bestSpeed, 1);
+  assert.deepEqual(result.groups.map(g => g.n), [2, 2, 1]);
+});
+
+test('analyzeSpeedLevels signale un échantillon insuffisant', () => {
+  const result = analyzeSpeedLevels([{ vit: 1, sh: 50, st: 20 }], 5, 50);
+  assert.equal(result.status, 'insufficient');
+});
