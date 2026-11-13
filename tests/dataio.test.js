@@ -98,3 +98,31 @@ test('fromOldRow convertit les colonnes historiques sans inventer une vitesse', 
   assert.equal(record.fil, 90);
   assert.equal(record.vit, null);
 });
+
+import { pruneHistory } from '../js/modules/history.js';
+
+test('pruneHistory retire les lignes vides et conserve les relevés exploitables', () => {
+  const rows = [
+    { t: 1 },
+    { t: 2, sh: 50 },
+    { t: 3, te: 12 },
+    { t: 4, rpm: 900 }
+  ];
+  const result = pruneHistory(rows, 10);
+  assert.deepEqual(result.records.map(r => r.t), [2, 3, 4]);
+  assert.equal(result.removed, 0);
+});
+
+test('pruneHistory applique la limite en gardant les relevés les plus récents', () => {
+  const rows = [1, 2, 3, 4].map(t => ({ t, sh: 50 }));
+  const result = pruneHistory(rows, 2);
+  assert.deepEqual(result.records.map(r => r.t), [3, 4]);
+  assert.equal(result.removed, 2);
+});
+
+test('pruneHistory ne modifie pas le tableau source', () => {
+  const rows = [{ t: 1, sh: 50 }, { t: 2, sh: 51 }];
+  const result = pruneHistory(rows, 1);
+  assert.equal(rows.length, 2);
+  assert.deepEqual(result.records.map(r => r.t), [2]);
+});
