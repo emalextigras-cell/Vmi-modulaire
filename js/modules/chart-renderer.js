@@ -2,7 +2,7 @@
 import { absoluteHumidity } from './psychrometry.js';
 import { pad, dayStart } from './date-utils.js';
 import { isPlausibleHumidity, isPlausibleTemperature } from './data-quality.js';
-const COLORS=['#286348','#c16b32','#356da5'];
+const COLORS=['#286348','#c16b32','#356da5','#8056a8'];
 const fmtTick=(t,withHour)=>{const d=new Date(t);return withHour?`${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}h`:`${pad(d.getDate())}/${pad(d.getMonth()+1)}/${String(d.getFullYear()).slice(2)}`};
 const fmtPoint=(t,daily)=>{const d=new Date(t);return daily?`${pad(d.getHours())}:${pad(d.getMinutes())}`:`${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`};
 /* Conserve les relevés tels quels : aucune valeur manquante n'est interpolée.
@@ -84,7 +84,7 @@ export function renderCharts(data,selectedDate,$){
   seriesFor(data,'h1','Sonde résistances',COLORS[1],r=>isPlausibleTemperature(r.t1)&&isPlausibleHumidity(r.h1)?absoluteHumidity(r.t1,r.h1):null,r=>(Number.isFinite(r.t1)&&!isPlausibleTemperature(r.t1))||(Number.isFinite(r.h1)&&!isPlausibleHumidity(r.h1))),
   seriesFor(data,'he','Air entrant',COLORS[2],r=>isPlausibleTemperature(r.te)&&isPlausibleHumidity(r.he)?absoluteHumidity(r.te,r.he):null,r=>(Number.isFinite(r.te)&&!isPlausibleTemperature(r.te))||(Number.isFinite(r.he)&&!isPlausibleHumidity(r.he)))],selectedDate,$);
  drawChart('chartTemp','Températures',[
-  seriesFor(data,'st','Salon',COLORS[0],r=>isPlausibleTemperature(r.st)?r.st:null,r=>Number.isFinite(r.st)&&!isPlausibleTemperature(r.st)),seriesFor(data,'t1','Sonde résistances',COLORS[1],r=>isPlausibleTemperature(r.t1)?r.t1:null,r=>Number.isFinite(r.t1)&&!isPlausibleTemperature(r.t1)),seriesFor(data,'te','Air entrant',COLORS[2],r=>isPlausibleTemperature(r.te)?r.te:null,r=>Number.isFinite(r.te)&&!isPlausibleTemperature(r.te))],selectedDate,$);
+  seriesFor(data,'st','Salon',COLORS[0],r=>isPlausibleTemperature(r.st)?r.st:null,r=>Number.isFinite(r.st)&&!isPlausibleTemperature(r.st)),seriesFor(data,'tExt','Extérieure VMI+',COLORS[3],r=>isPlausibleTemperature(r.tExt)?r.tExt:null,r=>Number.isFinite(r.tExt)&&!isPlausibleTemperature(r.tExt)),seriesFor(data,'t1','P0 sortie résistance',COLORS[1],r=>isPlausibleTemperature(r.t1)?r.t1:null,r=>Number.isFinite(r.t1)&&!isPlausibleTemperature(r.t1)),seriesFor(data,'te','P1 entrée air',COLORS[2],r=>isPlausibleTemperature(r.te)?r.te:null,r=>Number.isFinite(r.te)&&!isPlausibleTemperature(r.te))],selectedDate,$);
  drawChart('chartRPM','Régime ventilateur',[seriesFor(data,'rpm','Régime',COLORS[0])],selectedDate,$);
  drawChart('chartDebit','Débit exporté VMI+ (valeur brute, unité non précisée)',[seriesFor(data,'debit','Débit exporté',COLORS[1])],selectedDate,$);
 }
