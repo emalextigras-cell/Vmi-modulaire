@@ -360,7 +360,7 @@ function loadXLSX(){
  if(window.XLSX)return Promise.resolve();
  if(!xlsxPromise)xlsxPromise=(async()=>{
   for(const u of XLSX_URLS){try{await loadScript(u);if(window.XLSX)return}catch(e){log('SheetJS : '+e.message+' ('+u+')')}}
-  throw new Error('Impossible de charger la bibliothèque Excel : l’import .xlsx demande une connexion internet (une seule fois). Le téléchargement par Bluetooth n’en a pas besoin.');
+  throw new Error('Impossible de charger la bibliothèque de lecture : l’import CSV/Excel demande une connexion internet (une seule fois). Le téléchargement par Bluetooth n’en a pas besoin.');
  })().catch(e=>{xlsxPromise=null;throw e});
  return xlsxPromise;
 }
@@ -401,11 +401,11 @@ const fmtLocal=t=>{const d=new Date(t);return `${d.getFullYear()}-${pad(d.getMon
 const fmtShort=t=>{const d=new Date(t);return `${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`};
 const decFr=v=>(v==null||!Number.isFinite(v))?'':String(Math.round(v*100)/100).replace('.',',');
 function histToCsv(rows){
- const head=['date_heure','salon_temp_C','salon_HR_pct','salon_HA_g_m3','salon_rosee_C','sonde1_temp_C','sonde1_HR_pct','air_entrant_temp_C','air_entrant_HR_pct','air_entrant_HA_g_m3','regime_tr_min','filtre_jours_usage','jours_fonctionnement'];
+ const head=['date_heure','salon_temp_C','salon_HR_pct','salon_HA_g_m3','salon_rosee_C','sonde1_temp_C','sonde1_HR_pct','air_entrant_temp_C','air_entrant_HR_pct','air_entrant_HA_g_m3','regime_tr_min','filtre_jours_usage','jours_fonctionnement','debit_vmi_plus_valeur_brute','vitesse_vmi_plus_code_brut'];
  const lines=[head.join(';')];
  for(const r of rows){
   const p=psychro({st:r.st,sh:r.sh,te:r.te,he:r.he});
-  lines.push([fmtLocal(r.t),decFr(r.st),decFr(r.sh),decFr(p.haIn),decFr(p.dewIn),decFr(r.t1),decFr(r.h1),decFr(r.te),decFr(r.he),decFr(p.haOut),decFr(r.rpm),decFr(r.fil),decFr(r.d)].join(';'));
+  lines.push([fmtLocal(r.t),decFr(r.st),decFr(r.sh),decFr(p.haIn),decFr(p.dewIn),decFr(r.t1),decFr(r.h1),decFr(r.te),decFr(r.he),decFr(p.haOut),decFr(r.rpm),decFr(r.fil),decFr(r.d),decFr(r.debit),decFr(r.vmiSpeedRaw)].join(';'));
  }
  return lines.join('\r\n');
 }
