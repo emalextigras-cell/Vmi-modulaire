@@ -1,5 +1,6 @@
 import { DAY, pad, localDay, dayStart, shiftDay, fmt, num, MIN_VALID, HIST_MAX } from './modules/date-utils.js';
 import { pruneHistory } from './modules/history.js';
+import { createBackupSnapshot, mergeBackupData } from './modules/backup.js';
 import { $, sleep, APP_VERSION } from './modules/core.js';
 import { createStore } from './modules/store.js';
 import { fromOldRow } from './modules/legacy-migration.js';
@@ -432,17 +433,14 @@ function histToCsv(rows){
  }
  return lines.join('\r\n');
 }
-function makeBackup(){return {app:'vmi-purevent',version:1,exportedAt:new Date().toISOString(),hist,live,meta}}
+function makeBackup(){return createBackupSnapshot({hist,live,meta})}
 function restoreBackup(obj){
- if(!obj||obj.app!=='vmi-purevent'||!Array.isArray(obj.hist))throw new Error('Fichier de sauvegarde non reconnu.');
- const map=new Map(hist.map(r=>[r.t,r]));let add=0;
- for(const r of obj.hist){if(r&&Number.isFinite(r.t)&&r.t>=MIN_VALID&&!map.has(r.t)){map.set(r.t,r);add++}}
- hist=[...map.values()].sort((a,b)=>a.t-b.t);
- let addL=0;
- if(Array.isArray(obj.live)){const seen=new Set(live.map(r=>r.t));for(const r of obj.live){if(r&&Number.isFinite(r.t)&&!seen.has(r.t)){live.push(r);seen.add(r.t);addL++}}live.sort((a,b)=>a.t-b.t);if(live.length>10000)live=live.slice(-10000)}
+ const previousLastSync=meta.lastSync;
+ const result=mergeBackupData({backup:obj,currentHist:hist,currentLive:live,currentMeta:meta,minValid:MIN_VALID});
+ hist=result.hist;live=result.live;meta=result.meta;
  pruneHist();dbSet('hist',hist);dbSet('live',live);
- if(obj.meta&&obj.meta.lastSync&&(!meta.lastSync||obj.meta.lastSync>meta.lastSync)){meta.lastSync=obj.meta.lastSync;dbSet('meta',meta)}
- return {add,addL};
+ if(meta.lastSync!==previousLastSync)dbSet('meta',meta);
+ return {add:result.addedHistory,addL:result.addedLive};
 }
 $('expHist').onclick=()=>{
  const rows=hist.filter(r=>r.t>=MIN_VALID);
