@@ -8,3 +8,15 @@ export function pruneHistory(records, maxRecords) {
   const removed = Math.max(0, valid.length - limit);
   return { records: removed ? valid.slice(removed) : valid, removed };
 }
+
+/**
+ * Fusionne un import dans l'historique : à timestamp égal, la ligne importée
+ * remplace l'ancienne, comme dans l'implémentation v13.
+ */
+export function mergeImportedHistory(currentRecords, importedRecords) {
+  const byTimestamp = new Map((Array.isArray(currentRecords) ? currentRecords : [])
+    .map(record => [record.t, record]));
+  (Array.isArray(importedRecords) ? importedRecords : [])
+    .forEach(record => byTimestamp.set(record.t, record));
+  return [...byTimestamp.values()].sort((a, b) => a.t - b.t);
+}
