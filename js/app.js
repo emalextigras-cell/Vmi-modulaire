@@ -83,6 +83,14 @@ async function init(){
   if(!live.length){try{const x=JSON.parse(localStorage.getItem('vmi_live')||'[]');if(Array.isArray(x))live=x}catch(e){}}
   await dbSet('migrated',true);
  }
+ // Répare aussi l'historique déjà présent dans IndexedDB (pas seulement les imports/restaurations).
+ const repairedHistory = hist.filter(r => normalizeTemperatureRecord(r) !== r).length;
+ const repairedLive = live.filter(r => normalizeTemperatureRecord(r) !== r).length;
+ hist = hist.map(normalizeTemperatureRecord);
+ live = live.map(normalizeTemperatureRecord);
+ if (repairedHistory || repairedLive) {
+  log(`Correction d'échelle appliquée : ${repairedHistory} relevés historiques et ${repairedLive} relevés directs.`);
+ }
  /* Les relevés datés d'avant 2025 ont une date fausse (horloge de la VMI) et ne peuvent pas être corrigés
     sans leur compteur de jours : on les retire, un nouvel import ou téléchargement les rétablit avec la bonne date. */
  const bad=hist.filter(r=>!(r&&r.t>=MIN_VALID)).length;
