@@ -9,6 +9,7 @@ Copie de travail indépendante du dépôt source `emalextigras-cell/Vmi`. Le dé
 - `js/app.js` : orchestration de l'application, connexion BLE, stockage, historique, import/export et événements.
 - `js/modules/bluetooth-protocol.js` : UUID, CRC et construction des trames Bluetooth VMI.
 - `js/modules/psychrometry.js` : humidité absolue, point de rosée et indicateurs hygrométriques.
+- `js/modules/legacy-migration.js` : conversion des anciennes lignes historiques, sans modifier le schéma IndexedDB.
 - `js/modules/date-utils.js` : dates, normalisation et constantes partagées.
 - `js/modules/chart-renderer.js` : graphiques SVG, gestion des courbes et infobulles tactiles.
 - `manifest.json` : configuration de l'application installable.
