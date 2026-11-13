@@ -5,23 +5,10 @@ import { isPlausibleHumidity, isPlausibleTemperature } from './data-quality.js';
 const COLORS=['#286348','#c16b32','#356da5'];
 const fmtTick=(t,withHour)=>{const d=new Date(t);return withHour?`${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}h`:`${pad(d.getDate())}/${pad(d.getMonth()+1)}/${String(d.getFullYear()).slice(2)}`};
 const fmtPoint=(t,daily)=>{const d=new Date(t);return daily?`${pad(d.getHours())}:${pad(d.getMinutes())}`:`${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`};
-/* Comble seulement les valeurs manquantes isolées (≤ 2 relevés consécutifs et ≤ 3 h) ; au-delà, le trait est interrompu. */
+/* Conserve les relevés tels quels : aucune valeur manquante n'est interpolée.
+   Un point absent ou rejeté crée une interruption visible dans la courbe. */
 export function fillMissing(points){
- const out=points.map(p=>({t:p.t,v:Number.isFinite(p.v)?p.v:null,blocked:!!p.blocked}));
- let i=0;
- while(i<out.length){
-  if(out[i].v!=null){i++;continue}
-  let j=i;while(j<out.length&&out[j].v==null)j++;
-  if(i>0&&j<out.length){
-   const a=out[i-1],b=out[j];
-   // Une valeur explicitement rejetée comme aberrante reste un trou :
-   // seules les absences ordinaires peuvent être interpolées.
-   const containsBlocked=out.slice(i,j).some(point=>point.blocked);
-   if(!containsBlocked&&j-i<=2&&b.t-a.t<=3*3600000){const span=(b.t-a.t)||1;for(let k=i;k<j;k++)out[k].v=a.v+(b.v-a.v)*((out[k].t-a.t)/span)}
-  }
-  i=j;
- }
- return out.filter(p=>p.v!=null||p.blocked);
+ return points.map(p=>({t:p.t,v:Number.isFinite(p.v)?p.v:null,blocked:!!p.blocked||!Number.isFinite(p.v)}));
 }
 export function hasBlockedBetween(points, startTime, endTime){
  return points.some(point=>point.blocked&&point.t>startTime&&point.t<endTime);
@@ -46,7 +33,9 @@ function drawChart(id,title,series,selectedDate,$){
  for(const s of series){const dts=[];for(let i=1;i<s.points.length&&dts.length<400;i++)dts.push(s.points[i].t-s.points[i-1].t);dts.sort((a,b)=>a-b);gaps.set(s,Math.max(4*3600000,6*(dts.length?dts[Math.floor(dts.length/2)]:0)))}
  for(const s of series){
   const pts=s.points.filter(p=>Number.isFinite(p.v));if(!pts.length)continue;
-  const gap=gaps.get(s),step=Math.max(1,Math.ceil(pts.length/600));
+  const gap=gaps.get(s);
+  // Chaque relevé réel est tracé pour les historiques usuels ; au-delà de 5 000, affichage allégé.
+  const step=pts.length>5000?Math.ceil(pts.length/5000):1;
   const sel=pts.filter((p,i)=>i%step===0||i===pts.length-1);
   let d='',prev=null,segLen=0,dots='';
   sel.forEach(p=>{
@@ -89,6 +78,7 @@ export function renderCharts(data,selectedDate,$){
   seriesFor(data,'sh','Salon',COLORS[0],r=>isPlausibleHumidity(r.sh)?r.sh:null,r=>Number.isFinite(r.sh)&&!isPlausibleHumidity(r.sh)),seriesFor(data,'h1','Sonde résistances',COLORS[1],r=>isPlausibleHumidity(r.h1)?r.h1:null,r=>Number.isFinite(r.h1)&&!isPlausibleHumidity(r.h1)),seriesFor(data,'he','Air entrant',COLORS[2],r=>isPlausibleHumidity(r.he)?r.he:null,r=>Number.isFinite(r.he)&&!isPlausibleHumidity(r.he))],selectedDate,$);
  drawChart('chartHA','Humidité absolue',[
   seriesFor(data,'sh','Salon',COLORS[0],r=>isPlausibleTemperature(r.st)&&isPlausibleHumidity(r.sh)?absoluteHumidity(r.st,r.sh):null,r=>(Number.isFinite(r.st)&&!isPlausibleTemperature(r.st))||(Number.isFinite(r.sh)&&!isPlausibleHumidity(r.sh))),
+  seriesFor(data,'h1','Sonde résistances',COLORS[1],r=>isPlausibleTemperature(r.t1)&&isPlausibleHumidity(r.h1)?absoluteHumidity(r.t1,r.h1):null,r=>(Number.isFinite(r.t1)&&!isPlausibleTemperature(r.t1))||(Number.isFinite(r.h1)&&!isPlausibleHumidity(r.h1))),
   seriesFor(data,'he','Air entrant',COLORS[2],r=>isPlausibleTemperature(r.te)&&isPlausibleHumidity(r.he)?absoluteHumidity(r.te,r.he):null,r=>(Number.isFinite(r.te)&&!isPlausibleTemperature(r.te))||(Number.isFinite(r.he)&&!isPlausibleHumidity(r.he)))],selectedDate,$);
  drawChart('chartTemp','Températures',[
   seriesFor(data,'st','Salon',COLORS[0],r=>isPlausibleTemperature(r.st)?r.st:null,r=>Number.isFinite(r.st)&&!isPlausibleTemperature(r.st)),seriesFor(data,'t1','Sonde résistances',COLORS[1],r=>isPlausibleTemperature(r.t1)?r.t1:null,r=>Number.isFinite(r.t1)&&!isPlausibleTemperature(r.t1)),seriesFor(data,'te','Air entrant',COLORS[2],r=>isPlausibleTemperature(r.te)?r.te:null,r=>Number.isFinite(r.te)&&!isPlausibleTemperature(r.te))],selectedDate,$);
