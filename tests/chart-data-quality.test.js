@@ -35,5 +35,5 @@ test('une mesure aberrante au milieu de plusieurs absences bloque toute interpol
     { t: 240_000, v: 20 }
   ];
   const result = fillMissing(points);
-  assert.deepEqual(result.map(point => point.v), [10, 20]);
+  assert.deepEqual(result.map(point => point.v), [10, null, null, null, 20]);
 });
