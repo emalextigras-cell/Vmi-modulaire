@@ -41,3 +41,15 @@ test('aucune anomalie pour un historique sans valeur aberrante', () => {
   assert.equal(result.affectedRecords, 0);
   assert.deepEqual(result.fields, []);
 });
+
+test('analyseSpeedLevels ignore les humidités et températures aberrantes', async () => {
+  const { analyzeSpeedLevels } = await import('../js/modules/analysis.js');
+  const rows = [
+    { vit: 1, sh: 50, st: 20, te: 10, he: 60 },
+    { vit: 1, sh: 589.4, st: 20, te: 10, he: 60 },
+    { vit: 1, sh: 50, st: 269.4, te: 10, he: 60 }
+  ];
+  const result = analyzeSpeedLevels(rows, 1, 55);
+  assert.equal(result.sampleCount, 1);
+  assert.equal(result.groups[0].n, 1);
+});
