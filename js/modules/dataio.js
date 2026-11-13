@@ -9,6 +9,7 @@ const VMI_PLUS_COLUMN = Object.freeze({
   speed: 22,
   airflow: 23,
   rpm: 25,
+  outdoorTemp: 39,
   probeTemp: 40,
   probeHumidity: 41,
   probeAbsHumidity: 42,
@@ -43,6 +44,7 @@ export function recFrom(row, spreadsheet = window.XLSX) {
     rk: parsed.rk,
     d: num(row[VMI_PLUS_COLUMN.durationDays]),
     st: num(row[VMI_PLUS_COLUMN.salonTemp]),
+    tExt: num(row[VMI_PLUS_COLUMN.outdoorTemp]),
     sh: num(row[VMI_PLUS_COLUMN.salonHumidity]),
     t1: num(row[VMI_PLUS_COLUMN.probeTemp]),
     h1: num(row[VMI_PLUS_COLUMN.probeHumidity]),
@@ -61,7 +63,7 @@ export function recFrom(row, spreadsheet = window.XLSX) {
     boost: null,
     hol: null
   };
-  return ['st','sh','t1','h1','vmiAbsP0','te','he','vmiAbsP1','rpm','fil','debit','vmiSpeedRaw'].some(key=>record[key]!=null) ? record : null;
+  return ['st','sh','tExt','t1','h1','vmiAbsP0','te','he','vmiAbsP1','rpm','fil','debit','vmiSpeedRaw'].some(key=>record[key]!=null) ? record : null;
 }
 
 export const dayNumber = timestamp => {
