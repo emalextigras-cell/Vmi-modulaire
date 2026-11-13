@@ -77,3 +77,34 @@ test('mergeBackupData laisse les relevés directs inchangés si le champ live es
   });
   assert.deepEqual(result.live, currentLive);
 });
+
+test('la sauvegarde conserve les champs historiques et les nouveaux champs bruts', () => {
+  const row = {
+    t: MIN_VALID,
+    rk: '09/04/2018 00:31:04',
+    d: 155,
+    st: 17.9,
+    sh: 61,
+    t1: 10.8,
+    h1: 88,
+    te: 10.7,
+    he: 89,
+    rpm: 1372,
+    fil: 141,
+    vit: null,
+    boost: null,
+    hol: null,
+    fixed: true,
+    vmiSpeedRaw: 3,
+    debit: 121
+  };
+  const snapshot = createBackupSnapshot({
+    hist: [row],
+    live: [],
+    meta: { lastSync: 123 },
+    exportedAt: '2026-11-13T05:11:52.511Z'
+  });
+  assert.equal(snapshot.version, 1);
+  assert.deepEqual(snapshot.hist[0], row);
+  assert.deepEqual(Object.keys(snapshot), ['app', 'version', 'exportedAt', 'hist', 'live', 'meta']);
+});
