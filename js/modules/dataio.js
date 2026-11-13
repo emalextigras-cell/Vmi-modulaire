@@ -1,5 +1,6 @@
 /** Conversion des dates et des lignes d'export VMI+/tableur. */
 import { DAY, pad, num } from './date-utils.js';
+import { normalizeTemperatureRecord } from './data-quality.js';
 
 // Index des colonnes observés dans l'export CSV VMI+ utilisé pour la v13.
 // Les intitulés « Vitesse » et « Debit » sont conservés comme données brutes.
@@ -56,7 +57,8 @@ export function recFrom(row, spreadsheet = window.XLSX) {
     boost: null,
     hol: null
   };
-  return ['st','sh','t1','h1','te','he','rpm','fil','debit','vmiSpeedRaw'].some(key=>record[key]!=null) ? record : null;
+  const normalized = normalizeTemperatureRecord(record);
+  return ['st','sh','t1','h1','te','he','rpm','fil','debit','vmiSpeedRaw'].some(key=>normalized[key]!=null) ? normalized : null;
 }
 
 export const dayNumber = timestamp => {
