@@ -67,3 +67,13 @@ test('mergeBackupData refuse une sauvegarde au mauvais format', () => {
   assert.throws(() => mergeBackupData({ backup: { app: 'autre', hist: [] }, minValid: MIN_VALID }), /non reconnu/);
   assert.throws(() => mergeBackupData({ backup: { app: 'vmi-purevent', hist: {} }, minValid: MIN_VALID }), /non reconnu/);
 });
+
+test('mergeBackupData laisse les relevés directs inchangés si le champ live est absent', () => {
+  const currentLive = [{ t: 9, sh: 49 }, { t: 3, sh: 51 }];
+  const result = mergeBackupData({
+    backup: { app: 'vmi-purevent', hist: [] },
+    currentLive,
+    minValid: MIN_VALID
+  });
+  assert.deepEqual(result.live, currentLive);
+});
