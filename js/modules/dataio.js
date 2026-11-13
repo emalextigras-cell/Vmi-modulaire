@@ -47,7 +47,9 @@ export function recFrom(row, spreadsheet = window.XLSX) {
     he: num(row[VMI_PLUS_COLUMN.incomingHumidity]),
     rpm: num(row[VMI_PLUS_COLUMN.rpm]),
     fil: num(row[VMI_PLUS_COLUMN.filter]),
-    vit: num(row[VMI_PLUS_COLUMN.speed]),
+    // Valeur brute conservée, sans l'assimiler aux vitesses manuelles 1/2/3 de l'interface.
+    vmiSpeedRaw: num(row[VMI_PLUS_COLUMN.speed]),
+    vit: null,
     boost: null,
     hol: null
   };
