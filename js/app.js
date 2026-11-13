@@ -11,6 +11,7 @@ import { armDownloadTimeout } from './modules/sync.js';
 import { parseCell, recFrom } from './modules/dataio.js';
 import { fixClock } from './modules/clock-correction.js';
 import { absoluteHumidity, dewPoint, psychro, validTemp } from './modules/psychrometry.js';
+import { summarizeDataQuality } from './modules/data-quality.js';
 
 'use strict';
 
@@ -541,6 +542,13 @@ function render(){
  $('historyStatus').textContent=`${data.length} relevés affichés · ${source==='live'?'enregistrement local en direct':'historique importé / VMI'} · ${selectedDate?'jour '+selectedDate:(daysSetting?daysSetting+' derniers jours':'toute la période')}`;
  const lastRpm=[...hist].reverse().find(r=>Number.isFinite(r.rpm));
  $('rpm').textContent=lastRpm?lastRpm.rpm:'–';
+ const quality=summarizeDataQuality(data);
+ const qualityBox=$('dataQuality');
+ if(quality.hasAnomalies){
+  const details=quality.fields.map(field=>`${field.label} : ${field.count}`).join(' · ');
+  qualityBox.className='advice warn';
+  qualityBox.textContent=`Contrôle qualité : ${quality.affectedRecords} relevé(s) contiennent des valeurs physiquement improbables (${details}). Ces valeurs sont masquées dans les graphiques concernés, mais conservées dans l’historique et les exports.`;
+ }else{qualityBox.className='advice';qualityBox.textContent='Contrôle qualité : aucune valeur aberrante détectée sur les capteurs pour cette période. Les données manquantes ne sont pas comptées comme anomalies.';}
  renderCharts(data,selectedDate,$);renderRecommendation(data);analyzeSpeeds(data);renderFreshness();
 }
 $('targetRH').onchange=render;$('minSamples').onchange=render;
