@@ -23,7 +23,10 @@ export function fillMissing(points){
  }
  return out.filter(p=>p.v!=null||p.blocked);
 }
-export function hasBlockedBetween(points, startTime, endTime){\n return points.some(point=>point.blocked&&point.t>startTime&&point.t<endTime);\n}\nfunction drawChart(id,title,series,selectedDate,$){
+export function hasBlockedBetween(points, startTime, endTime){
+ return points.some(point=>point.blocked&&point.t>startTime&&point.t<endTime);
+}
+function drawChart(id,title,series,selectedDate,$){
  const el=$(id),all=series.flatMap(s=>s.points.filter(p=>Number.isFinite(p.v)));
  if(!all.length){el.innerHTML='<p class="note">Pas de données disponibles pour cette période.</p>';return}
  const W=700,H=215,L=48,R=12,T=18,B=30;
