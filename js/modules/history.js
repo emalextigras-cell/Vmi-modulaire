@@ -13,13 +13,26 @@ export function pruneHistory(records, maxRecords) {
 }
 
 /**
- * Fusionne un import dans l'historique : à timestamp égal, la ligne importée
- * remplace l'ancienne, comme dans l'implémentation v13.
+ * Complète un relevé existant avec les valeurs non nulles d'une nouvelle source.
+ * Les champs déjà renseignés sont conservés si la nouvelle source ne les fournit pas.
  */
+export function mergeRecordFields(existing, incoming) {
+  if (!existing) return incoming;
+  if (!incoming) return existing;
+  const merged = { ...existing };
+  for (const [key, value] of Object.entries(incoming)) {
+    if (value != null) merged[key] = value;
+  }
+  return merged;
+}
+
+/** Fusionne les imports par horodatage sans perdre les champs déjà renseignés. */
 export function mergeImportedHistory(currentRecords, importedRecords) {
   const byTimestamp = new Map((Array.isArray(currentRecords) ? currentRecords : [])
+    .filter(record => record && Number.isFinite(record.t))
     .map(record => [record.t, record]));
   (Array.isArray(importedRecords) ? importedRecords : [])
-    .forEach(record => byTimestamp.set(record.t, record));
+    .filter(record => record && Number.isFinite(record.t))
+    .forEach(record => byTimestamp.set(record.t, mergeRecordFields(byTimestamp.get(record.t), record)));
   return [...byTimestamp.values()].sort((a, b) => a.t - b.t);
 }
