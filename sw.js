@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vmi-modulaire-v13-cache-1';
+const CACHE_NAME = 'vmi-modulaire-v13-cache-2';
 const CACHE_PREFIX = 'vmi-modulaire-';
 const APP_SHELL = [
   './','./index.html','./manifest.json','./css/style.css','./js/app.js',
