@@ -511,12 +511,15 @@ $('diagCopy').onclick=async()=>{
 };
 
 /* ---------- Graphiques SVG ---------- */
-function selectedData(){
- const data=(source==='live'?live:hist).filter(r=>r.t>=MIN_VALID).sort((a,b)=>a.t-b.t);
+function selectDataRange(records){
+ const data=(Array.isArray(records)?records:[]).filter(r=>r&&r.t>=MIN_VALID).sort((a,b)=>a.t-b.t);
  if(selectedDate){const start=dayStart(selectedDate),end=dayStart(shiftDay(selectedDate,1));return data.filter(r=>r.t>=start&&r.t<end)}
  if(daysSetting&&data.length){const end=data[data.length-1].t;return data.filter(r=>r.t>=end-daysSetting*86400000)}
  return data;
 }
+/* Le direct reste une vue facultative ; toutes les analyses utilisent l'historique importé/téléchargé. */
+function selectedData(){return selectDataRange(source==='live'?live:hist)}
+function selectedHistoricalData(){return selectDataRange(hist)}
 function formatDuration(ms){
  const minutes=Math.round(ms/60000),hours=Math.floor(minutes/60),days=Math.floor(hours/24);
  if(days)return days+' j '+(hours%24)+' h';
@@ -722,8 +725,10 @@ function renderRecommendation(data){
 }
 function render(){
  const data=selectedData();
+ const analysisData=selectedHistoricalData();
  $('liveCount').textContent=live.length;
- $('historyStatus').textContent=`${data.length} relevés affichés · ${source==='live'?'enregistrement local en direct':'historique importé / VMI'} · ${selectedDate?'jour '+selectedDate:(daysSetting?daysSetting+' derniers jours':'toute la période')}`;
+ const rangeLabel=selectedDate?'jour '+selectedDate:(daysSetting?daysSetting+' derniers jours':'toute la période');
+ $('historyStatus').textContent=`Graphiques : ${data.length} relevés · ${source==='live'?'enregistrement direct facultatif':'historique importé / VMI'} · ${rangeLabel}. Analyses et diagnostics : historique importé / VMI uniquement.`;
  const lastRpm=[...hist].reverse().find(r=>Number.isFinite(r.rpm));
  $('rpm').textContent=lastRpm?lastRpm.rpm:'–';
  const quality=summarizeDataQuality(data);
@@ -733,7 +738,9 @@ function render(){
   qualityBox.className='advice warn';
   qualityBox.textContent=`Contrôle qualité : ${quality.affectedRecords} relevé(s) contiennent des valeurs physiquement improbables (${details}). Ces valeurs sont masquées dans les graphiques concernés, mais conservées dans l’historique et les exports.`;
  }else{qualityBox.className='advice';qualityBox.textContent='Contrôle qualité : aucune valeur aberrante détectée sur les capteurs pour cette période. Les données manquantes ne sont pas comptées comme anomalies.';}
- renderCharts(data,selectedDate,$);renderRecommendation(data);renderHygrometricPeriods(data);renderIntelligentDiagnosis(data);renderTemporalAnalysis(data);analyzeSpeeds(data);renderEnergyReadiness(data);renderFreshness();
+ renderCharts(data,selectedDate,$);
+ renderRecommendation(analysisData);renderHygrometricPeriods(analysisData);renderIntelligentDiagnosis(analysisData);
+ renderTemporalAnalysis(analysisData);analyzeSpeeds(analysisData);renderEnergyReadiness(analysisData);renderFreshness();
 }
 $('targetRH').onchange=render;$('minSamples').onchange=render;
 
