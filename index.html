@@ -83,7 +83,7 @@
  <div id="diagnosisEvidence" class="advice">Les constats et pistes d’action apparaîtront avec un historique suffisant.</div>
  <p id="diagnosisLimits" class="note">Le diagnostic est explicable et indicatif ; il ne pilote pas la VMI.</p>
  <div id="hygroPeriods" class="advice">Les durées seront calculées à partir de l’historique disponible.</div>
- <p class="note">Les durées sont des estimations entre deux relevés successifs, limitées aux intervalles de 2 h maximum. Elles ne représentent pas une mesure continue.</p>
+ <p class="note">Les durées sont estimées par interpolation linéaire entre deux relevés successifs, avec découpage au franchissement des seuils. Les intervalles de plus de 2 h sont exclus. Ce n’est pas une mesure continue.</p>
  <h3>Tendances jour après jour</h3>
  <div id="dailyTrends" class="advice">Les tendances journalières apparaîtront avec l’historique.</div>
  <h3>Variations selon l’heure</h3>
