@@ -153,3 +153,11 @@ test('diagnostic reports empty input quality without inventing excluded rows',()
   excludedSampleCount:0
  });
 });
+
+
+test('diagnostic states the configured maximum gap instead of a fixed duration',()=>{
+ const result=buildHygrometricDiagnosis(makeRows(),{maxGapHours:1.5});
+ assert.equal(result.methodology.maximumGapHours,1.5);
+ assert.ok(result.limits.some(text=>text.includes('1.5 heure(s)')));
+ assert.ok(!result.limits.some(text=>text.includes('2 heures')));
+});
