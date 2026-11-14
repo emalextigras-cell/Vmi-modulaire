@@ -117,6 +117,109 @@ export function analyzeSpeedTimeContext(data, { minSamples = 5, minDays = 2 } = 
   return {groups,minSamples,minDays,comparableBuckets};
 }
 
+
+/**
+ * Compare deux périodes calendaires successives à mode et tranche horaire identiques.
+ * Les valeurs brutes restent brutes ; aucune variation n'est qualifiée de panne ou d'encrassement.
+ */
+export function compareOperatingPeriods(data, {
+  periodDays = 7, minSamples = 12, minDays = 3
+} = {}) {
+  const rows = (Array.isArray(data) ? data : []).filter(row =>
+    Number.isFinite(row?.t) &&
+    Number.isFinite(row?.vmiModeRaw) && [1, 2, 3].includes(row.vmiModeRaw)
+  );
+  if (!rows.length) {
+    return { status: 'no-mode-data', periodDays, minSamples, minDays, periods: [], comparisons: [] };
+  }
+
+  const latest = new Date(Math.max(...rows.map(row => row.t)));
+  const currentEnd = new Date(latest.getFullYear(), latest.getMonth(), latest.getDate() + 1);
+  const currentStart = new Date(currentEnd);
+  currentStart.setDate(currentStart.getDate() - periodDays);
+  const previousStart = new Date(currentStart);
+  previousStart.setDate(previousStart.getDate() - periodDays);
+  const key = date => `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+  const periods = [
+    { id: 'previous', start: previousStart, end: currentStart },
+    { id: 'current', start: currentStart, end: currentEnd }
+  ].map(period => ({
+    id: period.id,
+    start: key(period.start),
+    end: key(new Date(period.end.getFullYear(), period.end.getMonth(), period.end.getDate()-1)),
+    startMs: period.start.getTime(),
+    endMs: period.end.getTime()
+  }));
+
+  const metrics = [
+    { key: 'debit', label: 'Débit', unit: 'm³/h' },
+    { key: 'rpm', label: 'Régime moteur', unit: 'tr/min' },
+    { key: 'vmiPwmRaw', label: 'PWM', unit: 'valeur brute' },
+    { key: 'motorPressureRaw', label: 'Pression moteur', unit: 'valeur brute, unité inconnue' }
+  ];
+  const comparisons = [];
+  for (const mode of [1, 2, 3]) {
+    for (let bucket = 0; bucket < 4; bucket++) {
+      const periodStats = periods.map(period => {
+        const samples = rows.filter(row =>
+          row.vmiModeRaw === mode &&
+          row.t >= period.startMs && row.t < period.endMs &&
+          new Date(row.t).getHours() >= bucket * 6 &&
+          new Date(row.t).getHours() < (bucket + 1) * 6
+        );
+        const days = new Set(samples.map(row => key(new Date(row.t))));
+        const values = Object.fromEntries(metrics.map(metric => {
+          const valid = samples.map(row => row[metric.key]).filter(value =>
+            Number.isFinite(value) &&
+            (metric.key !== 'rpm' || (value > 0 && value < 10000)) &&
+            (metric.key !== 'debit' || value >= 0)
+          );
+          return [metric.key, { median: median(valid), count: valid.length }];
+        }));
+        return {
+          id: period.id, sampleCount: samples.length, dayCount: days.size,
+          ready: samples.length >= minSamples && days.size >= minDays,
+          values
+        };
+      });
+      const [previous, current] = periodStats;
+      const deltas = {};
+      if (previous.ready && current.ready) {
+        for (const metric of metrics) {
+          const before = previous.values[metric.key].median;
+          const after = current.values[metric.key].median;
+          deltas[metric.key] = before == null || after == null ? null : {
+            previous: before,
+            current: after,
+            absolute: after - before,
+            relativePercent: before !== 0 ? ((after - before) / Math.abs(before)) * 100 : null,
+            unit: metric.unit
+          };
+        }
+      }
+      comparisons.push({
+        mode, bucket, label: ['00–05 h','06–11 h','12–17 h','18–23 h'][bucket],
+        previous, current,
+        comparable: previous.ready && current.ready,
+        deltas
+      });
+    }
+  }
+  const comparableCount = comparisons.filter(item => item.comparable).length;
+  return {
+    status: comparableCount ? 'comparison-available' : 'insufficient-data',
+    periodDays, minSamples, minDays, periods, comparisons,
+    comparableCount,
+    limits: [
+      'Comparaison descriptive de deux périodes calendaires successives, à Mode et tranche horaire identiques.',
+      'Chaque période doit contenir au moins le nombre minimal de relevés et de jours distincts.',
+      'Les médianes ne neutralisent pas les différences de météo, d’occupation, d’ouvertures, ni les changements de réglage non consignés.',
+      'Une variation de débit ou de régime moteur ne prouve pas un encrassement du filtre ni une panne.',
+      'PWM et Pression moteur restent des valeurs brutes sans unité physique confirmée.'
+    ]
+  };
+}
+
 /** Inventaire des champs VMI+ disponibles ; aucune unité ni consommation n'est déduite. */
 export function summarizeEnergyReadiness(data) {
   const rows=Array.isArray(data)?data:[];
