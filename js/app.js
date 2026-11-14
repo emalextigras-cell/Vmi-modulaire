@@ -4,7 +4,7 @@ import { createBackupSnapshot, mergeBackupData } from './modules/backup.js';
 import { $, sleep, APP_VERSION } from './modules/core.js';
 import { createStore } from './modules/store.js';
 import { fromOldRow } from './modules/legacy-migration.js';
-import { median, analyzeSpeedLevels, analyzeSpeedTimeContext, analyzeHygrometricPeriods, summarizeDailyTrends, analyzeHourlyPatterns, detectRapidChanges, summarizeEnergyReadiness, summarizeRawVmiSpeed, buildHygrometricDiagnosis } from './modules/analysis.js';
+import { median, analyzeSpeedLevels, analyzeSpeedTimeContext, analyzeHygrometricPeriods, summarizeDailyTrends, analyzeHourlyPatterns, detectRapidChanges, summarizeEnergyReadiness, summarizeRawVmiSpeed, summarizeRawVmiMode, buildHygrometricDiagnosis } from './modules/analysis.js';
 import { renderCharts, resetChartViews } from './modules/charts.js';
 import { SVC_C, CH_C, SVC_T, CH_T, frame, timeFrame, hex } from './modules/ble.js';
 import { armDownloadTimeout } from './modules/sync.js';
@@ -637,12 +637,20 @@ function renderEnergyReadiness(data){
   html+='<tr><td>'+labels[f.key]+'</td><td>'+f.count+'</td><td>'+(f.min==null?'–':fmt(f.min))+'</td><td>'+(f.max==null?'–':fmt(f.max))+'</td><td>'+distinct+'</td></tr>';
  }
  html+='</tbody></table>';
+ const modeGroups=summarizeRawVmiMode(data);
+ let modeHtml='<h4>Débit et renouvellement théorique par mode VMI+</h4><p class="muted">Le champ « mode » est distinct du champ « Vitesse ». Débit en m³/h confirmé. Le taux est calculé à partir du volume du logement renseigné dans chaque relevé ; il décrit un renouvellement théorique, pas une mesure de l’air effectivement distribué dans chaque pièce.</p>';
+ if(!modeGroups.length){modeHtml+='<div class="advice">Aucun mode VMI+ exploitable dans la période sélectionnée.</div>'}
+ else{
+  modeHtml+='<table><thead><tr><th>Mode VMI+</th><th>Relevés</th><th>Débit médian</th><th>Min–max débit</th><th>Renouvellement théorique</th></tr></thead><tbody>';
+  for(const group of modeGroups){modeHtml+='<tr><td>'+fmt(group.mode)+'</td><td>'+group.sampleCount+'</td><td>'+(group.medianDebit==null?'–':fmt(group.medianDebit)+' m³/h')+'</td><td>'+(group.minDebit==null?'–':fmt(group.minDebit)+' – '+fmt(group.maxDebit)+' m³/h')+'</td><td>'+(group.medianRenewalRate==null?'–':fmt(group.medianRenewalRate)+' vol/h')+'</td></tr>'}
+  modeHtml+='</tbody></table>';
+ }
  const rawGroups=summarizeRawVmiSpeed(data);
- let rawHtml='<h4>Débit exporté selon le code vitesse brut VMI+</h4><p class="muted">Regroupement descriptif. Les codes bruts ne sont pas assimilés aux niveaux manuels 1 à 3 et l’unité du débit reste à confirmer.</p>';
+ let rawHtml='<h4>Débit selon le code vitesse brut VMI+</h4><p class="muted">Le code « Vitesse » est affiché séparément du mode. Les codes bruts ne sont pas assimilés aux niveaux manuels 1, 2 ou 3.</p>';
  if(!rawGroups.length){rawHtml+='<div class="advice">Aucun code vitesse brut exploitable dans la période sélectionnée.</div>'}
  else{
-  rawHtml+='<table><thead><tr><th>Code brut</th><th>Débits renseignés</th><th>Médiane brute</th><th>Minimum brut</th><th>Maximum brut</th></tr></thead><tbody>';
-  for(const group of rawGroups){rawHtml+='<tr><td>'+fmt(group.code)+'</td><td>'+group.sampleCount+'</td><td>'+(group.medianDebit==null?'–':fmt(group.medianDebit))+'</td><td>'+(group.minDebit==null?'–':fmt(group.minDebit))+'</td><td>'+(group.maxDebit==null?'–':fmt(group.maxDebit))+'</td></tr>'}
+  rawHtml+='<table><thead><tr><th>Code vitesse brut</th><th>Relevés</th><th>Débit médian</th><th>Minimum</th><th>Maximum</th></tr></thead><tbody>';
+  for(const group of rawGroups){rawHtml+='<tr><td>'+fmt(group.code)+'</td><td>'+group.sampleCount+'</td><td>'+(group.medianDebit==null?'–':fmt(group.medianDebit)+' m³/h')+'</td><td>'+(group.minDebit==null?'–':fmt(group.minDebit)+' m³/h')+'</td><td>'+(group.maxDebit==null?'–':fmt(group.maxDebit)+' m³/h')+'</td></tr>'}
   rawHtml+='</tbody></table>';
  }
  const volumes=data.map(r=>r?.volumeRaw).filter(v=>Number.isFinite(v)&&v>0);
@@ -656,7 +664,7 @@ function renderEnergyReadiness(data){
    (volumeValues.length>1?' · valeurs rencontrées : '+volumeValues.map(fmt).join(', ')+' m³':' · valeur constante dans les relevés')+
    '. Cette donnée correspond au volume du logement déclaré dans la VMI+, pas à un volume d’air réellement renouvelé.</div>';
  }
- $('energyReadiness').innerHTML=volumeHtml+html+rawHtml+'<div class="advice">'+result.message+' Les valeurs brutes sont conservées, mais aucune conversion en watts, kWh, m³/h ou rendement n’est appliquée sans documentation fiable.</div>';
+ $('energyReadiness').innerHTML=volumeHtml+html+modeHtml+rawHtml+'<div class="advice">'+result.message+' Les valeurs brutes sont conservées, mais aucune conversion en watts, kWh, m³/h ou rendement n’est appliquée sans documentation fiable.</div>';
 }
 
 function renderRecommendation(data){
