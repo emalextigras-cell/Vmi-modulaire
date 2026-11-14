@@ -17,7 +17,8 @@ function makeRows({days=3,perDay=10,indoorRH=65,incomingRH=40,indoorTemp=20,inco
 }
 function makeHourlyRows(groups) {
  const rows=[];
- for(const {day,hour} of groups){
+ for(const group of groups){
+  const {day,hour}=group;
   for(let i=0;i<6;i++){
    rows.push({
     t:new Date(2026,10,10+day,hour, i*30,0).getTime(),
