@@ -112,3 +112,24 @@ L'examen statique du fichier btsnoop fourni et de l'export CSV associé apporte 
 - Conclusion : la capture confirme l'organisation générale du transport BLE et le format du flux d'historique, mais ne fournit pas de preuve suffisante pour convertir `Cons Dp`, `Pression Moteur`, `PWM` ou les compteurs en unités physiques. Aucun W, kWh, Pa ou rendement ne doit être calculé à partir de ces seuls champs.
 
 Ces résultats sont documentaires et logiciels uniquement : aucun essai matériel, changement de vitesse, test de commande ou validation Bluetooth sur Android n'a été effectué.
+
+### Analyse complémentaire des champs moteur et résistance (CSV VMI+ fourni)
+
+Les statistiques ci-dessous ont été recalculées sur les 800 lignes de l'export fourni. Elles décrivent cet export précis et ne constituent pas une spécification constructeur.
+
+- `Pression Moteur` varie de 0 à 31,3 et présente 89 valeurs distinctes. Elle évolue fortement avec `Tachy (rpm)` (corrélation de Pearson = 0,964 ; Spearman = 0,849) et avec `PWM (1/1000)` (Pearson = 0,943 ; Spearman = 0,736). Cela suggère que ces champs décrivent des aspects liés du fonctionnement moteur. Cela ne confirme ni que `Pression Moteur` est une pression physique, ni son unité, ni la position du capteur.
+- `PWM (1/1000)` varie de 159 à 522 (139 valeurs distinctes) et `Tachy (rpm)` de 618 à 2 144 tr/min (250 valeurs distinctes). Leur corrélation est élevée (Pearson = 0,978 ; Spearman = 0,882). Le libellé PWM et l'échelle écrite dans l'en-tête sont conservés comme tels ; aucune conversion en pourcentage, tension ou puissance n'est faite.
+- Par palier de débit, les médianes de `Pression Moteur`, PWM et régime augmentent globalement, mais les plages se chevauchent largement. Ces variables ne permettent donc pas, seules, de reconstruire un débit fiable ni d'identifier une consigne exacte.
+- `Cons Res` est placé sous la rubrique `Resistance` dans l'en-tête VMI+ et prend les valeurs 4 (740 lignes) et 12 (60 lignes). La valeur 12 apparaît surtout avec le code brut `Vitesse` 3 (58 lignes) et 5 (2 lignes). Le nom et la rubrique rendent plausible une consigne liée à la résistance, mais cette interprétation n'est pas confirmée. Ce champ ne doit pas être traité comme une consommation électrique.
+- `Kmoteur`, `Jmoteur`, `Kreseau` et `Jreseau` sont respectivement constants à 4225, 47, 1268 et 99 sur les 800 lignes. Comme ils ne varient pas dans cet export, il est impossible d'établir s'il s'agit de compteurs, de paramètres, d'identifiants ou de valeurs figées. Aucun calcul d'énergie ou de durée ne doit en être tiré.
+- `Offset Press` vaut constamment 10,2. Il pourrait s'agir d'un paramètre de correction associé à une mesure de pression, mais le fichier seul ne permet pas de le confirmer ni de savoir s'il faut l'ajouter ou le soustraire.
+- La première colonne `% fonct` vaut 0 dans 743 lignes et varie de 0 à 16 sur l'ensemble. La seconde colonne `% fonct` vaut toujours 0. La sémantique et l'échelle restent à confirmer ; les deux colonnes doivent rester séparées.
+
+### Ce que le code V13 reçoit et conserve
+
+Dans le fichier V13 fourni, les trames directes de type 1, 2 et 3 sont décodées à des positions d'octets explicites. Le traitement de la trame de type 1 conserve notamment l'état filtre, les jours, le volume, la température maximale, le code de vitesse brut, le boost et le mode vacances. Les trames de type 2 et 3 portent les mesures de température et d'humidité des capteurs. Le code V13 fourni ne décode pas depuis ces trames directes les champs `Pression Moteur`, PWM ou `Cons Res`.
+
+Le téléchargement d'historique, lui, transporte des lignes textuelles séparées par des points-virgules. Le parseur historique du fichier V13 fourni ne conservait qu'un sous-ensemble des colonnes pour les graphiques et l'historique. Le module `js/modules/dataio.js` du dépôt modulaire conserve désormais séparément les champs bruts identifiés, dont pression moteur, PWM, Cons Res, compteurs, offset et pourcentages. Cela évite de perdre ces valeurs lors de l'import ; cela ne leur attribue pas pour autant une signification physique.
+
+**Décision pour la suite :** conserver `Pression Moteur`, PWM, `Cons Res`, les compteurs et les pourcentages comme variables brutes de diagnostic. Les utiliser éventuellement pour repérer des changements de comportement ou des anomalies relatives à une référence propre à la VMI, après validation de la qualité et de la stabilité des données. Ne pas les convertir en Pa, W, kWh, coût ou rendement et ne pas déclencher de commande sur leur base.
+
