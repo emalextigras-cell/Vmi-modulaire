@@ -29,7 +29,7 @@ Fermer VMI+ avant de se connecter : la VMI n'accepte qu'une seule connexion simu
 - Les commandes sont envoyées séquentiellement et leur état est vérifié par retour de la VMI.
 - Aucun pilotage automatique par IA n'est activé.
 - Les données sont conservées localement dans IndexedDB.
-- Les indicateurs hygrométriques sont indicatifs. La valeur « Debit » exportée par VMI+ est conservée et tracée comme valeur brute (unité non précisée).
+- Les indicateurs hygrométriques sont indicatifs. La valeur « Debit » exportée par VMI+ est conservée et tracée en m³/h (unité confirmée).
 - Les comparaisons de vitesses n'utilisent que les niveaux manuels explicitement enregistrés en direct ; aucun code brut VMI+ n'est converti en niveau 1/2/3.
 - Le régime moteur est présenté en tr/min lorsqu'il est disponible. Les valeurs Débit, PWM et Cons DP restent brutes tant que leur signification/unité n'est pas confirmée.
 - Sans mesure électrique fiable en W ou kWh et sans débit validé, l'application ne calcule ni consommation, ni rendement, ni optimum énergétique.
