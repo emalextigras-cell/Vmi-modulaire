@@ -18,28 +18,61 @@ const FIELDS = [
 
 export function summarizeDataQuality(records) {
   const rows = Array.isArray(records) ? records : [];
-  const fields = FIELDS.map(field => {
-    const invalid = rows.filter(row => Number.isFinite(row?.[field.key]) &&
-      !(field.type === 'humidity'
-        ? isPlausibleHumidity(row[field.key])
-        : isPlausibleTemperature(row[field.key])));
-    return { ...field, count: invalid.length };
-  }).filter(field => field.count > 0);
-  const affected = new Set();
-  for (const field of FIELDS) {
-    rows.forEach((row, index) => {
+  const fieldCoverage = FIELDS.map(field => {
+    let present = 0, invalid = 0;
+    for (const row of rows) {
       const value = row?.[field.key];
-      if (!Number.isFinite(value)) return;
+      if (!Number.isFinite(value)) continue;
+      present++;
       const valid = field.type === 'humidity'
         ? isPlausibleHumidity(value)
         : isPlausibleTemperature(value);
-      if (!valid) affected.add(index);
-    });
-  }
+      if (!valid) invalid++;
+    }
+    const valid = present - invalid;
+    return {
+      ...field,
+      presentCount: present,
+      missingCount: rows.length - present,
+      invalidCount: invalid,
+      validCount: valid,
+      coveragePercent: rows.length ? valid / rows.length * 100 : 0
+    };
+  });
+  const fields = fieldCoverage
+    .filter(field => field.invalidCount > 0)
+    .map(field => ({ ...field, count: field.invalidCount }));
+  const affected = new Set();
+  rows.forEach((row, index) => {
+    for (const field of FIELDS) {
+      const value = row?.[field.key];
+      if (!Number.isFinite(value)) continue;
+      const valid = field.type === 'humidity'
+        ? isPlausibleHumidity(value)
+        : isPlausibleTemperature(value);
+      if (!valid) { affected.add(index); break; }
+    }
+  });
+  const coreKeys = ['sh', 'st', 'he', 'te'];
+  const completeHygrometricRecords = rows.filter(row =>
+    coreKeys.every(key => {
+      const field = FIELDS.find(item => item.key === key);
+      const value = row?.[key];
+      return Number.isFinite(value) && (field.type === 'humidity'
+        ? isPlausibleHumidity(value)
+        : isPlausibleTemperature(value));
+    })
+  ).length;
   return {
     total: rows.length,
     affectedRecords: affected.size,
+    invalidRecords: affected.size,
     fields,
+    fieldCoverage,
+    coreSensorKeys: coreKeys,
+    completeHygrometricRecords,
+    incompleteHygrometricRecords: rows.length - completeHygrometricRecords,
+    hygrometricCoveragePercent: rows.length ? completeHygrometricRecords / rows.length * 100 : 0,
     hasAnomalies: affected.size > 0
   };
 }
