@@ -1,14 +1,18 @@
 import { DAY, pad, localDay, dayStart, shiftDay, fmt, num, MIN_VALID, HIST_MAX } from './modules/date-utils.js';
+import { pruneHistory, mergeImportedHistory } from './modules/history.js';
+import { createBackupSnapshot, mergeBackupData } from './modules/backup.js';
 import { $, sleep, APP_VERSION } from './modules/core.js';
 import { createStore } from './modules/store.js';
-import { median } from './modules/analysis.js';
-import { renderCharts } from './modules/charts.js';
-import { SVC_C, CH_C, SVC_T, CH_T, crc, frame, timeFrame, hex } from './modules/ble.js';
+import { fromOldRow } from './modules/legacy-migration.js';
+import { median, analyzeSpeedLevels, analyzeSpeedTimeContext, analyzeHygrometricPeriods, summarizeDailyTrends, analyzeHourlyPatterns, detectRapidChanges, summarizeEnergyReadiness, summarizeRawVmiSpeed, summarizeRawVmiMode, summarizeOperatingReference, compareOperatingPeriods, buildHygrometricDiagnosis } from './modules/analysis.js';
+import { renderCharts, resetChartViews } from './modules/charts.js';
+import { SVC_C, CH_C, SVC_T, CH_T, frame, timeFrame, hex } from './modules/ble.js';
 import { armDownloadTimeout } from './modules/sync.js';
-import { parseCell, recFrom, dayNumber } from './modules/dataio.js';
-import { absoluteHumidity, dewPoint, psychro, validTemp } from './modules/psychrometry.js';
+import { parseCell, recFrom, getColumnMapping, parseCsvRows, isCsvFile } from './modules/dataio.js';
+import { fixClock } from './modules/clock-correction.js';
+import { absoluteHumidity, psychro, validTemp } from './modules/psychrometry.js';
+import { summarizeDataQuality, isPlausibleHumidity, isPlausibleTemperature } from './modules/data-quality.js';
 
-'use strict';
 
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
 
@@ -41,7 +45,7 @@ let manualDisconnect=false,commandQueue=Promise.resolve(),manualCommandPending=f
 let meta={},cur={},lastSeen={},live=[],hist=[],source='hist',selectedDate=null,daysSetting=30;
 let logLines=[],dlFrames=0;
 let download={on:false,rows:[],buf:'',total:0,sigs:new Set(),got:false,lastPacket:0,timeout:null};
-const DB='VMI_PUREVENT_DB',STORE='data';
+const DB='VMI_PUREVENT_DB_TEST',STORE='data';
 const { get: dbGet, set: dbSet } = createStore({ databaseName: DB, storeName: STORE, onError: message => log(message) });
 const connected=()=>!!(chC&&dev&&dev.gatt&&dev.gatt.connected);
 
@@ -51,9 +55,7 @@ function log(s){logLines.push(`${new Date().toLocaleTimeString('fr-FR')} ${s}`);
 $('logDetails').addEventListener('toggle',()=>{if($('logDetails').open)renderLog()});
 function setStatus(s,isConnected=false){$('st').textContent=s;$('bleState').textContent=isConnected?'Connecté':'Déconnecté';$('conn').disabled=isConnected;$('disc').disabled=!isConnected}
 
-/* Reprise des données des anciennes versions (heure affichée mémorisée comme de l'UTC) */
-const wallUtcToLocal=t=>{const d=new Date(t);return new Date(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate(),d.getUTCHours(),d.getUTCMinutes(),d.getUTCSeconds()).getTime()};
-const fromOldRow=a=>({t:wallUtcToLocal(a[0]),st:a[1],sh:a[2],t1:a[3],h1:a[4],te:a[5],he:a[6],rpm:a[7],fil:a[8],vit:null,boost:null,hol:null});
+/* La lecture IndexedDB ancienne reste ici ; la conversion des lignes est isolée. */
 async function readOldDatabase(){
  try{
   if(!indexedDB.databases)return null;
@@ -89,8 +91,9 @@ async function init(){
  $('liveCount').textContent=live.length;render();
 }
 function pruneHist(){
- hist=hist.filter(r=>r&&(r.st!=null||r.sh!=null||r.te!=null||r.he!=null||r.rpm!=null||r.t1!=null||r.h1!=null));
- if(hist.length>HIST_MAX){hist=hist.slice(hist.length-HIST_MAX);log(`Historique limité à ${HIST_MAX} relevés (les plus anciens supprimés).`)}
+ const result=pruneHistory(hist,HIST_MAX);
+ hist=result.records;
+ if(result.removed)log(`Historique limité à ${HIST_MAX} relevés (les plus anciens supprimés).`);
 }
 
 /* Psychrométrie : approximation de Magnus */
@@ -166,7 +169,7 @@ function handleNotification(ev){
  log('< '+hex(a));
  if(type===1&&a.length>53){
   cur.filtre=a[28];cur.jours=a[26];cur.vol=a[22]|(a[23]<<8);cur.tmax=a[38];
-  cur.vit=a[34]+1;cur.boost=a[44];cur.hol=a[43];cur.rpm=null;
+  cur.vit=a[34]+1; // code brut VMI : ne jamais le traiter comme niveau manuel\n   cur.boost=a[44];cur.hol=a[43];cur.rpm=null;
   lastSeen.state=now;
   $('fi').textContent=cur.filtre;$('jf').textContent=cur.jours;$('vo').textContent=cur.vol;$('tm').textContent=cur.tmax;
   $('sp').textContent=cur.vit;$('bo').textContent=cur.boost?'Actif':'Arrêté';$('ho').textContent=cur.hol?'Actif':'Arrêté';
@@ -293,35 +296,10 @@ document.querySelectorAll('[data-r]').forEach(b=>b.addEventListener('click',asyn
 const setCommandsDisabled=dis=>document.querySelectorAll('[data-r]').forEach(x=>x.disabled=dis);
 $('clk').onclick=setClock;
 
-/* ---------- Dates ----------
-   - l'export tableur inverse jour et mois dans les cellules de type date (jour ≤ 12) ;
-   - surtout, la VMI date parfois ses relevés avec une horloge fausse (par ex. avril 2018) pendant des périodes
-     entières. Son compteur « jours de fonctionnement » reste juste : on s'en sert pour retrouver la vraie date. */
-const dayNo=dayNumber;
-const modeOf=a=>{const m=new Map();let best,bc=0;for(const x of a){const c=(m.get(x)||0)+1;m.set(x,c);if(c>bc){bc=c;best=x}}return best};
-/* Corrige en place les relevés datés d'avant 2025. Retourne {fixed, kept}. */
-function fixClock(recs){
- const known=hist.concat(recs).filter(r=>r.t>=MIN_VALID&&Number.isFinite(r.d)&&new Date(r.t).getHours()>=10);
- const E0=modeOf(known.map(r=>dayNo(r.t)-r.d));
- const bad=recs.filter(r=>r.t<MIN_VALID).sort((a,b)=>a.t-b.t);
- let fixed=0;
- if(E0!==undefined&&bad.length){
-  const eps=[];let cur=[];
-  for(const r of bad){if(cur.length&&r.t-cur[cur.length-1].t>3*DAY){eps.push(cur);cur=[]}cur.push(r)}
-  if(cur.length)eps.push(cur);
-  for(const ep of eps){
-   const k=modeOf(ep.filter(r=>Number.isFinite(r.d)&&new Date(r.t).getHours()>=10).map(r=>E0+r.d-dayNo(r.t)));
-   if(k===undefined)continue;
-   for(const r of ep){const x=new Date(r.t);r.t=new Date(x.getFullYear(),x.getMonth(),x.getDate()+k,x.getHours(),x.getMinutes(),x.getSeconds()).getTime();r.fixed=true;fixed++}
-  }
- }
- return {fixed,kept:recs.filter(r=>r.t>=MIN_VALID)};
-}
+/* Correction des dates historiques isolée dans clock-correction.js. */
 function ingest(recs,label){
- const {fixed,kept}=fixClock(recs);
- const map=new Map(hist.map(r=>[r.t,r]));
- kept.forEach(r=>map.set(r.t,r));
- hist=[...map.values()].sort((a,b)=>a.t-b.t);
+ const {fixed,kept}=fixClock(recs,hist);
+ hist=mergeImportedHistory(hist,kept);
  pruneHist();dbSet('hist',hist);source='hist';selectedDate=null;$('dayPicker').value='';
  const lost=recs.length-kept.length;
  $('importInfo').textContent=`${label} : ${recs.length} relevés lus${fixed?`, dont ${fixed} dont la date a été corrigée (horloge de la VMI fausse)`:''}${lost?`, ${lost} ignorés (date invalide impossible à corriger)`:''}.`;
@@ -382,20 +360,27 @@ function loadXLSX(){
  if(window.XLSX)return Promise.resolve();
  if(!xlsxPromise)xlsxPromise=(async()=>{
   for(const u of XLSX_URLS){try{await loadScript(u);if(window.XLSX)return}catch(e){log('SheetJS : '+e.message+' ('+u+')')}}
-  throw new Error('Impossible de charger la bibliothèque Excel : l’import .xlsx demande une connexion internet (une seule fois). Le téléchargement par Bluetooth n’en a pas besoin.');
+  throw new Error('Impossible de charger la bibliothèque de lecture : l’import CSV/Excel demande une connexion internet (une seule fois). Le téléchargement par Bluetooth n’en a pas besoin.');
  })().catch(e=>{xlsxPromise=null;throw e});
  return xlsxPromise;
 }
 $('fx').onchange=async e=>{
  const file=e.target.files&&e.target.files[0];if(!file)return;showError('');
  try{
-  $('importInfo').textContent='Chargement de la bibliothèque Excel…';
-  await loadXLSX();
-  const wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});
-  const sheet=wb.Sheets[wb.SheetNames[0]];
-  if(!sheet)throw new Error('Aucune feuille trouvée.');
-  const rows=XLSX.utils.sheet_to_json(sheet,{header:1,raw:true,defval:''});
-  const recs=[];for(let i=4;i<rows.length;i++){const r=recFrom(rows[i]);if(r)recs.push(r)}
+  let rows,spreadsheet=null;
+  if(isCsvFile(file.name)){
+   $('importInfo').textContent='Lecture du CSV…';
+   rows=parseCsvRows(await file.text());
+  }else{
+   $('importInfo').textContent='Chargement de la bibliothèque Excel…';
+   await loadXLSX();spreadsheet=XLSX;
+   const wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});
+   const sheet=wb.Sheets[wb.SheetNames[0]];
+   if(!sheet)throw new Error('Aucune feuille trouvée.');
+   rows=XLSX.utils.sheet_to_json(sheet,{header:1,raw:true,defval:''});
+  }
+  const columnMapping=getColumnMapping(rows[3]||[]);
+  const recs=[];for(let i=4;i<rows.length;i++){const r=recFrom(rows[i],spreadsheet,columnMapping);if(r)recs.push(r)}
   ingest(recs,'Import');
  }catch(err){showError('Import impossible : '+err.message)}
  e.target.value='';
@@ -403,10 +388,11 @@ $('fx').onchange=async e=>{
 $('clearImport').onclick=async()=>{if(confirm('Effacer tout l’historique importé ?')){hist=[];await dbSet('hist',[]);$('importInfo').textContent='';render()}};
 $('histBtn').onclick=()=>{source='hist';render()};
 $('liveBtn').onclick=()=>{source='live';render()};
-$('dayPicker').onchange=e=>{selectedDate=e.target.value||null;render()};
-$('prev').onclick=()=>{selectedDate=shiftDay(selectedDate,-1);$('dayPicker').value=selectedDate;render()};
-$('next').onclick=()=>{selectedDate=shiftDay(selectedDate,1);$('dayPicker').value=selectedDate;render()};
-document.querySelectorAll('[data-days]').forEach(b=>b.onclick=()=>{daysSetting=Number(b.dataset.days);selectedDate=null;$('dayPicker').value='';render()});
+$('dayPicker').onchange=e=>{selectedDate=e.target.value||null;resetChartViews();render()};
+$('clearDay').onclick=()=>{selectedDate=null;$('dayPicker').value='';resetChartViews();render()};
+$('prev').onclick=()=>{selectedDate=shiftDay(selectedDate,-1);$('dayPicker').value=selectedDate;resetChartViews();render()};
+$('next').onclick=()=>{selectedDate=shiftDay(selectedDate,1);$('dayPicker').value=selectedDate;resetChartViews();render()};
+document.querySelectorAll('[data-days]').forEach(b=>b.onclick=()=>{daysSetting=Number(b.dataset.days);selectedDate=null;$('dayPicker').value='';resetChartViews();render()});
 $('clearLive').onclick=async()=>{if(confirm('Effacer les relevés en direct ?')){live=[];await dbSet('live',[]);$('liveCount').textContent='0';render()}};
 $('csv').onclick=()=>{
  const keys=['t','st','sh','t1','h1','te','he','rpm','fil','vit','boost','hol'];
@@ -423,25 +409,22 @@ const fmtLocal=t=>{const d=new Date(t);return `${d.getFullYear()}-${pad(d.getMon
 const fmtShort=t=>{const d=new Date(t);return `${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`};
 const decFr=v=>(v==null||!Number.isFinite(v))?'':String(Math.round(v*100)/100).replace('.',',');
 function histToCsv(rows){
- const head=['date_heure','salon_temp_C','salon_HR_pct','salon_HA_g_m3','salon_rosee_C','sonde1_temp_C','sonde1_HR_pct','air_entrant_temp_C','air_entrant_HR_pct','air_entrant_HA_g_m3','regime_tr_min','filtre_jours_usage','jours_fonctionnement'];
+ const head=['date_heure','salon_temp_C','salon_HR_pct','temperature_exterieure_vmi_plus_C','salon_HA_calculee_g_m3','salon_rosee_C','sonde1_temp_C','sonde1_HR_pct','vmi_plus_P0_Hum_abs_brute','air_entrant_temp_C','air_entrant_HR_pct','vmi_plus_P1_Hum_abs_brute','air_entrant_HA_calculee_g_m3','regime_tr_min','etat_filtre_brut','indice_encrassement_pct','duree_fonctionnement_j','debit_vmi_plus_brut','vitesse_vmi_plus_code_brut','pwm_vmi_plus_brut','mode_vmi_plus_brut','volume_vmi_plus_m3_brut','cons_dp_vmi_plus_brut'];
  const lines=[head.join(';')];
  for(const r of rows){
   const p=psychro({st:r.st,sh:r.sh,te:r.te,he:r.he});
-  lines.push([fmtLocal(r.t),decFr(r.st),decFr(r.sh),decFr(p.haIn),decFr(p.dewIn),decFr(r.t1),decFr(r.h1),decFr(r.te),decFr(r.he),decFr(p.haOut),decFr(r.rpm),decFr(r.fil),decFr(r.d)].join(';'));
+  lines.push([fmtLocal(r.t),decFr(r.st),decFr(r.sh),decFr(r.tExt),decFr(p.haIn),decFr(p.dewIn),decFr(r.t1),decFr(r.h1),decFr(r.vmiAbsP0),decFr(r.te),decFr(r.he),decFr(r.vmiAbsP1),decFr(p.haOut),decFr(r.rpm),decFr(r.fil),decFr(r.filterIndexPct),decFr(r.d),decFr(r.debit),decFr(r.vmiSpeedRaw),decFr(r.vmiPwmRaw),decFr(r.vmiModeRaw),decFr(r.volumeRaw),decFr(r.consDpRaw)].join(';'));
  }
  return lines.join('\r\n');
 }
-function makeBackup(){return {app:'vmi-purevent',version:1,exportedAt:new Date().toISOString(),hist,live,meta}}
+function makeBackup(){return createBackupSnapshot({hist,live,meta})}
 function restoreBackup(obj){
- if(!obj||obj.app!=='vmi-purevent'||!Array.isArray(obj.hist))throw new Error('Fichier de sauvegarde non reconnu.');
- const map=new Map(hist.map(r=>[r.t,r]));let add=0;
- for(const r of obj.hist){if(r&&Number.isFinite(r.t)&&r.t>=MIN_VALID&&!map.has(r.t)){map.set(r.t,r);add++}}
- hist=[...map.values()].sort((a,b)=>a.t-b.t);
- let addL=0;
- if(Array.isArray(obj.live)){const seen=new Set(live.map(r=>r.t));for(const r of obj.live){if(r&&Number.isFinite(r.t)&&!seen.has(r.t)){live.push(r);seen.add(r.t);addL++}}live.sort((a,b)=>a.t-b.t);if(live.length>10000)live=live.slice(-10000)}
+ const previousLastSync=meta.lastSync;
+ const result=mergeBackupData({backup:obj,currentHist:hist,currentLive:live,currentMeta:meta,minValid:MIN_VALID});
+ hist=result.hist;live=result.live;meta=result.meta;
  pruneHist();dbSet('hist',hist);dbSet('live',live);
- if(obj.meta&&obj.meta.lastSync&&(!meta.lastSync||obj.meta.lastSync>meta.lastSync)){meta.lastSync=obj.meta.lastSync;dbSet('meta',meta)}
- return {add,addL};
+ if(meta.lastSync!==previousLastSync)dbSet('meta',meta);
+ return {add:result.addedHistory,enriched:result.enrichedHistory,addL:result.addedLive};
 }
 $('expHist').onclick=()=>{
  const rows=hist.filter(r=>r.t>=MIN_VALID);
@@ -457,8 +440,8 @@ $('restoreFile').onchange=async e=>{
  const file=e.target.files&&e.target.files[0];if(!file)return;
  try{
   const obj=JSON.parse(await file.text());
-  const {add,addL}=restoreBackup(obj);
-  $('backupInfo').textContent=`Sauvegarde restaurée : ${add} relevés d’historique et ${addL} relevés en direct ajoutés.`;
+  const {add,enriched,addL}=restoreBackup(obj);
+  $('backupInfo').textContent=`Sauvegarde restaurée : ${add} relevés d’historique ajoutés, ${enriched} complétés et ${addL} relevés en direct ajoutés.`;
   render();
  }catch(err){$('backupInfo').textContent='Restauration impossible : '+err.message}
  e.target.value='';
@@ -498,7 +481,15 @@ function buildDiagnostic(){
   const gaps=[];for(let i=1;i<ts.length;i++)if(ts[i]-ts[i-1]>2*3600e3)gaps.push(`${fmtShort(ts[i-1])} → ${fmtShort(ts[i])} (${((ts[i]-ts[i-1])/3600e3).toFixed(1)} h)`);
   L.push(`  trous > 2 h : ${gaps.length}${gaps.length?' : '+gaps.slice(0,8).join(' ; '):''}`);
   const miss=k=>valid.filter(r=>r[k]==null).length;
-  L.push(`  valeurs manquantes : salon T ${miss('st')}, salon HR ${miss('sh')}, sonde 1 T ${miss('t1')}, air entrant T ${miss('te')}, air entrant HR ${miss('he')}, régime ${miss('rpm')}`);
+  L.push(`  valeurs manquantes : salon T ${miss('st')}, ext. VMI+ T ${miss('tExt')}, salon HR ${miss('sh')}, sonde 1 T ${miss('t1')}, air entrant T ${miss('te')}, air entrant HR ${miss('he')}, régime ${miss('rpm')}`);
+  for(const [key,label] of [['st','Salon'],['t1','Sonde résistances'],['te','Air entrant']]){
+   const extreme=valid.filter(r=>Number.isFinite(r[key])&&r[key]>40);
+   L.push(`  Température >40°C – ${label} : ${extreme.length}${extreme.length?' · '+extreme.slice(0,8).map(r=>fmtLocal(r.t)+' = '+r[key]+'°C').join(' ; '):''}`);
+  }
+  for(const [tk,hk,label] of [['st','sh','Salon'],['t1','h1','Sonde résistances'],['te','he','Air entrant']]){
+   const extreme=valid.map(r=>({r,v:Number.isFinite(r[tk])&&Number.isFinite(r[hk])?absoluteHumidity(r[tk],r[hk]):null})).filter(x=>Number.isFinite(x.v)&&x.v>35);
+   L.push(`  Humidité absolue calculée >35 g/m³ – ${label} : ${extreme.length}${extreme.length?' · '+extreme.slice(0,8).map(x=>fmtLocal(x.r.t)+' = '+x.v.toFixed(1)).join(' ; '):''}`);
+  }
   L.push(`  relevés avec compteur de jours : ${valid.filter(r=>Number.isFinite(r.d)).length} · avec date brute : ${valid.filter(r=>r.rk).length}`);
  }
  L.push(`Direct : ${live.length} relevés${live.length?` (du ${fmtShort(live[0].t)} au ${fmtShort(live[live.length-1].t)})`:''}`);
@@ -520,39 +511,204 @@ $('diagCopy').onclick=async()=>{
 };
 
 /* ---------- Graphiques SVG ---------- */
-function selectedData(){
- const data=(source==='live'?live:hist).filter(r=>r.t>=MIN_VALID).sort((a,b)=>a.t-b.t);
- if(selectedDate){const start=dayStart(selectedDate),end=start+86400000;return data.filter(r=>r.t>=start&&r.t<end)}
+function selectDataRange(records){
+ const data=(Array.isArray(records)?records:[]).filter(r=>r&&r.t>=MIN_VALID).sort((a,b)=>a.t-b.t);
+ if(selectedDate){const start=dayStart(selectedDate),end=dayStart(shiftDay(selectedDate,1));return data.filter(r=>r.t>=start&&r.t<end)}
  if(daysSetting&&data.length){const end=data[data.length-1].t;return data.filter(r=>r.t>=end-daysSetting*86400000)}
  return data;
 }
-/* Comparaison prudente par vitesse (médianes) */
-function analyzeSpeeds(data){
- const min=Number($('minSamples').value),target=Number($('targetRH').value);
- const rows=data.filter(r=>Number.isFinite(r.vit)&&r.vit>=1&&r.vit<=3&&Number.isFinite(r.sh)&&Number.isFinite(r.st));
- const groups=[1,2,3].map(v=>{
-  const a=rows.filter(r=>r.vit===v);
-  return {v,n:a.length,rh:median(a.map(r=>r.sh)),ha:median(a.map(r=>absoluteHumidity(r.st,r.sh))),delta:median(a.map(r=>{const x=absoluteHumidity(r.st,r.sh),y=absoluteHumidity(r.te,r.he);return x!=null&&y!=null?x-y:null}))};
- });
- let html='<table><thead><tr><th>Vitesse</th><th>Relevés</th><th>HR médiane</th><th>HA salon</th><th>Écart HA</th></tr></thead><tbody>';
- for(const g of groups)html+=`<tr><td>${g.v}</td><td>${g.n}</td><td>${g.rh==null?'–':fmt(g.rh)+' %'}</td><td>${g.ha==null?'–':fmt(g.ha)+' g/m³'}</td><td>${g.delta==null?'–':fmt(g.delta)+' g/m³'}</td></tr>`;
- html+='</tbody></table>';
- const sufficient=groups.filter(g=>g.n>=min);
- let advice='';
- if(!rows.length)advice='Aucun relevé de la période ne contient la vitesse : seuls les relevés de l\'enregistrement en direct l\'enregistrent. Choisis la source « En direct » une fois que quelques relevés ont été pris.';
- else if(!sufficient.length)advice=`Il faut au moins ${min} relevés avec la vitesse identifiée pour chaque comparaison. Continue l'enregistrement en direct.`;
- else{
-  const best=sufficient.filter(g=>g.rh!=null&&g.rh<=target).sort((a,b)=>a.v-b.v)[0];
-  if(best)advice=`Parmi les vitesses disposant d'au moins ${min} relevés, la vitesse ${best.v} est la plus basse dont l'humidité relative médiane observée est inférieure ou égale à ${target} %. C'est une piste à vérifier sur des périodes comparables, pas une preuve d'optimum.`;
-  else advice=`Aucune vitesse suffisamment documentée ne présente une humidité relative médiane inférieure ou égale à ${target} %. Vérifie aussi les sources d'humidité et la représentativité des périodes.`;
- }
- $('speedAnalysis').innerHTML=html+`<div class="advice">${advice}</div>`;
+/* Le direct reste une vue facultative ; toutes les analyses utilisent l'historique importé/téléchargé. */
+function selectedData(){return selectDataRange(source==='live'?live:hist)}
+function selectedHistoricalData(){return selectDataRange(hist)}
+function formatDuration(ms){
+ const minutes=Math.round(ms/60000),hours=Math.floor(minutes/60),days=Math.floor(hours/24);
+ if(days)return days+' j '+(hours%24)+' h';
+ if(hours)return hours+' h '+(minutes%60)+' min';
+ return minutes+' min';
 }
+function renderHygrometricPeriods(data){
+ const box=$('hygroPeriods');
+ const result=analyzeHygrometricPeriods(data,{threshold:1,maxGapHours:2});
+ if(result.sampleCount<2||!result.observedDurationMs){
+  box.className='advice';
+  box.textContent=result.sampleCount<2?'Pas assez de mesures simultanées valides pour analyser une durée.':'Aucune durée exploitable : les mesures sont trop espacées (plus de 2 h entre deux relevés).';
+  return;
+ }
+ const total=result.observedDurationMs;
+ const pct=value=>Math.round(value/total*100);
+ let message='Sur '+formatDuration(total)+' de périodes observées (sans extrapoler les trous de plus de 2 h) : ';
+ message+='Air entrant plus sec : '+formatDuration(result.dryDurationMs)+' ('+pct(result.dryDurationMs)+' %). ';
+ message+='Air entrant plus humide : '+formatDuration(result.humidDurationMs)+' ('+pct(result.humidDurationMs)+' %). ';
+ message+='Écart faible : '+formatDuration(result.neutralDurationMs)+' ('+pct(result.neutralDurationMs)+' %). ';
+ message+='Écart médian salon − air entrant : '+fmt(result.medianDelta)+' g/m³. ';
+ message+='Plus longue séquence asséchante estimée : '+formatDuration(result.longestDryMs)+'. ';
+ message+='Plus longue séquence où l’air entrant est plus humide : '+formatDuration(result.longestHumidMs)+'.';
+ if(result.gapCount)message+=' '+result.gapCount+' interruption(s) de plus de 2 h exclue(s) du calcul.';
+ box.className=result.humidDurationMs>result.dryDurationMs?'advice warn':'advice';
+ box.textContent=message;
+}
+
+function renderTemporalAnalysis(data){
+ const dailyBox=$('dailyTrends'), hourlyBox=$('hourlyPatterns'), anomalyBox=$('rapidChanges');
+ const daily=summarizeDailyTrends(data);
+ if(!daily.days.length){
+  dailyBox.textContent='Pas assez de températures et d’humidités valides pour établir une tendance journalière.';
+ }else{
+  const rows=daily.days.slice(-7).map(d=>{
+   const parts=d.date.split('-').map(Number),date=new Date(parts[0],parts[1]-1,parts[2]);
+   return date.toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'2-digit'})+
+    ' : '+fmt(d.medianRH)+' % HR · '+fmt(d.medianAbsoluteHumidity)+' g/m³ HA · '+d.sampleCount+' relevés';
+  });
+  let message='Médianes journalières du salon (7 derniers jours disponibles) : '+rows.join(' | ')+'. ';
+  if(daily.changeRH!=null){
+   const direction=daily.changeRH>0?'hausse':daily.changeRH<0?'baisse':'stabilité';
+   message+='Entre les deux derniers jours suffisamment documentés : '+direction+' de '+fmt(Math.abs(daily.changeRH))+' points d’humidité relative et variation de '+fmt(daily.changeAbsoluteHumidity)+' g/m³ d’humidité absolue.';
+  }else message+='Il faut au moins 3 relevés par jour et deux jours suffisamment documentés pour calculer une évolution.';
+  dailyBox.textContent=message;
+ }
+ const hourly=analyzeHourlyPatterns(data,3);
+ hourlyBox.textContent='Profils par tranche de 6 h (médiane salon ; minimum 3 relevés) : '+hourly.buckets.map(b=>
+  b.label+' : '+(b.medianRH==null?'données insuffisantes':fmt(b.medianRH)+' % HR · '+fmt(b.medianDelta)+' g/m³ écart HA · '+b.sampleCount+' relevés')
+ ).join(' | ')+'.';
+ const events=detectRapidChanges(data);
+ if(!events.length){
+  anomalyBox.className='advice';
+  anomalyBox.textContent='Aucune variation rapide dépassant les seuils de surveillance n’a été détectée dans les données valides de cette période.';
+ }else{
+  anomalyBox.className='advice warn';
+  anomalyBox.textContent='Variations rapides à examiner (ce ne sont pas des diagnostics de panne) : '+events.slice(-5).reverse().map(e=>{
+   const start=new Date(e.start).toLocaleString('fr-FR'),end=new Date(e.end).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+   return start+' → '+end+' : '+(e.deltaRH>0?'+':'')+fmt(e.deltaRH)+' points HR, '+(e.deltaAbsoluteHumidity>0?'+':'')+fmt(e.deltaAbsoluteHumidity)+' g/m³ HA';
+  }).join(' | ')+(events.length>5?' | '+(events.length-5)+' autre(s) événement(s).':'.');
+ }
+}
+
+
+function renderIntelligentDiagnosis(data){
+ const result=buildHygrometricDiagnosis(data);
+ const box=$('diagnosisStatus'), evidence=$('diagnosisEvidence'), limits=$('diagnosisLimits');
+ const confidence='Couverture '+result.coverageLevel+' (indicateur heuristique) · '+result.sampleCount+' relevés simultanés valides · '+result.dayCount+' jour(s) · '+fmt(result.observedHours)+' h observées · intervalle médian '+(result.medianSampleIntervalMinutes==null?'–':fmt(result.medianSampleIntervalMinutes)+' min')+' · '+result.excludedGapCount+' trou(s) > '+result.maxGapHours+' h';
+ box.className=result.status==='analysis-available'?'advice':'advice warn';
+ box.textContent=confidence+'.'+(result.largestExcludedGapHours>0?' Plus grand trou exclu : '+fmt(result.largestExcludedGapHours)+' h.':'');
+ if(!result.observations.length){
+  evidence.textContent='Aucun constat ne peut être établi avec les mesures disponibles.';
+ }else{
+  evidence.textContent=result.observations.map((item,index)=>
+   (index+1)+'. '+item.title+' — '+item.detail+' Action proposée : '+item.recommendation
+  ).join(' ');
+ }
+ limits.textContent='Limites : '+result.limits.join(' ');
+}
+
+/* Affichage de la comparaison calculée par le module d'analyse. */
+function analyzeSpeeds(data){
+ const min=Number($('minSamples').value);
+ const result=analyzeSpeedLevels(data,min,Number($('targetRH').value));
+ const groups=result.groups;
+ let html='<table><thead><tr><th>Niveau manuel</th><th>Relevés</th><th>Jours mesurés</th><th>Jours communs avec autres niveaux</th><th>HR médiane</th><th>HA salon</th><th>Écart HA</th><th>Temps couvert</th><th>RPM médian</th><th>Part avec air entrant plus sec</th></tr></thead><tbody>';
+ for(const g of groups){
+  const span=g.spanHours>=24?fmt(g.spanHours/24)+' j':g.spanHours>0?fmt(g.spanHours)+' h':'–';
+  html+='<tr><td>'+g.v+'</td><td>'+g.n+'</td><td>'+g.daysCovered+'</td><td>'+g.sharedDays+'</td><td>'+(g.rh==null?'–':fmt(g.rh)+' %')+'</td><td>'+(g.ha==null?'–':fmt(g.ha)+' g/m³')+'</td><td>'+(g.delta==null?'–':fmt(g.delta)+' g/m³')+'</td><td>'+span+'</td><td>'+(g.rpm==null?'–':fmt(g.rpm)+' ('+g.rpmSamples+')')+'</td><td>'+(g.dryingShare==null?'–':fmt(g.dryingShare*100)+' % ('+g.deltaSamples+')')+'</td></tr>';
+ }
+ html+='</tbody></table>';
+ const usable=groups.filter(g=>g.n>=min);
+ let advice='';
+ if(result.status==='no-speed-data')advice='Aucun relevé ne contient un niveau manuel identifié. Les codes bruts VMI+ ne sont volontairement pas assimilés aux niveaux 1/2/3. L’analyse reste donc indisponible avec cet import seul.';
+ else if(result.status==='insufficient')advice='Données insuffisantes : il faut au moins '+min+' relevés identifiés par niveau pour établir une comparaison. Les résultats partiels restent visibles mais ne permettent pas de conclure.';
+ else advice='Comparaison descriptive disponible pour '+usable.map(g=>'niveau '+g.v).join(', ')+'. Les jours communs indiquent sur combien de dates chaque niveau recoupe au moins un autre niveau analysable : plus ce nombre est faible, moins la comparaison est directe. Même avec des jours communs, les heures, la météo et l’occupation peuvent différer. Aucun niveau n’est désigné comme optimal.';
+ const context=analyzeSpeedTimeContext(data,{minSamples:5,minDays:2});
+ let contextHtml='<h4>Comparaison par tranche horaire</h4><p class="muted">Une tranche n’est comparée que si au moins deux niveaux manuels ont chacun 5 relevés minimum et au moins 2 dates communes dans cette tranche.</p>';
+ if(!context.comparableBuckets.length){
+  contextHtml+='<div class="advice">Pas encore assez de données réparties sur plusieurs jours et plusieurs niveaux dans une même tranche horaire. Les valeurs brutes VMI+ ne sont pas utilisées comme vitesses manuelles.</div>';
+ }else{
+  contextHtml+='<table><thead><tr><th>Horaire</th><th>Niveau</th><th>Relevés / jours</th><th>HR médiane</th><th>HA salon</th><th>Écart HA salon − entrant</th><th>RPM médian</th></tr></thead><tbody>';
+  for(const bucket of context.comparableBuckets){
+   for(const g of context.groups.filter(x=>x.bucket===bucket&&x.ready)){
+    contextHtml+='<tr><td>'+g.label+'</td><td>'+g.speed+'</td><td>'+g.sampleCount+' / '+g.dayCount+' ('+g.sharedDays+' communes)</td><td>'+fmt(g.medianRH)+' %</td><td>'+fmt(g.medianIndoorHA)+' g/m³</td><td>'+(g.medianDeltaHA==null?'–':fmt(g.medianDeltaHA)+' g/m³ ('+g.deltaSamples+')')+'</td><td>'+(g.medianRPM==null?'–':fmt(g.medianRPM))+'</td></tr>';
+   }
+  }
+  contextHtml+='</tbody></table><div class="advice">Cette lecture réduit une partie des différences horaires, mais ne contrôle pas la météo, les apports d’humidité, l’occupation ni le débit réel. Elle ne permet pas de désigner une vitesse optimale.</div>';
+ }
+
+ const periods=compareOperatingPeriods(data,{periodDays:7,minSamples:12,minDays:3});
+ let periodHtml='<h4>Évolution entre deux périodes successives</h4><p class="muted">Comparaison sur 7 jours consécutifs, à Mode et tranche horaire identiques. Minimum : 12 relevés et 3 jours distincts dans chacune des deux périodes.</p>';
+ if(periods.status!=='comparison-available'){
+  periodHtml+='<div class="advice">Pas encore assez de données Mode réparties sur deux périodes successives comparables. Il faut au moins 12 relevés sur 3 jours dans chaque période, pour un même Mode et une même tranche horaire. Les codes Vitesse bruts ne sont pas utilisés.</div>';
+ }else{
+  periodHtml+='<p class="muted">Période précédente : '+periods.periods[0].start+' au '+periods.periods[0].end+' · Période récente : '+periods.periods[1].start+' au '+periods.periods[1].end+'.</p>';
+  periodHtml+='<table><thead><tr><th>Mode / horaire</th><th>Relevés / jours<br>précédent → récent</th><th>Débit m³/h<br>médiane · Δ</th><th>RPM<br>médiane · Δ</th><th>PWM brut<br>médiane · Δ</th><th>Pression moteur brute<br>médiane · Δ</th></tr></thead><tbody>';
+  for(const item of periods.comparisons.filter(entry=>entry.comparable)){
+   const show=key=>{
+    const value=item.deltas[key];
+    if(!value)return '–';
+    const percent=value.relativePercent==null?'': ' ('+(value.relativePercent>0?'+':'')+fmt(value.relativePercent)+' %)';
+    return fmt(value.previous)+' → '+fmt(value.current)+' · '+(value.absolute>0?'+':'')+fmt(value.absolute)+percent;
+   };
+   periodHtml+='<tr><td>'+item.mode+' · '+item.label+'</td><td>'+item.previous.sampleCount+'/'+item.previous.dayCount+' → '+item.current.sampleCount+'/'+item.current.dayCount+'</td><td>'+show('debit')+'</td><td>'+show('rpm')+'</td><td>'+show('vmiPwmRaw')+'</td><td>'+show('motorPressureRaw')+'</td></tr>';
+  }
+  periodHtml+='</tbody></table><div class="advice">Les écarts sont descriptifs, sans seuil automatique d’alerte. Une évolution du débit, du régime ou des signaux bruts ne prouve pas un filtre encrassé ni une panne. Les changements de météo, d’installation, de réglage, d’entretien et les conditions d’utilisation peuvent expliquer une partie des différences.</div>';
+ }
+ $('speedAnalysis').innerHTML=html+'<div class="advice">'+advice+'</div>'+contextHtml+periodHtml;
+}
+function renderEnergyReadiness(data){
+ const result=summarizeEnergyReadiness(data);
+ const labels={rpm:'Régime moteur',debit:'Débit VMI+ (m³/h confirmé)',vmiSpeedRaw:'Code vitesse VMI+ brut',vmiPwmRaw:'PWM brut',consDpRaw:'Cons DP brut'};
+ let html='<table><thead><tr><th>Champ exporté</th><th>Mesures</th><th>Zéros</th><th>Manquants</th><th>Minimum</th><th>Maximum</th><th>Valeurs distinctes</th></tr></thead><tbody>';
+ for(const f of result.fields){
+  const distinct=f.distinct.length>8?f.distinct.slice(0,8).map(fmt).join(', ')+'…':f.distinct.map(fmt).join(', ')||'–';
+  html+='<tr><td>'+(labels[f.key]||f.label)+'<br><small>'+f.unit+'</small></td><td>'+f.count+'</td><td>'+f.zeroCount+'</td><td>'+f.missingCount+'</td><td>'+(f.min==null?'–':fmt(f.min))+'</td><td>'+(f.max==null?'–':fmt(f.max))+'</td><td>'+distinct+'</td></tr>';
+ }
+ html+='</tbody></table>';
+
+ const operating = summarizeOperatingReference(data);
+ let operatingHtml='<h4>Référence descriptive du fonctionnement par mode VMI+</h4><p class="muted">Profil calculé à partir des relevés importés, en séparant strictement le champ Mode du code Vitesse brut. Les valeurs PWM, Pression moteur et Cons DP restent des signaux bruts.</p>';
+ if(!operating.groups.length){
+  operatingHtml+='<div class="advice">Aucune donnée Mode exploitable pour construire cette référence.</div>';
+ }else{
+  operatingHtml+='<table><thead><tr><th>Mode</th><th>Relevés / jours</th><th>Variable</th><th>Médiane</th><th>Plage observée</th></tr></thead><tbody>';
+  for(const group of operating.groups){
+   for(const field of group.fields){
+    operatingHtml+='<tr><td>'+fmt(group.mode)+'</td><td>'+group.sampleCount+' / '+group.dayCount+'</td><td>'+field.label+'<br><small>'+field.unit+'</small></td><td>'+(field.median==null?'–':fmt(field.median))+'</td><td>'+(field.min==null?'–':fmt(field.min)+' – '+fmt(field.max))+'</td></tr>';
+   }
+  }
+  operatingHtml+='</tbody></table>';
+ }
+ operatingHtml+='<div class="advice">'+operating.limits.join(' ')+'</div>';
+ const modeGroups=summarizeRawVmiMode(data);
+ let modeHtml='<h4>Débit et renouvellement théorique par mode VMI+</h4><p class="muted">Le champ « mode » est distinct du champ « Vitesse ». Débit en m³/h confirmé. Le mode 3 dispose d’une référence confirmée de 184 m³/h ; elle est affichée séparément des mesures historiques. Le taux est calculé à partir du volume du logement renseigné dans chaque relevé ; il décrit un renouvellement théorique, pas une mesure de l’air effectivement distribué dans chaque pièce.</p>';
+ if(!modeGroups.length){modeHtml+='<div class="advice">Aucun mode VMI+ exploitable dans la période sélectionnée.</div>'}
+ else{
+  modeHtml+='<table><thead><tr><th>Mode VMI+</th><th>Relevés</th><th>Débit médian / référence</th><th>Min–max débit mesuré</th><th>Renouvellement théorique</th></tr></thead><tbody>';
+  for(const group of modeGroups){modeHtml+='<tr><td>'+fmt(group.mode)+'</td><td>'+group.sampleCount+'</td><td>'+(group.medianDebit!=null?fmt(group.medianDebit)+' m³/h (médiane)':group.referenceDebit!=null?fmt(group.referenceDebit)+' m³/h (référence)':'–')+'</td><td>'+(group.minDebit==null?'–':fmt(group.minDebit)+' – '+fmt(group.maxDebit)+' m³/h')+'</td><td>'+(group.medianRenewalRate!=null?fmt(group.medianRenewalRate)+' vol/h':group.referenceRenewalRate!=null?fmt(group.referenceRenewalRate)+' vol/h (théorique)':'–')+'</td></tr>'}
+  modeHtml+='</tbody></table>';
+ }
+ const rawGroups=summarizeRawVmiSpeed(data);
+ let rawHtml='<h4>Débit selon le code vitesse brut VMI+</h4><p class="muted">Le code « Vitesse » est affiché séparément du mode. Les codes bruts ne sont pas assimilés aux niveaux manuels 1, 2 ou 3.</p>';
+ if(!rawGroups.length){rawHtml+='<div class="advice">Aucun code vitesse brut exploitable dans la période sélectionnée.</div>'}
+ else{
+  rawHtml+='<table><thead><tr><th>Code vitesse brut</th><th>Relevés</th><th>Débit médian</th><th>Minimum</th><th>Maximum</th></tr></thead><tbody>';
+  for(const group of rawGroups){rawHtml+='<tr><td>'+fmt(group.code)+'</td><td>'+group.sampleCount+'</td><td>'+(group.medianDebit==null?'–':fmt(group.medianDebit)+' m³/h')+'</td><td>'+(group.minDebit==null?'–':fmt(group.minDebit)+' m³/h')+'</td><td>'+(group.maxDebit==null?'–':fmt(group.maxDebit)+' m³/h')+'</td></tr>'}
+  rawHtml+='</tbody></table>';
+ }
+ const volumes=data.map(r=>r?.volumeRaw).filter(v=>Number.isFinite(v)&&v>0);
+ const volumeValues=[...new Set(volumes)].sort((a,b)=>a-b);
+ const volumeMedian=median(volumes);
+ let volumeHtml='<h4>Volume du logement enregistré dans la VMI+</h4>';
+ if(volumeMedian==null){
+  volumeHtml+='<div class="advice">Aucune valeur de volume (champ Vol(m³)) disponible dans cette période.</div>';
+ }else{
+  volumeHtml+='<div class="advice"><strong>'+fmt(volumeMedian)+' m³</strong> · '+volumes.length+' relevé(s) renseigné(s)'+
+   (volumeValues.length>1?' · valeurs rencontrées : '+volumeValues.map(fmt).join(', ')+' m³':' · valeur constante dans les relevés')+
+   '. Cette donnée correspond au volume du logement déclaré dans la VMI+, pas à un volume d’air réellement renouvelé.</div>';
+ }
+ $('energyReadiness').innerHTML=volumeHtml+html+operatingHtml+modeHtml+rawHtml+'<div class="advice">'+result.message+' Les valeurs brutes sont conservées ; aucune conversion des champs non documentés en watts, kWh ou rendement n’est appliquée. Le débit confirmé reste affiché en m³/h.</div>';
+}
+
 function renderRecommendation(data){
  const box=$('recommendation');
- const valid=data.filter(r=>Number.isFinite(r.st)&&Number.isFinite(r.sh)&&Number.isFinite(r.te)&&Number.isFinite(r.he));
+ const valid=data.filter(r=>Number.isFinite(r.st)&&isPlausibleTemperature(r.st)&&Number.isFinite(r.sh)&&isPlausibleHumidity(r.sh)&&Number.isFinite(r.te)&&isPlausibleTemperature(r.te)&&Number.isFinite(r.he)&&isPlausibleHumidity(r.he));
  box.className='advice';
- if(!valid.length){box.textContent='Pas assez de données valides. Connecte la VMI et laisse-la enregistrer plusieurs relevés, ou importe un historique.';return}
+ if(!valid.length){box.textContent='Pas assez de données historiques valides. Importe un export VMI+ ou télécharge l’historique depuis la VMI. Le Bluetooth en direct ne sert pas à produire ce diagnostic.';return}
  const recent=valid.slice(-Math.min(24,valid.length));
  const rh=median(recent.map(r=>r.sh)),ha=median(recent.map(r=>absoluteHumidity(r.st,r.sh))),haIn=median(recent.map(r=>absoluteHumidity(r.te,r.he)));
  const target=Number($('targetRH').value),delta=ha-haIn;
@@ -569,11 +725,27 @@ function renderRecommendation(data){
 }
 function render(){
  const data=selectedData();
+ const analysisData=selectedHistoricalData();
+ const dashboardData=$('dashboardDataStatus');
+ const dashboardAnalysis=$('dashboardAnalysisStatus');
+ dashboardData.textContent=analysisData.length?`${analysisData.length} relevés historiques dans la période sélectionnée.`:'Aucun relevé historique exploitable dans la période sélectionnée. Importe un export VMI+.';
+ const dashboardDiagnosis=buildHygrometricDiagnosis(analysisData);
+ dashboardAnalysis.textContent=dashboardDiagnosis.status==='analysis-available'?'Des constats hygrométriques peuvent être établis à partir de l’historique.':'Historique encore insuffisant pour établir un diagnostic fiable.';
  $('liveCount').textContent=live.length;
- $('historyStatus').textContent=`${data.length} relevés affichés · ${source==='live'?'enregistrement local en direct':'historique importé / VMI'} · ${selectedDate?'jour '+selectedDate:(daysSetting?daysSetting+' derniers jours':'toute la période')}`;
+ const rangeLabel=selectedDate?'jour '+selectedDate:(daysSetting?daysSetting+' derniers jours':'toute la période');
+ $('historyStatus').textContent=`Graphiques : ${data.length} relevés · ${source==='live'?'enregistrement direct facultatif':'historique importé / VMI'} · ${rangeLabel}. Analyses et diagnostics : historique importé / VMI uniquement.`;
  const lastRpm=[...hist].reverse().find(r=>Number.isFinite(r.rpm));
  $('rpm').textContent=lastRpm?lastRpm.rpm:'–';
- renderCharts(data,selectedDate,$);renderRecommendation(data);analyzeSpeeds(data);renderFreshness();
+ const quality=summarizeDataQuality(data);
+ const qualityBox=$('dataQuality');
+ if(quality.hasAnomalies){
+  const details=quality.fields.map(field=>`${field.label} : ${field.count}`).join(' · ');
+  qualityBox.className='advice warn';
+  qualityBox.textContent=`Contrôle qualité : ${quality.affectedRecords} relevé(s) contiennent des valeurs physiquement improbables (${details}). Ces valeurs sont masquées dans les graphiques concernés, mais conservées dans l’historique et les exports.`;
+ }else{qualityBox.className='advice';qualityBox.textContent='Contrôle qualité : aucune valeur aberrante détectée sur les capteurs pour cette période. Les données manquantes ne sont pas comptées comme anomalies.';}
+ renderCharts(data,selectedDate,$);
+ renderRecommendation(analysisData);renderHygrometricPeriods(analysisData);renderIntelligentDiagnosis(analysisData);
+ renderTemporalAnalysis(analysisData);analyzeSpeeds(analysisData);renderEnergyReadiness(analysisData);renderFreshness();
 }
 $('targetRH').onchange=render;$('minSamples').onchange=render;
 
@@ -584,8 +756,8 @@ $('themeBtn').onclick=()=>{
  const root=document.documentElement;
  const dark=root.dataset.theme?root.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;
  root.dataset.theme=dark?'light':'dark';
- try{localStorage.setItem('vmi_theme',root.dataset.theme)}catch(e){}
+ try{localStorage.setItem('vmi_modulaire_theme',root.dataset.theme)}catch(e){}
 };
-try{const theme=localStorage.getItem('vmi_theme');if(theme)document.documentElement.dataset.theme=theme}catch(e){}
+try{const theme=localStorage.getItem('vmi_modulaire_theme');if(theme)document.documentElement.dataset.theme=theme}catch(e){}
 if(!navigator.bluetooth)showError('Web Bluetooth indisponible : ouvre cette page en HTTPS dans Chrome sur Android.');
 init();

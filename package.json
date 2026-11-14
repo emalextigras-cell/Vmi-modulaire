@@ -1,0 +1,8 @@
+{
+  "name": "vmi-purevent-modulaire",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --check js/app.js && node --check js/modules/chart-renderer.js && node --test"
+  }
+}
