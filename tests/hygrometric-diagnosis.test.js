@@ -20,7 +20,7 @@ function makeRows({days=3,perDay=10,indoorRH=65,incomingRH=40,indoorTemp=20,inco
 test('diagnostic exposes its thresholds and the measured basis of each finding',()=>{
  const result=buildHygrometricDiagnosis(makeRows());
  assert.deepEqual(result.methodology,{
-  version:'hygrometric-diagnostic-v1',
+  version:'hygrometric-diagnostic-v2',
   dryDeltaThreshold:1,
   trendDeltaThreshold:0.8,
   minimumSamples:12,
@@ -102,6 +102,20 @@ test('diagnostic quantifies sampling intervals and excludes long data gaps',()=>
  assert.ok(result.largestExcludedGapHours>2);
  assert.ok(result.coverageSpanHours>24);
  assert.equal(result.maxGapHours,2);
+});
+
+test('diagnostic reports the share of the first-to-last period covered by usable intervals',()=>{
+ const result=buildHygrometricDiagnosis(makeRows({days:3,perDay:10}));
+ assert.equal(result.observedHours,13.5);
+ assert.equal(result.coverageSpanHours,52.5);
+ assert.ok(Math.abs(result.observedCoveragePercent-(13.5/52.5*100))<0.1);
+});
+
+test('diagnostic leaves temporal coverage undefined when there is no elapsed span',()=>{
+ const row=makeRows({days:1,perDay:1});
+ const result=buildHygrometricDiagnosis(row);
+ assert.equal(result.coverageSpanHours,0);
+ assert.equal(result.observedCoveragePercent,null);
 });
 
 test('les durées sont découpées au franchissement des seuils hygrométriques',()=>{
