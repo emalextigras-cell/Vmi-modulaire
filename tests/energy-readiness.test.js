@@ -52,3 +52,13 @@ test('inventorie les champs énergétiques sans attribuer de watts ou kWh', () =
   assert.equal(result.fields.find(item => item.key === 'debit').verified, true);
   assert.equal(result.fields.find(item => item.key === 'rpm').verified, true);
 });
+
+test('distingue les deux colonnes VMI+ portant le même en-tête % fonct', () => {
+  const headers = ['Date', '% fonct', 'Colonne intermédiaire', '% fonct'];
+  const values = ['10/11/2026 16:45:35', '7', 'sans objet', '3'];
+  const mapping = getColumnMapping(headers);
+  const record = recFrom(values, null, mapping);
+  assert.ok(record);
+  assert.equal(record.operatingPctRaw, 7);
+  assert.equal(record.operatingPct2Raw, 3);
+});
