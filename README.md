@@ -10,6 +10,7 @@ Copie de travail indépendante du dépôt source `emalextigras-cell/Vmi`. Le dé
 - `js/modules/bluetooth-protocol.js` : UUID, CRC et construction des trames Bluetooth VMI.
 - `js/modules/psychrometry.js` : humidité absolue, point de rosée et indicateurs hygrométriques.
 - `js/modules/analysis.js` : tendances temporelles, comparaison descriptive des niveaux manuels et inventaire des champs énergétiques bruts.
+- `buildHygrometricDiagnosis()` dans `analysis.js` : diagnostic hygrométrique explicable, avec niveau de confiance, constats argumentés et limites explicites.
 - `js/modules/legacy-migration.js` : conversion des anciennes lignes historiques, sans modifier le schéma IndexedDB.
 - `js/modules/date-utils.js` : dates, normalisation et constantes partagées.
 - `js/modules/chart-renderer.js` : graphiques SVG, gestion des courbes et infobulles tactiles.
@@ -68,3 +69,11 @@ Le point d'entrée reste `js/app.js`. Les responsabilités sont réparties dans 
 - `app.js` : orchestration de l'interface et coordination des modules.
 
 Les modules historiques `date-utils.js`, `psychrometry.js`, `bluetooth-protocol.js` et `chart-renderer.js` sont conservés pour limiter les changements et préserver les calculs et le protocole de la v13.
+
+## Diagnostic hygrométrique explicable
+
+Le moteur croise les mesures simultanées du salon et de l'air entrant : humidité absolue, point de rosée calculé, périodes où l'air entrant est plus sec ou plus humide, tendances journalières et profils horaires. Il restitue des constats accompagnés de leurs mesures justificatives, de pistes d'action et d'un niveau de confiance lié au volume, à la durée et à la répartition des données.
+
+Le diagnostic dédoublonne les horodatages, écarte les mesures hors limites et ne prolonge pas les intervalles de plus de deux heures. Il ne déduit pas le débit réel, la consommation électrique, une panne ou une vitesse optimale. Le point de rosée de l'air n'est pas une température de paroi et ne suffit pas à conclure à un risque de condensation.
+
+Ce moteur est une première couche de diagnostic déterministe et explicable ; ce n'est pas encore un modèle d'apprentissage automatique ni un pilotage automatique.
