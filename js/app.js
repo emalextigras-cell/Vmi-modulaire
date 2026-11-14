@@ -4,7 +4,7 @@ import { createBackupSnapshot, mergeBackupData } from './modules/backup.js';
 import { $, sleep, APP_VERSION } from './modules/core.js';
 import { createStore } from './modules/store.js';
 import { fromOldRow } from './modules/legacy-migration.js';
-import { median, analyzeSpeedLevels, analyzeHygrometricPeriods } from './modules/analysis.js';
+import { median, analyzeSpeedLevels, analyzeHygrometricPeriods, summarizeDailyTrends, analyzeHourlyPatterns, detectRapidChanges } from './modules/analysis.js';
 import { renderCharts, resetChartViews } from './modules/charts.js';
 import { SVC_C, CH_C, SVC_T, CH_T, crc, frame, timeFrame, hex } from './modules/ble.js';
 import { armDownloadTimeout } from './modules/sync.js';
@@ -539,6 +539,42 @@ function renderHygrometricPeriods(data){
  box.className=result.humidDurationMs>result.dryDurationMs?'advice warn':'advice';
  box.textContent=message;
 }
+
+function renderTemporalAnalysis(data){
+ const dailyBox=$('dailyTrends'), hourlyBox=$('hourlyPatterns'), anomalyBox=$('rapidChanges');
+ const daily=summarizeDailyTrends(data);
+ if(!daily.days.length){
+  dailyBox.textContent='Pas assez de températures et d’humidités valides pour établir une tendance journalière.';
+ }else{
+  const rows=daily.days.slice(-7).map(d=>{
+   const parts=d.date.split('-').map(Number),date=new Date(parts[0],parts[1]-1,parts[2]);
+   return date.toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'2-digit'})+
+    ' : '+fmt(d.medianRH)+' % HR · '+fmt(d.medianAbsoluteHumidity)+' g/m³ HA · '+d.sampleCount+' relevés';
+  });
+  let message='Médianes journalières du salon (7 derniers jours disponibles) : '+rows.join(' | ')+'. ';
+  if(daily.changeRH!=null){
+   const direction=daily.changeRH>0?'hausse':daily.changeRH<0?'baisse':'stabilité';
+   message+='Entre les deux derniers jours suffisamment documentés : '+direction+' de '+fmt(Math.abs(daily.changeRH))+' points d’humidité relative et variation de '+fmt(daily.changeAbsoluteHumidity)+' g/m³ d’humidité absolue.';
+  }else message+='Il faut au moins 3 relevés par jour et deux jours suffisamment documentés pour calculer une évolution.';
+  dailyBox.textContent=message;
+ }
+ const hourly=analyzeHourlyPatterns(data,3);
+ hourlyBox.textContent='Profils par tranche de 6 h (médiane salon ; minimum 3 relevés) : '+hourly.buckets.map(b=>
+  b.label+' : '+(b.medianRH==null?'données insuffisantes':fmt(b.medianRH)+' % HR · '+fmt(b.medianDelta)+' g/m³ écart HA · '+b.sampleCount+' relevés')
+ ).join(' | ')+'.';
+ const events=detectRapidChanges(data);
+ if(!events.length){
+  anomalyBox.className='advice';
+  anomalyBox.textContent='Aucune variation rapide dépassant les seuils de surveillance n’a été détectée dans les données valides de cette période.';
+ }else{
+  anomalyBox.className='advice warn';
+  anomalyBox.textContent='Variations rapides à examiner (ce ne sont pas des diagnostics de panne) : '+events.slice(-5).reverse().map(e=>{
+   const start=new Date(e.start).toLocaleString('fr-FR'),end=new Date(e.end).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+   return start+' → '+end+' : '+(e.deltaRH>0?'+':'')+fmt(e.deltaRH)+' points HR, '+(e.deltaAbsoluteHumidity>0?'+':'')+fmt(e.deltaAbsoluteHumidity)+' g/m³ HA';
+  }).join(' | ')+(events.length>5?' | '+(events.length-5)+' autre(s) événement(s).':'.');
+ }
+}
+
 /* Affichage de la comparaison calculée par le module d'analyse. */
 function analyzeSpeeds(data){
  const min=Number($('minSamples').value),target=Number($('targetRH').value);
@@ -586,7 +622,7 @@ function render(){
   qualityBox.className='advice warn';
   qualityBox.textContent=`Contrôle qualité : ${quality.affectedRecords} relevé(s) contiennent des valeurs physiquement improbables (${details}). Ces valeurs sont masquées dans les graphiques concernés, mais conservées dans l’historique et les exports.`;
  }else{qualityBox.className='advice';qualityBox.textContent='Contrôle qualité : aucune valeur aberrante détectée sur les capteurs pour cette période. Les données manquantes ne sont pas comptées comme anomalies.';}
- renderCharts(data,selectedDate,$);renderRecommendation(data);renderHygrometricPeriods(data);analyzeSpeeds(data);renderFreshness();
+ renderCharts(data,selectedDate,$);renderRecommendation(data);renderHygrometricPeriods(data);renderTemporalAnalysis(data);analyzeSpeeds(data);renderFreshness();
 }
 $('targetRH').onchange=render;$('minSamples').onchange=render;
 
