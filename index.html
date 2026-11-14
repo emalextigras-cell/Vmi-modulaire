@@ -13,24 +13,25 @@
 <header>
  <div>
   <h1>VMI Purevent</h1>
-  <p class="sub">Supervision, historique et aide à l'optimisation</p>
+  <p class="sub">Comprendre simplement le fonctionnement de ta VMI</p>
  </div>
  <div class="row"><span class="pill" id="ver">v13</span><button class="outline" id="themeBtn" title="Changer le thème">Thème</button></div>
 </header>
 
+<nav class="main-nav" aria-label="Navigation principale"><a href="#accueil">Accueil</a><a href="#analyses">Analyses</a><a href="#historique">Historique</a><a href="#reglages">Réglages</a></nav>
+<section class="card dashboard-intro" id="accueil"><h2>Vue d'ensemble</h2><p class="sub">Pas besoin de Bluetooth pour consulter les analyses : elles utilisent l'historique VMI+.</p><div class="dashboard-status"><div><b>Données disponibles</b><p id="dashboardDataStatus">Chargement de l'historique…</p></div><div><b>Analyse</b><p id="dashboardAnalysisStatus">Préparation du diagnostic…</p></div></div></section>
 <div id="errBanner" class="advice warn" style="display:none"></div>
 
-<section class="card">
+<details class="card compact" id="reglages"><summary>Connexion Bluetooth facultative</summary>
  <div class="row">
   <button id="conn">Se connecter</button><button id="disc" class="outline" disabled>Déconnecter</button>
   <span class="pill" id="bleState">Déconnecté</span>
  </div>
  <div id="st" class="status">Ferme l'application VMI+ avant la connexion : la VMI n'accepte qu'une seule connexion.</div>
  <div id="err" class="error"></div>
-</section>
+</details>
 
-<section class="card">
- <h2>Mesures en direct</h2>
+<details class="card compact"><summary>Mesures en direct (facultatives)</summary>
  <div class="grid cols3">
   <div class="metric"><b id="tp">–</b><span>Salon · température °C</span></div>
   <div class="metric"><b id="hp">–</b><span>Salon · humidité relative %</span></div>
@@ -43,10 +44,9 @@
   <div class="metric"><b id="dew">–</b><span>Salon · point de rosée °C</span></div>
  </div>
  <div class="status" id="sampleAge">En attente des mesures.</div>
-</section>
+</details>
 
-<section class="card">
- <h2>État de la VMI</h2>
+<details class="card compact"><summary>État de la VMI et commandes manuelles</summary>
  <div class="grid cols3">
   <div class="metric"><b id="sp">–</b><span>Vitesse</span></div>
   <div class="metric"><b id="bo">–</b><span>Boost</span></div>
@@ -68,10 +68,10 @@
  </div>
  <div id="cmdResult" class="status"></div>
  <div class="row"><button class="outline" id="clk">Synchroniser l'heure VMI</button><button class="outline" id="dlh">Récupérer l'historique VMI</button><span id="dlp" class="note"></span></div>
-</section>
+</details>
 
-<section class="card">
- <h2>Analyse hygrométrique</h2>
+<section class="card" id="analyses">
+ <h2>Analyses et diagnostic</h2>
  <div class="grid cols3">
   <div class="metric"><b id="deltaHA">–</b><span>Écart absolu salon − air entrant g/m³</span></div>
   <div class="metric"><b id="deltaT">–</b><span>Écart température salon − air entrant °C</span></div>
@@ -94,8 +94,7 @@
  <p class="note">L'humidité absolue permet de comparer la quantité de vapeur d'eau contenue dans l'air indépendamment de sa température. Un écart positif salon − air entrant signifie que l'air entrant est plus sec en valeur absolue. Cela ne prouve pas à lui seul que le logement est correctement ventilé.</p>
 </section>
 
-<section class="card">
- <h2>Aide au réglage</h2>
+<details class="card compact"><summary>Comparaison des modes et aide au réglage</summary>
  <div id="recommendation" class="advice">Connecte la VMI ou importe un historique pour obtenir une première analyse.</div>
  <div class="row">
   <label for="targetRH">Objectif d'humidité relative :</label>
@@ -110,10 +109,10 @@
  <p class="note">Les libellés d’origine sont conservés. Les champs « Cons ... », les compteurs et les valeurs de pression ne sont pas assimilés à des consommations ou à des mesures physiques tant que leur signification et leur unité ne sont pas établies.</p>
  <p class="note">Les comparaisons sont descriptives : elles ne désignent pas une vitesse optimale et ne calculent pas de rendement sans mesure électrique et débit documentés.</p>
  <p class="note">Les recommandations sont indicatives. Pour conclure sur l'efficacité d'une vitesse, il faut comparer des périodes suffisamment longues et comparables (occupation, météo, cuisson, douches, fenêtres ouvertes). Sans mesure de débit et de consommation électrique, l'application ne peut pas calculer un optimum énergétique réel.</p>
-</section>
+</details>
 
-<section class="card">
- <h2>Historique & graphiques</h2>
+<section class="card" id="historique">
+ <h2>Historique et graphiques</h2>
  <div class="row">
   <label for="fx">Importer un export VMI+ (.csv/.xlsx/.xls, nécessite internet la première fois) :</label><input type="file" id="fx" accept=".csv,.xlsx,.xls">
  </div>
@@ -138,33 +137,29 @@
  <h3>Débit exporté VMI+ (valeur brute, unité non précisée)</h3><div id="chartDebit" class="chart"></div>
 </section>
 
-<section class="card">
- <h2>Sauvegarde et export</h2>
+<details class="card compact"><summary>Sauvegarde et export des données</summary>
  <p class="sub">Ton historique est stocké dans ce navigateur, qui peut le vider. La VMI ne garde que ses 800 derniers relevés (environ 4 semaines) : fais régulièrement une sauvegarde.</p>
  <div class="row"><button class="outline" id="expHist">Exporter l’historique (CSV)</button><button class="outline" id="expBackup">Sauvegarde complète (JSON)</button></div>
  <div class="row"><label for="restoreFile">Restaurer une sauvegarde (.json) :</label><input type="file" id="restoreFile" accept=".json,application/json"></div>
  <div id="backupInfo" class="note"></div>
-</section>
+</details>
 
-<section class="card">
- <h2>Enregistrement en direct</h2>
+<details class="card compact"><summary>Enregistrement en direct</summary>
  <p class="sub">Un relevé toutes les cinq minutes tant que la page reste ouverte et connectée.</p>
  <div class="row"><b id="liveCount">0</b> relevés <button class="outline" id="csv">Exporter CSV</button><button class="outline" id="clearLive">Effacer les relevés</button></div>
-</section>
+</details>
 
-<section class="card">
- <details id="logDetails">
+<details class="card compact" id="logDetails">
   <summary>Journal Bluetooth brut</summary>
   <div class="row"><button class="outline" id="copyLog">Copier le journal</button><button class="outline" id="clearLog">Effacer le journal</button></div>
   <pre id="log"></pre>
  </details>
-</section>
-<section class="card">
- <h2>Diagnostic</h2>
+</details>
+<details class="card compact"><summary>Diagnostic technique (à ouvrir si un problème survient)</summary>
  <p class="sub">En cas de problème : touche « Diagnostic », puis « Copier » et colle le texte dans la conversation. Il contient l’état de l’appli, de ton historique et les erreurs, sans donnée personnelle.</p>
  <div class="row"><button class="outline" id="diagBtn">Diagnostic</button><button class="outline" id="diagCopy">Copier</button></div>
  <pre id="diagOut"></pre>
-</section>
+</details>
 <footer>VMI Purevent · version 13 · L’heure de la VMI est synchronisée à la connexion et avant chaque téléchargement, comme le fait VMI+ ; les commandes de réglage ne sont envoyées qu’après une action manuelle. Les calculs sont indicatifs et dépendent de la fiabilité des capteurs.</footer>
 </main>
 
