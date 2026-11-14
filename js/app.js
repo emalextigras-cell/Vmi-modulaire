@@ -600,6 +600,9 @@ function renderIntelligentDiagnosis(data){
  if(result.medianSampleIntervalMinutes!=null){
   box.textContent+=' Intervalle médian entre relevés : '+fmt(result.medianSampleIntervalMinutes)+' min.';
  }
+ if(result.observedCoveragePercent!=null){
+  box.textContent+=' Couverture temporelle observée : '+fmt(result.observedCoveragePercent)+' % de la période entre le premier et le dernier relevé (intervalles exploitables de '+result.maxGapHours+' h maximum).';
+ }
  if(result.excludedGapCount){
   box.textContent+=' '+result.excludedGapCount+' interruption(s) de plus de '+result.maxGapHours+' h exclue(s)';
   if(result.largestExcludedGapHours>0)box.textContent+=' ; plus longue : '+fmt(result.largestExcludedGapHours)+' h';
