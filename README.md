@@ -90,7 +90,7 @@ Ce moteur est une première couche de diagnostic déterministe et explicable ; c
 
 ## Phase 10 — préparation de l'analyse énergétique
 
-L'import CSV conserve désormais séparément les champs énergétiques ou de fonctionnement supplémentaires de VMI+ : `Cons Res`, `Cons HydroR`, `Cons TMax`, `Kmoteur`, `Jmoteur`, `Kreseau`, `Jreseau`, `Pression Moteur`, `Offset Press`, `% fonct`, `% fonct.1` et `Dcint`. Ils sont affichés dans l'inventaire avec leurs valeurs min/max et leur effectif, sans leur attribuer de signification ni d'unité non documentée. L'inventaire distingue aussi les zéros des valeurs absentes ou non numériques, pour éviter de confondre une valeur nulle avec une mesure manquante. Les deux colonnes exportées sous le même en-tête `% fonct` sont distinguées par leur occurrence dans l'en-tête, afin de ne pas confondre leurs valeurs.
+L'import CSV conserve désormais séparément les champs énergétiques ou de fonctionnement supplémentaires de VMI+ : `Cons Res`, `Cons HydroR`, `Cons TMax` (seuil de température extérieure en °C, sens confirmé par l’utilisateur), `Kmoteur`, `Jmoteur`, `Kreseau`, `Jreseau`, `Pression Moteur`, `Offset Press`, `% fonct`, `% fonct.1` et `Dcint`. Ils sont affichés dans l'inventaire avec leurs valeurs min/max et leur effectif, sans leur attribuer de signification ni d'unité non documentée. L'inventaire distingue aussi les zéros des valeurs absentes ou non numériques, pour éviter de confondre une valeur nulle avec une mesure manquante. Les deux colonnes exportées sous le même en-tête `% fonct` sont distinguées par leur occurrence dans l'en-tête, afin de ne pas confondre leurs valeurs.
 
 Le régime moteur reste exprimé en tr/min et le débit en m³/h selon les confirmations disponibles. Les valeurs PWM, Cons DP et les autres champs ci-dessus restent bruts. Aucun calcul de watts, kWh, coût, consommation ou rendement n'est effectué tant qu'une mesure électrique et sa définition ne sont pas vérifiées. Des tests dédiés vérifient la conservation des champs et l'absence d'interprétation énergétique abusive.
 
@@ -156,3 +156,8 @@ L'interface construit désormais, à partir de l'historique affiché, un profil 
 - Les écarts absolus et relatifs sont descriptifs. Aucun seuil ne déclenche un diagnostic automatique de filtre encrassé ou de panne.
 - Les comparaisons ne neutralisent pas les changements de météo, d'occupation, de réglage, d'entretien ou d'installation. Elles servent à repérer une évolution à examiner, pas à en établir la cause.
 - Les données sans champ `Mode` exploitable, ou sans couverture suffisante sur les deux périodes, ne sont pas comparées. Les champs `Vitesse`, `vit` et `vmiSpeedRaw` ne servent jamais à identifier un niveau manuel.
+
+
+### Consigne de température extérieure — Cons TMax
+
+Le champ `Cons TMax` de l’export VMI+ est interprété comme le seuil de température extérieure configuré dans VMI+ (en °C), selon la confirmation de l’utilisateur : lorsque la température extérieure dépasse ce seuil, la VMI réduit sa ventilation. Le parseur conserve séparément cette consigne (`consTmaxRaw`) et la température extérieure mesurée (`tExt`, colonne `Tempext`). L’analyse présente les relevés au-dessus et au seuil ou en dessous, avec des médianes de débit et de régime séparées par mode manuel déclaré. Elle reste descriptive : elle ne prouve pas à elle seule que la régulation est la cause d’une baisse de débit et ne déclenche aucune commande.
