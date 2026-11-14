@@ -597,17 +597,17 @@ function analyzeSpeeds(data){
  const min=Number($('minSamples').value);
  const result=analyzeSpeedLevels(data,min,Number($('targetRH').value));
  const groups=result.groups;
- let html='<table><thead><tr><th>Niveau manuel</th><th>Relevés</th><th>HR médiane</th><th>HA salon</th><th>Écart HA</th><th>Temps couvert</th><th>RPM médian</th><th>Part avec air entrant plus sec</th></tr></thead><tbody>';
+ let html='<table><thead><tr><th>Niveau manuel</th><th>Relevés</th><th>Jours mesurés</th><th>Jours communs avec autres niveaux</th><th>HR médiane</th><th>HA salon</th><th>Écart HA</th><th>Temps couvert</th><th>RPM médian</th><th>Part avec air entrant plus sec</th></tr></thead><tbody>';
  for(const g of groups){
   const span=g.spanHours>=24?fmt(g.spanHours/24)+' j':g.spanHours>0?fmt(g.spanHours)+' h':'–';
-  html+='<tr><td>'+g.v+'</td><td>'+g.n+'</td><td>'+(g.rh==null?'–':fmt(g.rh)+' %')+'</td><td>'+(g.ha==null?'–':fmt(g.ha)+' g/m³')+'</td><td>'+(g.delta==null?'–':fmt(g.delta)+' g/m³')+'</td><td>'+span+'</td><td>'+(g.rpm==null?'–':fmt(g.rpm)+' ('+g.rpmSamples+')')+'</td><td>'+(g.dryingShare==null?'–':fmt(g.dryingShare*100)+' % ('+g.deltaSamples+')')+'</td></tr>';
+  html+='<tr><td>'+g.v+'</td><td>'+g.n+'</td><td>'+g.daysCovered+'</td><td>'+g.sharedDays+'</td><td>'+(g.rh==null?'–':fmt(g.rh)+' %')+'</td><td>'+(g.ha==null?'–':fmt(g.ha)+' g/m³')+'</td><td>'+(g.delta==null?'–':fmt(g.delta)+' g/m³')+'</td><td>'+span+'</td><td>'+(g.rpm==null?'–':fmt(g.rpm)+' ('+g.rpmSamples+')')+'</td><td>'+(g.dryingShare==null?'–':fmt(g.dryingShare*100)+' % ('+g.deltaSamples+')')+'</td></tr>';
  }
  html+='</tbody></table>';
  const usable=groups.filter(g=>g.n>=min);
  let advice='';
  if(result.status==='no-speed-data')advice='Aucun relevé ne contient un niveau manuel identifié. Les codes bruts VMI+ ne sont volontairement pas assimilés aux niveaux 1/2/3. L’analyse reste donc indisponible avec cet import seul.';
  else if(result.status==='insufficient')advice='Données insuffisantes : il faut au moins '+min+' relevés identifiés par niveau pour établir une comparaison. Les résultats partiels restent visibles mais ne permettent pas de conclure.';
- else advice='Comparaison descriptive disponible pour '+usable.map(g=>'niveau '+g.v).join(', ')+'. Les durées couvertes et le nombre de mesures sont affichés pour aider à repérer les périodes peu comparables. Aucun niveau n’est désigné comme optimal : météo, occupation et activités du logement peuvent influencer les résultats.';
+ else advice='Comparaison descriptive disponible pour '+usable.map(g=>'niveau '+g.v).join(', ')+'. Les jours communs indiquent sur combien de dates chaque niveau recoupe au moins un autre niveau analysable : plus ce nombre est faible, moins la comparaison est directe. Même avec des jours communs, les heures, la météo et l’occupation peuvent différer. Aucun niveau n’est désigné comme optimal.';
  $('speedAnalysis').innerHTML=html+'<div class="advice">'+advice+'</div>';
 }
 function renderEnergyReadiness(data){
