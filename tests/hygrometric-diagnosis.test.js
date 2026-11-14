@@ -116,3 +116,40 @@ test('les durées sont découpées au franchissement des seuils hygrométriques'
  assert.ok(Math.abs(result.humidDurationMs-1200000)<1);
  assert.ok(Math.abs(result.dryDurationMs+result.neutralDurationMs+result.humidDurationMs-result.observedDurationMs)<1);
 });
+
+
+test('diagnostic quantifies missing, implausible and duplicate input rows',()=>{
+ const rows=[
+  {t:0,st:20,sh:55,te:12,he:60},
+  {t:1,st:20,sh:55,te:12},
+  {t:2,st:20,sh:150,te:12,he:60},
+  {t:0,st:21,sh:56,te:13,he:61},
+  {st:20,sh:55,te:12,he:60}
+ ];
+ const before=JSON.stringify(rows);
+ const result=buildHygrometricDiagnosis(rows);
+ assert.deepEqual(result.inputQuality,{
+  inputSampleCount:5,
+  acceptedSampleCount:1,
+  missingTimestampCount:1,
+  incompleteSensorRecordCount:1,
+  implausibleSensorRecordCount:1,
+  duplicateTimestampCount:1,
+  excludedSampleCount:4
+ });
+ assert.equal(result.sampleCount,1);
+ assert.equal(JSON.stringify(rows),before);
+});
+
+test('diagnostic reports empty input quality without inventing excluded rows',()=>{
+ const result=buildHygrometricDiagnosis([]);
+ assert.deepEqual(result.inputQuality,{
+  inputSampleCount:0,
+  acceptedSampleCount:0,
+  missingTimestampCount:0,
+  incompleteSensorRecordCount:0,
+  implausibleSensorRecordCount:0,
+  duplicateTimestampCount:0,
+  excludedSampleCount:0
+ });
+});
