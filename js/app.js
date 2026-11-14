@@ -4,7 +4,7 @@ import { createBackupSnapshot, mergeBackupData } from './modules/backup.js';
 import { $, sleep, APP_VERSION } from './modules/core.js';
 import { createStore } from './modules/store.js';
 import { fromOldRow } from './modules/legacy-migration.js';
-import { median, analyzeSpeedLevels, analyzeHygrometricPeriods, summarizeDailyTrends, analyzeHourlyPatterns, detectRapidChanges, summarizeEnergyReadiness, buildHygrometricDiagnosis } from './modules/analysis.js';
+import { median, analyzeSpeedLevels, analyzeSpeedTimeContext, analyzeHygrometricPeriods, summarizeDailyTrends, analyzeHourlyPatterns, detectRapidChanges, summarizeEnergyReadiness, buildHygrometricDiagnosis } from './modules/analysis.js';
 import { renderCharts, resetChartViews } from './modules/charts.js';
 import { SVC_C, CH_C, SVC_T, CH_T, crc, frame, timeFrame, hex } from './modules/ble.js';
 import { armDownloadTimeout } from './modules/sync.js';
@@ -608,7 +608,20 @@ function analyzeSpeeds(data){
  if(result.status==='no-speed-data')advice='Aucun relevé ne contient un niveau manuel identifié. Les codes bruts VMI+ ne sont volontairement pas assimilés aux niveaux 1/2/3. L’analyse reste donc indisponible avec cet import seul.';
  else if(result.status==='insufficient')advice='Données insuffisantes : il faut au moins '+min+' relevés identifiés par niveau pour établir une comparaison. Les résultats partiels restent visibles mais ne permettent pas de conclure.';
  else advice='Comparaison descriptive disponible pour '+usable.map(g=>'niveau '+g.v).join(', ')+'. Les jours communs indiquent sur combien de dates chaque niveau recoupe au moins un autre niveau analysable : plus ce nombre est faible, moins la comparaison est directe. Même avec des jours communs, les heures, la météo et l’occupation peuvent différer. Aucun niveau n’est désigné comme optimal.';
- $('speedAnalysis').innerHTML=html+'<div class="advice">'+advice+'</div>';
+ const context=analyzeSpeedTimeContext(data,{minSamples:5,minDays:2});
+ let contextHtml='<h4>Comparaison par tranche horaire</h4><p class="muted">Une tranche n’est comparée que si au moins deux niveaux manuels disposent chacun d’au moins 5 relevés sur 2 jours ou plus.</p>';
+ if(!context.comparableBuckets.length){
+  contextHtml+='<div class="advice">Pas encore assez de données réparties sur plusieurs jours et plusieurs niveaux dans une même tranche horaire. Les valeurs brutes VMI+ ne sont pas utilisées comme vitesses manuelles.</div>';
+ }else{
+  contextHtml+='<table><thead><tr><th>Horaire</th><th>Niveau</th><th>Relevés / jours</th><th>HR médiane</th><th>HA salon</th><th>Écart HA salon − entrant</th><th>RPM médian</th></tr></thead><tbody>';
+  for(const bucket of context.comparableBuckets){
+   for(const g of context.groups.filter(x=>x.bucket===bucket&&x.ready)){
+    contextHtml+='<tr><td>'+g.label+'</td><td>'+g.speed+'</td><td>'+g.sampleCount+' / '+g.dayCount+'</td><td>'+fmt(g.medianRH)+' %</td><td>'+fmt(g.medianIndoorHA)+' g/m³</td><td>'+(g.medianDeltaHA==null?'–':fmt(g.medianDeltaHA)+' g/m³ ('+g.deltaSamples+')')+'</td><td>'+(g.medianRPM==null?'–':fmt(g.medianRPM))+'</td></tr>';
+   }
+  }
+  contextHtml+='</tbody></table><div class="advice">Cette lecture réduit une partie des différences horaires, mais ne contrôle pas la météo, les apports d’humidité, l’occupation ni le débit réel. Elle ne permet pas de désigner une vitesse optimale.</div>';
+ }
+ $('speedAnalysis').innerHTML=html+'<div class="advice">'+advice+'</div>'+contextHtml;
 }
 function renderEnergyReadiness(data){
  const result=summarizeEnergyReadiness(data);
