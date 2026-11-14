@@ -130,7 +130,7 @@ export function recFrom(row, spreadsheet = globalThis.XLSX, mapping = null) {
     debit: num(row[columns.airflow]),
     consDpRaw: num(row[columns.consDp]),
     vmiPwmRaw: num(row[columns.pwm]),
-    vit: null, boost: null, hol: null
+    vit: null, manualLevel: null, boost: null, hol: null
   };
   return Object.keys(record).some(key => !['t','rk','vit','boost','hol'].includes(key) && record[key] != null) ? record : null;
 }
