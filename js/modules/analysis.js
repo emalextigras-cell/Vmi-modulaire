@@ -15,12 +15,12 @@ export function median(values) {
  */
 export function analyzeSpeedLevels(data, minSamples = 10, targetRH = 50) {
   const rows = (Array.isArray(data) ? data : []).filter(r =>
-    Number.isFinite(r?.vit) && r.vit >= 1 && r.vit <= 3 &&
+    Number.isFinite(r?.manualLevel) && [1,2,3].includes(r.manualLevel) &&
     Number.isFinite(r.sh) && isPlausibleHumidity(r.sh) &&
     Number.isFinite(r.st) && isPlausibleTemperature(r.st)
   );
   const groups = [1,2,3].map(v => {
-    const samples = rows.filter(r => r.vit === v).sort((a,b)=>a.t-b.t);
+    const samples = rows.filter(r => r.manualLevel === v).sort((a,b)=>a.t-b.t);
     const deltas = samples.map(r => {
       const inside = absoluteHumidity(r.st,r.sh);
       const incoming = Number.isFinite(r.te) && isPlausibleTemperature(r.te) &&
@@ -71,14 +71,14 @@ export function analyzeSpeedLevels(data, minSamples = 10, targetRH = 50) {
  */
 export function analyzeSpeedTimeContext(data, { minSamples = 5, minDays = 2 } = {}) {
   const rows=(Array.isArray(data)?data:[]).filter(r=>
-    Number.isFinite(r?.t) && Number.isFinite(r?.vit) && [1,2,3].includes(r.vit) &&
+    Number.isFinite(r?.t) && Number.isFinite(r?.manualLevel) && [1,2,3].includes(r.manualLevel) &&
     Number.isFinite(r.st) && isPlausibleTemperature(r.st) &&
     Number.isFinite(r.sh) && isPlausibleHumidity(r.sh)
   );
   const groups=[];
   for(const speed of [1,2,3]){
     for(let bucket=0;bucket<4;bucket++){
-      const samples=rows.filter(r=>r.vit===speed&&Math.floor(new Date(r.t).getHours()/6)===bucket);
+      const samples=rows.filter(r=>r.manualLevel===speed&&Math.floor(new Date(r.t).getHours()/6)===bucket);
       const dayKeys=new Set(samples.map(r=>{
         const d=new Date(r.t);
         return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
