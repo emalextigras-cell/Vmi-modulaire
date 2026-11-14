@@ -15,12 +15,24 @@ function makeRows({days=3,perDay=10,indoorRH=65,incomingRH=40,indoorTemp=20,inco
   }
   return rows;
 }
+function makeHourlyRows(groups) {
+ const rows=[];
+ for(const {day,hour} of groups){
+  for(let i=0;i<6;i++){
+   rows.push({
+    t:new Date(2026,10,10+day,hour, i*30,0).getTime(),
+    st:20,sh:65,te:10,he:40
+   });
+  }
+ }
+ return rows;
+}
 
 
 test('diagnostic exposes its thresholds and the measured basis of each finding',()=>{
  const result=buildHygrometricDiagnosis(makeRows());
  assert.deepEqual(result.methodology,{
-  version:'hygrometric-diagnostic-v2',
+  version:'hygrometric-diagnostic-v3',
   dryDeltaThreshold:1,
   trendDeltaThreshold:0.8,
   minimumSamples:12,
@@ -30,7 +42,8 @@ test('diagnostic exposes its thresholds and the measured basis of each finding',
   maximumGapHours:2,
   hourlyBucketHours:6,
   hourlyMinimumSamples:5,
-  hourlyMinimumDistinctDays:2
+  hourlyMinimumDistinctDays:2,
+  hourlyMinimumSharedDays:2
  });
  const finding=result.observations.find(x=>x.code==='air-drying-potential');
  assert.ok(finding);
@@ -38,6 +51,30 @@ test('diagnostic exposes its thresholds and the measured basis of each finding',
  assert.equal(finding.basis.threshold,1);
  assert.ok(finding.basis.medianIndoorMinusIncomingHA>1);
  assert.ok(finding.basis.durationShare>=finding.basis.requiredDurationShare);
+});
+
+test('hourly window is not selected when candidate windows have no common days',()=>{
+ const rows=makeHourlyRows([
+  {day:0,hour:7},{day:1,hour:7},
+  {day:2,hour:13},{day:3,hour:13}
+ ]);
+ const result=buildHygrometricDiagnosis(rows);
+ assert.equal(result.status,'analysis-available');
+ assert.equal(result.bestWindow,null);
+ assert.ok(!result.observations.some(x=>x.code==='favorable-time-window'));
+});
+
+test('hourly window comparison requires and reports shared calendar days',()=>{
+ const rows=makeHourlyRows([
+  {day:0,hour:7},{day:0,hour:13},
+  {day:1,hour:7},{day:1,hour:13}
+ ]);
+ const result=buildHygrometricDiagnosis(rows);
+ const finding=result.observations.find(x=>x.code==='favorable-time-window');
+ assert.ok(finding);
+ assert.equal(finding.basis.dayCount,2);
+ assert.equal(finding.basis.sharedDayCount,2);
+ assert.match(finding.detail,/2 jours communs/);
 });
 
 test('diagnostic reports the actual custom thresholds used',()=>{
