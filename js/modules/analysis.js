@@ -474,6 +474,9 @@ export function buildHygrometricDiagnosis(data, {
   const medianSampleIntervalMinutes=medianAcceptedIntervalMs==null?null:medianAcceptedIntervalMs/60000;
   const largestExcludedGapHours=excludedIntervals.length?Math.max(...excludedIntervals)/3600000:0;
   const coverageSpanHours=rows.length>1?(rows.at(-1).t-rows[0].t)/3600000:0;
+  // Part de la période premier→dernier relevé couverte par des intervalles exploitables.
+  const observedCoveragePercent=coverageSpanHours>0
+    ?Math.round((observedHours/coverageSpanHours)*1000)/10:null;
   const dryShare=periods.observedDurationMs?periods.dryDurationMs/periods.observedDurationMs:null;
   const humidShare=periods.observedDurationMs?periods.humidDurationMs/periods.observedDurationMs:null;
   const daily=summarizeDailyTrends(rows);
@@ -560,7 +563,7 @@ export function buildHygrometricDiagnosis(data, {
   }
 
   return {
-    methodology:{version:'hygrometric-diagnostic-v1',dryDeltaThreshold:dryDelta,trendDeltaThreshold:trendDelta,minimumSamples:minSamples,minimumDistinctDays:2,minimumObservedHours:3,dominantDurationShare:0.6,maximumGapHours:maxGapHours,hourlyBucketHours:6,hourlyMinimumSamples:5,hourlyMinimumDistinctDays:2},
+    methodology:{version:'hygrometric-diagnostic-v2',dryDeltaThreshold:dryDelta,trendDeltaThreshold:trendDelta,minimumSamples:minSamples,minimumDistinctDays:2,minimumObservedHours:3,dominantDurationShare:0.6,maximumGapHours:maxGapHours,hourlyBucketHours:6,hourlyMinimumSamples:5,hourlyMinimumDistinctDays:2},
     status:sufficient?'analysis-available':'insufficient-data',
     inputQuality:{
       inputSampleCount:inputRows.length,
@@ -576,6 +579,7 @@ export function buildHygrometricDiagnosis(data, {
     dayCount:days.size,
     observedHours,
     coverageSpanHours,
+    observedCoveragePercent,
     medianSampleIntervalMinutes:Number.isFinite(medianSampleIntervalMinutes)?medianSampleIntervalMinutes:null,
     excludedGapCount:excludedIntervals.length,
     largestExcludedGapHours,
