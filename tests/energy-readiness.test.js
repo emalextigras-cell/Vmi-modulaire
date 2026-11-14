@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getColumnMapping, recFrom } from '../js/modules/dataio.js';
-import { summarizeEnergyReadiness, summarizeOperatingReference } from '../js/modules/analysis.js';
+import { summarizeEnergyReadiness, summarizeOperatingReference, analyzeSpeedLevels, analyzeSpeedTimeContext } from '../js/modules/analysis.js';
 
 test('recFrom conserve les champs énergétiques VMI+ sous forme brute', () => {
   const headers = [
@@ -105,4 +105,56 @@ test('ne confond pas le code Vitesse brut avec le champ Mode', () => {
   ]);
   assert.equal(result.status, 'no-mode-data');
   assert.deepEqual(result.groups, []);
+});
+
+
+test('ignore les codes Vitesse bruts : seuls les niveaux manuels explicitement annotés sont comparés', () => {
+  const rawOnly = [
+    { t: Date.UTC(2026, 10, 10, 10), vit: 1, vmiSpeedRaw: 1, st: 19, sh: 60 },
+    { t: Date.UTC(2026, 10, 10, 10, 5), vit: 2, vmiSpeedRaw: 2, st: 19, sh: 58 },
+    { t: Date.UTC(2026, 10, 10, 10, 10), vit: 3, vmiSpeedRaw: 3, st: 19, sh: 56 }
+  ];
+  assert.equal(analyzeSpeedLevels(rawOnly).status, 'no-speed-data');
+  assert.deepEqual(analyzeSpeedTimeContext(rawOnly).comparableBuckets, []);
+});
+
+test('compare les niveaux manuels uniquement dans la même tranche et sur les mêmes jours', () => {
+  const rows = [];
+  for (const day of [10, 11]) {
+    for (const manualLevel of [1, 2]) {
+      for (let sample = 0; sample < (day === 10 ? 3 : 2); sample++) {
+        rows.push({
+          t: Date.UTC(2026, 10, day, 10, sample * 5),
+          manualLevel,
+          vit: manualLevel + 1,
+          vmiSpeedRaw: 5,
+          st: 19,
+          sh: 60 - manualLevel,
+          te: 12,
+          he: 80,
+          rpm: 1300 + manualLevel * 100
+        });
+      }
+    }
+  }
+  const result = analyzeSpeedTimeContext(rows, { minSamples: 5, minDays: 2 });
+  assert.deepEqual(result.comparableBuckets, [1]);
+  const comparable = result.groups.filter(group => group.bucket === 1 && group.ready);
+  assert.deepEqual(comparable.map(group => group.speed), [1, 2]);
+  assert.ok(comparable.every(group => group.sampleCount === 5 && group.dayCount === 2 && group.sharedDays === 2));
+});
+
+test('refuse la comparaison horaire lorsque les niveaux ne sont pas présents les mêmes jours', () => {
+  const rows = [];
+  for (const [day, manualLevel] of [[10, 1], [11, 1], [12, 2], [13, 2]]) {
+    for (let sample = 0; sample < 3; sample++) {
+      rows.push({
+        t: Date.UTC(2026, 10, day, 10, sample * 5),
+        manualLevel, st: 19, sh: 60, te: 12, he: 80
+      });
+    }
+  }
+  const result = analyzeSpeedTimeContext(rows, { minSamples: 5, minDays: 2 });
+  assert.deepEqual(result.comparableBuckets, []);
+  assert.ok(result.groups.filter(group => group.bucket === 1).every(group => !group.ready));
 });
