@@ -588,7 +588,7 @@ export function buildHygrometricDiagnosis(data, {
     dryShare,humidShare,trendChange,bestWindow,
     observations,
     limits:[
-      'Les durées sont estimées entre deux relevés, sans extrapolation au-delà de 2 heures.',
+      `Les durées sont estimées entre deux relevés, sans extrapolation au-delà de ${maxGapHours} heure(s).`,
       'L’humidité absolue décrit la teneur en vapeur d’eau, pas le débit ni le renouvellement d’air réel.',
       'Le point de rosée calculé n’est pas une mesure de température de paroi : aucun risque de condensation n’est déduit.',
       'Les observations ne prouvent ni une panne, ni la cause d’une variation, ni une vitesse optimale.'
