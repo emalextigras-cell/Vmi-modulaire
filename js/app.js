@@ -813,13 +813,23 @@ function render(){
  $('historyStatus').textContent=`Graphiques : ${data.length} relevés · ${source==='live'?'enregistrement direct facultatif':'historique importé / VMI'} · ${rangeLabel}. Analyses et diagnostics : historique importé / VMI uniquement.`;
  const lastRpm=[...hist].reverse().find(r=>Number.isFinite(r.rpm));
  $('rpm').textContent=lastRpm?lastRpm.rpm:'–';
- const quality=summarizeDataQuality(data);
+ const quality=summarizeDataQuality(analysisData);
  const qualityBox=$('dataQuality');
- if(quality.hasAnomalies){
-  const details=quality.fields.map(field=>`${field.label} : ${field.count}`).join(' · ');
-  qualityBox.className='advice warn';
-  qualityBox.textContent=`Contrôle qualité : ${quality.affectedRecords} relevé(s) contiennent des valeurs physiquement improbables (${details}). Ces valeurs sont masquées dans les graphiques concernés, mais conservées dans l’historique et les exports.`;
- }else{qualityBox.className='advice';qualityBox.textContent='Contrôle qualité : aucune valeur aberrante détectée sur les capteurs pour cette période. Les données manquantes ne sont pas comptées comme anomalies.';}
+ const coreCoverage=quality.fieldCoverage.filter(field=>quality.coreSensorKeys.includes(field.key));
+ const missingDetails=coreCoverage.filter(field=>field.missingCount>0)
+  .map(field=>`${field.label} : ${field.missingCount} absent(s)`);
+ const invalidDetails=quality.fields.map(field=>`${field.label} : ${field.invalidCount} aberrant(s)`);
+ const coverageText=quality.total
+  ? `${quality.completeHygrometricRecords}/${quality.total} relevés complets pour comparer l’air intérieur et l’air entrant (${fmt(quality.hygrometricCoveragePercent)} %).`
+  : 'Aucun relevé historique dans la période sélectionnée.';
+ const missingText=missingDetails.length
+  ? ' Mesures absentes : '+missingDetails.join(' · ')+'.'
+  : '';
+ const invalidText=invalidDetails.length
+  ? ` ${quality.affectedRecords} relevé(s) contiennent des valeurs physiquement improbables (${invalidDetails.join(' · ')}). Ces valeurs sont conservées dans l’historique et les exports, mais écartées des calculs concernés.`
+  : ' Aucune valeur physiquement aberrante détectée sur les capteurs contrôlés.';
+ qualityBox.className=quality.hasAnomalies?'advice warn':'advice';
+ qualityBox.textContent='Contrôle qualité de l’historique analysé : '+coverageText+missingText+invalidText+' Les données manquantes réduisent la couverture ; elles ne sont pas considérées comme des anomalies.';
  renderCharts(data,selectedDate,$);
  renderRecommendation(analysisData);renderHygrometricPeriods(analysisData);renderIntelligentDiagnosis(analysisData);
  renderTemporalAnalysis(analysisData);analyzeSpeeds(analysisData);renderEnergyReadiness(analysisData);renderFreshness();
