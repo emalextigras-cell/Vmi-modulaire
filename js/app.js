@@ -4,7 +4,7 @@ import { createBackupSnapshot, mergeBackupData } from './modules/backup.js';
 import { $, sleep, APP_VERSION } from './modules/core.js';
 import { createStore } from './modules/store.js';
 import { fromOldRow } from './modules/legacy-migration.js';
-import { median, analyzeSpeedLevels, analyzeHygrometricPeriods, summarizeDailyTrends, analyzeHourlyPatterns, detectRapidChanges } from './modules/analysis.js';
+import { median, analyzeSpeedLevels, analyzeHygrometricPeriods, summarizeDailyTrends, analyzeHourlyPatterns, detectRapidChanges, summarizeEnergyReadiness } from './modules/analysis.js';
 import { renderCharts, resetChartViews } from './modules/charts.js';
 import { SVC_C, CH_C, SVC_T, CH_T, crc, frame, timeFrame, hex } from './modules/ble.js';
 import { armDownloadTimeout } from './modules/sync.js';
@@ -577,19 +577,34 @@ function renderTemporalAnalysis(data){
 
 /* Affichage de la comparaison calculée par le module d'analyse. */
 function analyzeSpeeds(data){
- const min=Number($('minSamples').value),target=Number($('targetRH').value);
- const result=analyzeSpeedLevels(data,min,target);
- const {groups}=result;
- let html='<table><thead><tr><th>Vitesse</th><th>Relevés</th><th>HR médiane</th><th>HA salon</th><th>Écart HA</th></tr></thead><tbody>';
- for(const g of groups)html+=`<tr><td>${g.v}</td><td>${g.n}</td><td>${g.rh==null?'–':fmt(g.rh)+' %'}</td><td>${g.ha==null?'–':fmt(g.ha)+' g/m³'}</td><td>${g.delta==null?'–':fmt(g.delta)+' g/m³'}</td></tr>`;
+ const min=Number($('minSamples').value);
+ const result=analyzeSpeedLevels(data,min,Number($('targetRH').value));
+ const groups=result.groups;
+ let html='<table><thead><tr><th>Niveau manuel</th><th>Relevés</th><th>HR médiane</th><th>HA salon</th><th>Écart HA</th><th>Temps couvert</th><th>RPM médian</th><th>Part avec air entrant plus sec</th></tr></thead><tbody>';
+ for(const g of groups){
+  const span=g.spanHours>=24?fmt(g.spanHours/24)+' j':g.spanHours>0?fmt(g.spanHours)+' h':'–';
+  html+='<tr><td>'+g.v+'</td><td>'+g.n+'</td><td>'+(g.rh==null?'–':fmt(g.rh)+' %')+'</td><td>'+(g.ha==null?'–':fmt(g.ha)+' g/m³')+'</td><td>'+(g.delta==null?'–':fmt(g.delta)+' g/m³')+'</td><td>'+span+'</td><td>'+(g.rpm==null?'–':fmt(g.rpm)+' ('+g.rpmSamples+')')+'</td><td>'+(g.dryingShare==null?'–':fmt(g.dryingShare*100)+' % ('+g.deltaSamples+')')+'</td></tr>';
+ }
  html+='</tbody></table>';
+ const usable=groups.filter(g=>g.n>=min);
  let advice='';
- if(result.status==='no-speed-data')advice='Aucun relevé de la période ne contient une vitesse manuelle identifiée : les valeurs brutes importées de VMI+ ne sont pas assimilées aux niveaux manuels 1/2/3. Choisis la source « En direct » pour comparer les vitesses manuelles.';
- else if(result.status==='insufficient')advice=`Il faut au moins ${min} relevés avec la vitesse identifiée pour chaque comparaison. Continue l'enregistrement en direct.`;
- else if(result.status==='best-found')advice=`Parmi les vitesses disposant d'au moins ${min} relevés, la vitesse ${result.bestSpeed} est la plus basse dont l'humidité relative médiane observée est inférieure ou égale à ${target} %. C'est une piste à vérifier sur des périodes comparables, pas une preuve d'optimum.`;
- else advice=`Aucune vitesse suffisamment documentée ne présente une humidité relative médiane inférieure ou égale à ${target} %. Vérifie aussi les sources d'humidité et la représentativité des périodes.`;
- $('speedAnalysis').innerHTML=html+`<div class="advice">${advice}</div>`;
+ if(result.status==='no-speed-data')advice='Aucun relevé ne contient un niveau manuel identifié. Les codes bruts VMI+ ne sont volontairement pas assimilés aux niveaux 1/2/3. L’analyse reste donc indisponible avec cet import seul.';
+ else if(result.status==='insufficient')advice='Données insuffisantes : il faut au moins '+min+' relevés identifiés par niveau pour établir une comparaison. Les résultats partiels restent visibles mais ne permettent pas de conclure.';
+ else advice='Comparaison descriptive disponible pour '+usable.map(g=>'niveau '+g.v).join(', ')+'. Les durées couvertes et le nombre de mesures sont affichés pour aider à repérer les périodes peu comparables. Aucun niveau n’est désigné comme optimal : météo, occupation et activités du logement peuvent influencer les résultats.';
+ $('speedAnalysis').innerHTML=html+'<div class="advice">'+advice+'</div>';
 }
+function renderEnergyReadiness(data){
+ const result=summarizeEnergyReadiness(data);
+ const labels={rpm:'Régime moteur',debit:'Débit VMI+ brut',vmiSpeedRaw:'Code vitesse VMI+ brut',vmiPwmRaw:'PWM brut',consDpRaw:'Cons DP brut'};
+ let html='<table><thead><tr><th>Champ exporté</th><th>Mesures</th><th>Minimum</th><th>Maximum</th><th>Valeurs distinctes</th></tr></thead><tbody>';
+ for(const f of result.fields){
+  const distinct=f.distinct.length>8?f.distinct.slice(0,8).map(fmt).join(', ')+'…':f.distinct.map(fmt).join(', ')||'–';
+  html+='<tr><td>'+labels[f.key]+'</td><td>'+f.count+'</td><td>'+(f.min==null?'–':fmt(f.min))+'</td><td>'+(f.max==null?'–':fmt(f.max))+'</td><td>'+distinct+'</td></tr>';
+ }
+ html+='</tbody></table>';
+ $('energyReadiness').innerHTML=html+'<div class="advice">'+result.message+' Les valeurs brutes sont conservées, mais aucune conversion en watts, kWh, m³/h ou rendement n’est appliquée sans documentation fiable.</div>';
+}
+
 function renderRecommendation(data){
  const box=$('recommendation');
  const valid=data.filter(r=>Number.isFinite(r.st)&&isPlausibleTemperature(r.st)&&Number.isFinite(r.sh)&&isPlausibleHumidity(r.sh)&&Number.isFinite(r.te)&&isPlausibleTemperature(r.te)&&Number.isFinite(r.he)&&isPlausibleHumidity(r.he));
@@ -622,7 +637,7 @@ function render(){
   qualityBox.className='advice warn';
   qualityBox.textContent=`Contrôle qualité : ${quality.affectedRecords} relevé(s) contiennent des valeurs physiquement improbables (${details}). Ces valeurs sont masquées dans les graphiques concernés, mais conservées dans l’historique et les exports.`;
  }else{qualityBox.className='advice';qualityBox.textContent='Contrôle qualité : aucune valeur aberrante détectée sur les capteurs pour cette période. Les données manquantes ne sont pas comptées comme anomalies.';}
- renderCharts(data,selectedDate,$);renderRecommendation(data);renderHygrometricPeriods(data);renderTemporalAnalysis(data);analyzeSpeeds(data);renderFreshness();
+ renderCharts(data,selectedDate,$);renderRecommendation(data);renderHygrometricPeriods(data);renderTemporalAnalysis(data);analyzeSpeeds(data);renderEnergyReadiness(data);renderFreshness();
 }
 $('targetRH').onchange=render;$('minSamples').onchange=render;
 
