@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { summarizeRawVmiSpeed } from '../js/modules/analysis.js';
+import { summarizeRawVmiSpeed, summarizeRawVmiMode } from '../js/modules/analysis.js';
 
 test('summarizeRawVmiSpeed décrit le débit brut par code sans convertir les vitesses', () => {
   const result = summarizeRawVmiSpeed([
@@ -30,4 +30,18 @@ test('summarizeRawVmiSpeed ignore les valeurs non numériques', () => {
     { vmiSpeedRaw: '3', debit: '121' },
     { vmiSpeedRaw: NaN, debit: 80 }
   ]), []);
+});
+
+test('summarizeRawVmiMode distingue le mode et calcule le renouvellement théorique', () => {
+  const result = summarizeRawVmiMode([
+    { vmiModeRaw: 1, vmiSpeedRaw: 3, debit: 120, volumeRaw: 300 },
+    { vmiModeRaw: 1, vmiSpeedRaw: 4, debit: 150, volumeRaw: 300 },
+    { vmiModeRaw: 2, vmiSpeedRaw: 3, debit: 180, volumeRaw: 300 },
+    { vmiModeRaw: 3, vmiSpeedRaw: 5, debit: null, volumeRaw: 300 }
+  ]);
+  assert.deepEqual(result, [
+    { mode: 1, sampleCount: 2, medianDebit: 135, minDebit: 120, maxDebit: 150, medianRenewalRate: 0.45 },
+    { mode: 2, sampleCount: 1, medianDebit: 180, minDebit: 180, maxDebit: 180, medianRenewalRate: 0.6 },
+    { mode: 3, sampleCount: 0, medianDebit: null, minDebit: null, maxDebit: null, medianRenewalRate: null }
+  ]);
 });
