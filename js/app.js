@@ -208,7 +208,7 @@ function takeSnapshot(){
  if(!lastSeen.salon||now-lastSeen.salon>90000)return;
  const pf=lastSeen.probes&&now-lastSeen.probes<=90000;
  const row={t:now,st:cur.sal_t,sh:cur.sal_h,t1:pf?cur.s1_t:null,h1:pf?cur.s1_h:null,te:pf?cur.s2_t:null,he:pf?cur.s2_h:null,
-  rpm:null,fil:Number.isFinite(cur.filtre)?cur.filtre:null,vit:Number.isFinite(cur.vit)?cur.vit:null,manualLevel:null,
+  rpm:null,fil:Number.isFinite(cur.filtre)?cur.filtre:null,vit:Number.isFinite(cur.vit)?cur.vit:null,
   boost:cur.boost!=null?cur.boost:null,hol:cur.hol!=null?cur.hol:null};
  if(!Number.isFinite(row.st)&&!Number.isFinite(row.sh))return;
  live.push(row);
