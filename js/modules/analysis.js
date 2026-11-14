@@ -438,6 +438,27 @@ export function buildHygrometricDiagnosis(data, {
   };
 }
 
+/**
+ * Décrit les valeurs Debit brutes selon le code Vitesse brut exporté par VMI+.
+ * Aucun code n'est converti en niveau manuel et aucune unité n'est attribuée au débit.
+ */
+export function summarizeRawVmiSpeed(data) {
+  const groups = new Map();
+  for (const row of Array.isArray(data) ? data : []) {
+    if (!Number.isFinite(row?.vmiSpeedRaw)) continue;
+    const code = row.vmiSpeedRaw;
+    if (!groups.has(code)) groups.set(code, []);
+    if (Number.isFinite(row.debit)) groups.get(code).push(row.debit);
+  }
+  return [...groups.entries()].sort((a,b)=>a[0]-b[0]).map(([code, values]) => ({
+    code,
+    sampleCount: values.length,
+    medianDebit: median(values),
+    minDebit: values.length ? Math.min(...values) : null,
+    maxDebit: values.length ? Math.max(...values) : null
+  }));
+}
+
 function fmtHours(hours) {
   if (!Number.isFinite(hours)) return '0 h';
   if (hours < 1) return `${Math.round(hours*60)} min`;
