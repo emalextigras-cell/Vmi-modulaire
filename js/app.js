@@ -4,7 +4,7 @@ import { createBackupSnapshot, mergeBackupData } from './modules/backup.js';
 import { $, sleep, APP_VERSION } from './modules/core.js';
 import { createStore } from './modules/store.js';
 import { fromOldRow } from './modules/legacy-migration.js';
-import { median, analyzeSpeedLevels, analyzeSpeedTimeContext, analyzeHygrometricPeriods, summarizeDailyTrends, analyzeHourlyPatterns, detectRapidChanges, summarizeEnergyReadiness, summarizeRawVmiSpeed, summarizeRawVmiMode, buildHygrometricDiagnosis } from './modules/analysis.js';
+import { median, analyzeSpeedLevels, analyzeSpeedTimeContext, analyzeHygrometricPeriods, summarizeDailyTrends, analyzeHourlyPatterns, detectRapidChanges, summarizeEnergyReadiness, summarizeRawVmiSpeed, summarizeRawVmiMode, summarizeOperatingReference, buildHygrometricDiagnosis } from './modules/analysis.js';
 import { renderCharts, resetChartViews } from './modules/charts.js';
 import { SVC_C, CH_C, SVC_T, CH_T, frame, timeFrame, hex } from './modules/ble.js';
 import { armDownloadTimeout } from './modules/sync.js';
@@ -637,6 +637,21 @@ function renderEnergyReadiness(data){
   html+='<tr><td>'+(labels[f.key]||f.label)+'<br><small>'+f.unit+'</small></td><td>'+f.count+'</td><td>'+f.zeroCount+'</td><td>'+f.missingCount+'</td><td>'+(f.min==null?'–':fmt(f.min))+'</td><td>'+(f.max==null?'–':fmt(f.max))+'</td><td>'+distinct+'</td></tr>';
  }
  html+='</tbody></table>';
+
+ const operating = summarizeOperatingReference(data);
+ let operatingHtml='<h4>Référence descriptive du fonctionnement par mode VMI+</h4><p class="muted">Profil calculé à partir des relevés importés, en séparant strictement le champ Mode du code Vitesse brut. Les valeurs PWM, Pression moteur et Cons DP restent des signaux bruts.</p>';
+ if(!operating.groups.length){
+  operatingHtml+='<div class="advice">Aucune donnée Mode exploitable pour construire cette référence.</div>';
+ }else{
+  operatingHtml+='<table><thead><tr><th>Mode</th><th>Relevés / jours</th><th>Variable</th><th>Médiane</th><th>Plage observée</th></tr></thead><tbody>';
+  for(const group of operating.groups){
+   for(const field of group.fields){
+    operatingHtml+='<tr><td>'+fmt(group.mode)+'</td><td>'+group.sampleCount+' / '+group.dayCount+'</td><td>'+field.label+'<br><small>'+field.unit+'</small></td><td>'+(field.median==null?'–':fmt(field.median))+'</td><td>'+(field.min==null?'–':fmt(field.min)+' – '+fmt(field.max))+'</td></tr>';
+   }
+  }
+  operatingHtml+='</tbody></table>';
+ }
+ operatingHtml+='<div class="advice">'+operating.limits.join(' ')+'</div>';
  const modeGroups=summarizeRawVmiMode(data);
  let modeHtml='<h4>Débit et renouvellement théorique par mode VMI+</h4><p class="muted">Le champ « mode » est distinct du champ « Vitesse ». Débit en m³/h confirmé. Le mode 3 dispose d’une référence confirmée de 184 m³/h ; elle est affichée séparément des mesures historiques. Le taux est calculé à partir du volume du logement renseigné dans chaque relevé ; il décrit un renouvellement théorique, pas une mesure de l’air effectivement distribué dans chaque pièce.</p>';
  if(!modeGroups.length){modeHtml+='<div class="advice">Aucun mode VMI+ exploitable dans la période sélectionnée.</div>'}
@@ -664,7 +679,7 @@ function renderEnergyReadiness(data){
    (volumeValues.length>1?' · valeurs rencontrées : '+volumeValues.map(fmt).join(', ')+' m³':' · valeur constante dans les relevés')+
    '. Cette donnée correspond au volume du logement déclaré dans la VMI+, pas à un volume d’air réellement renouvelé.</div>';
  }
- $('energyReadiness').innerHTML=volumeHtml+html+modeHtml+rawHtml+'<div class="advice">'+result.message+' Les valeurs brutes sont conservées ; aucune conversion des champs non documentés en watts, kWh ou rendement n’est appliquée. Le débit confirmé reste affiché en m³/h.</div>';
+ $('energyReadiness').innerHTML=volumeHtml+html+operatingHtml+modeHtml+rawHtml+'<div class="advice">'+result.message+' Les valeurs brutes sont conservées ; aucune conversion des champs non documentés en watts, kWh ou rendement n’est appliquée. Le débit confirmé reste affiché en m³/h.</div>';
 }
 
 function renderRecommendation(data){
