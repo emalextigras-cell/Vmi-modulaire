@@ -158,3 +158,14 @@ test('refuse la comparaison horaire lorsque les niveaux ne sont pas présents le
   assert.deepEqual(result.comparableBuckets, []);
   assert.ok(result.groups.filter(group => group.bucket === 1).every(group => !group.ready));
 });
+
+
+test('conserve Mode séparément de Vitesse dans un export VMI+', () => {
+  const headers = ['Date', 'Mode', 'Vitesse', 'Debit'];
+  const values = ['10/11/2026 16:45:35', '2', '5', '151'];
+  const record = recFrom(values, null, getColumnMapping(headers));
+  assert.ok(record);
+  assert.equal(record.vmiModeRaw, 2);
+  assert.equal(record.vmiSpeedRaw, 5);
+  assert.equal(record.vit, null);
+});
