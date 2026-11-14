@@ -72,6 +72,12 @@
 
 <section class="card" id="analyses">
  <h2>Analyses et diagnostic</h2>
+ <div class="coverage-card" id="coverageCard" role="status" aria-live="polite">
+  <div class="coverage-heading">Couverture des relevés</div>
+  <div class="coverage-value" id="coverageValue">–</div>
+  <p id="coverageDescription">La couverture sera calculée à partir des horodatages de l’historique.</p>
+  <details><summary>Comment est calculé ce pourcentage ?</summary><p id="coverageMethod">Il compare les intervalles exploitables à la durée entre le premier et le dernier relevé. Les interruptions supérieures à la durée maximale autorisée sont exclues. Ce n’est pas une mesure continue.</p></details>
+ </div>
  <div class="grid cols3">
   <div class="metric"><b id="deltaHA">–</b><span>Écart absolu salon − air entrant g/m³</span></div>
   <div class="metric"><b id="deltaT">–</b><span>Écart température salon − air entrant °C</span></div>
