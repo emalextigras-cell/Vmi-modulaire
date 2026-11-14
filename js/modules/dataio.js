@@ -20,6 +20,23 @@ const normalizeHeader = value => String(value ?? '')
   .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   .toLowerCase().replace(/[^a-z0-9%]+/g, ' ').trim();
 
+/**
+ * Repère l'en-tête VMI+ dans les lignes CSV ou tableur.
+ * Exige les colonnes Date, Mode et Debit pour éviter un import décalé.
+ */
+export function findVmiHeaderRowIndex(rows, maxRows = 20) {
+  if (!Array.isArray(rows)) return -1;
+  const limit = Math.min(rows.length, Math.max(1, Number.isFinite(maxRows) ? Math.floor(maxRows) : 20));
+  for (let index = 0; index < limit; index++) {
+    const headers = Array.isArray(rows[index]) ? rows[index].map(normalizeHeader) : [];
+    if (headers.includes('date') && headers.includes('mode') && headers.includes('debit')) {
+      return index;
+    }
+  }
+  return -1;
+}
+
+
 const HEADER_ALIASES = {
   date: ['date'],
   event: ['event', 'evenement'],

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseCell, recFrom, getColumnMapping } from '../js/modules/dataio.js';
+import { parseCell, recFrom, getColumnMapping, findVmiHeaderRowIndex } from '../js/modules/dataio.js';
 
 test('parseCell lit une date CSV VMI+ au format français', () => {
   const parsed = parseCell('10/11/2026 16:45:35', null);
@@ -264,4 +264,40 @@ test('parseCell refuse les dates calendaires impossibles et les suffixes parasit
 test('parseCell accepte le 29 février uniquement lors d’une année bissextile',()=>{
  assert.equal(parseCell('29/02/2024 12:00:00',null)?.rk,'29/02/2024 12:00:00');
  assert.equal(parseCell('29/02/2025 12:00:00',null),null);
+});
+
+
+test('repère l’en-tête VMI+ même si le nombre de lignes de métadonnées varie', () => {
+  const rows = [
+    ['VMI n,1.2512737'],
+    ['Var. SW: 1'],
+    ['Informations complémentaires'],
+    [''],
+    ['Export VMI+'],
+    ['Date','Event','Vol(m3)','mode','Debit'],
+    ['10/11/2026 16:45:35','35','337','1','121']
+  ];
+  const headerIndex = findVmiHeaderRowIndex(rows);
+  assert.equal(headerIndex, 5);
+  const mapping = getColumnMapping(rows[headerIndex]);
+  const record = recFrom(rows[headerIndex + 1], null, mapping);
+  assert.equal(record?.vmiModeRaw, 1);
+  assert.equal(record?.debit, 121);
+});
+
+test('refuse de choisir une ligne sans les trois colonnes d’ancrage VMI+', () => {
+  const rows = [
+    ['Date','Event','Debit'],
+    ['10/11/2026 16:45:35','35','121'],
+    ['Date','Mode','Autre']
+  ];
+  assert.equal(findVmiHeaderRowIndex(rows), -1);
+  assert.equal(findVmiHeaderRowIndex(null), -1);
+});
+
+test('la détection de l’en-tête est limitée à la fenêtre autorisée', () => {
+  const rows = Array.from({length: 21}, () => ['métadonnée']);
+  rows[20] = ['Date','mode','Debit'];
+  assert.equal(findVmiHeaderRowIndex(rows), -1);
+  assert.equal(findVmiHeaderRowIndex(rows, 21), 20);
 });

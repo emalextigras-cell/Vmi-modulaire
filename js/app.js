@@ -8,7 +8,7 @@ import { median, analyzeSpeedLevels, analyzeSpeedTimeContext, analyzeHygrometric
 import { renderCharts, resetChartViews } from './modules/charts.js';
 import { SVC_C, CH_C, SVC_T, CH_T, frame, timeFrame, hex } from './modules/ble.js';
 import { armDownloadTimeout } from './modules/sync.js';
-import { parseCell, recFrom, getColumnMapping, parseCsvRows, isCsvFile } from './modules/dataio.js';
+import { parseCell, recFrom, getColumnMapping, findVmiHeaderRowIndex, parseCsvRows, isCsvFile } from './modules/dataio.js';
 import { fixClock } from './modules/clock-correction.js';
 import { absoluteHumidity, psychro, validTemp } from './modules/psychrometry.js';
 import { summarizeDataQuality, isPlausibleHumidity, isPlausibleTemperature } from './modules/data-quality.js';
@@ -379,8 +379,10 @@ $('fx').onchange=async e=>{
    if(!sheet)throw new Error('Aucune feuille trouvée.');
    rows=XLSX.utils.sheet_to_json(sheet,{header:1,raw:true,defval:''});
   }
-  const columnMapping=getColumnMapping(rows[3]||[]);
-  const recs=[];for(let i=4;i<rows.length;i++){const r=recFrom(rows[i],spreadsheet,columnMapping);if(r)recs.push(r)}
+  const headerIndex=findVmiHeaderRowIndex(rows);
+  if(headerIndex<0)throw new Error('En-tête VMI+ introuvable : les colonnes Date, mode et Debit doivent être présentes dans les 20 premières lignes. Aucun relevé n’a été importé.');
+  const columnMapping=getColumnMapping(rows[headerIndex]);
+  const recs=[];for(let i=headerIndex+1;i<rows.length;i++){const r=recFrom(rows[i],spreadsheet,columnMapping);if(r)recs.push(r)}
   ingest(recs,'Import');
  }catch(err){showError('Import impossible : '+err.message)}
  e.target.value='';
