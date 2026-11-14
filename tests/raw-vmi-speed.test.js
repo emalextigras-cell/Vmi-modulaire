@@ -40,8 +40,16 @@ test('summarizeRawVmiMode distingue le mode et calcule le renouvellement théori
     { vmiModeRaw: 3, vmiSpeedRaw: 5, debit: null, volumeRaw: 300 }
   ]);
   assert.deepEqual(result, [
-    { mode: 1, sampleCount: 2, medianDebit: 135, minDebit: 120, maxDebit: 150, medianRenewalRate: 0.45 },
-    { mode: 2, sampleCount: 1, medianDebit: 180, minDebit: 180, maxDebit: 180, medianRenewalRate: 0.6 },
-    { mode: 3, sampleCount: 0, medianDebit: null, minDebit: null, maxDebit: null, medianRenewalRate: null }
+    { mode: 1, sampleCount: 2, medianDebit: 135, minDebit: 120, maxDebit: 150, medianRenewalRate: 0.45, referenceDebit: null, referenceRenewalRate: null },
+    { mode: 2, sampleCount: 1, medianDebit: 180, minDebit: 180, maxDebit: 180, medianRenewalRate: 0.6, referenceDebit: null, referenceRenewalRate: null },
+    { mode: 3, sampleCount: 0, medianDebit: null, minDebit: null, maxDebit: null, medianRenewalRate: null, referenceDebit: 184, referenceRenewalRate: 184 / 337 }
   ]);
+});
+
+test('summarizeRawVmiMode affiche la référence du mode 3 même sans relevé mode 3', () => {
+  const result = summarizeRawVmiMode([{ vmiModeRaw: 1, debit: 120, volumeRaw: 337 }]);
+  const mode3 = result.find(row => row.mode === 3);
+  assert.equal(mode3.sampleCount, 0);
+  assert.equal(mode3.referenceDebit, 184);
+  assert.equal(mode3.referenceRenewalRate, 184 / 337);
 });
