@@ -133,6 +133,8 @@ export function analyzeSpeedTimeContext(data, { minSamples = 5, minDays = 2 } = 
       const firstSamples=firstDaySamples.flat();
       const secondSamples=secondDaySamples.flat();
       const ready=sharedDayKeys.length>=minDays&&firstSamples.length>=minSamples&&secondSamples.length>=minSamples;
+      const firstStats=ready?summarize(firstDaySamples):null;
+      const secondStats=ready?summarize(secondDaySamples):null;
       const comparison={
         bucket,label:buckets[bucket],speeds:pair,
         sharedDayCount:sharedDayKeys.length,
@@ -142,13 +144,13 @@ export function analyzeSpeedTimeContext(data, { minSamples = 5, minDays = 2 } = 
         reason:ready?null:sharedDayKeys.length<minDays
           ? 'Pas assez de dates communes'
           : 'Pas assez de relevés sur les dates communes',
-        first:ready?summarize(firstDaySamples):null,
-        second:ready?summarize(secondDaySamples):null,
-        medianIncomingHADifference:ready?median(firstDaySamples.map((_,index)=>
-          (comparison.second.daily[index].medianIncomingHA??NaN)-(comparison.first.daily[index].medianIncomingHA??NaN)
+        first:firstStats,
+        second:secondStats,
+        medianIncomingHADifference:ready?median(firstStats.daily.map((day,index)=>
+          (secondStats.daily[index].medianIncomingHA??NaN)-(day.medianIncomingHA??NaN)
         )):null,
-        medianDeltaHADifference:ready?median(firstDaySamples.map((_,index)=>
-          (comparison.second.daily[index].medianDeltaHA??NaN)-(comparison.first.daily[index].medianDeltaHA??NaN)
+        medianDeltaHADifference:ready?median(firstStats.daily.map((day,index)=>
+          (secondStats.daily[index].medianDeltaHA??NaN)-(day.medianDeltaHA??NaN)
         )):null,
         sharedDayKeys
       };
