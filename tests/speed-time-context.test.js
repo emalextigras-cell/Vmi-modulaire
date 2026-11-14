@@ -32,11 +32,22 @@ test('ne transforme pas les codes vitesse bruts en niveaux manuels',()=>{
   assert.ok(result.groups.every(g=>g.sampleCount===0&&!g.ready));
 });
 
-test('refuse une comparaison quand les niveaux ne couvrent pas deux jours communs',()=>{
+test('refuse une comparaison lorsque les niveaux ont deux jours chacun mais aucun jour commun',()=>{
   const rows=[];
-  for(const speed of [1,2]){
-    for(let i=0;i<6;i++) rows.push(sample(0,8,speed,i));
-  }
+  for(let i=0;i<6;i++)rows.push(sample(0,8,1,i),sample(1,8,1,i));
+  for(let i=0;i<6;i++)rows.push(sample(2,8,2,i),sample(3,8,2,i));
   const result=analyzeSpeedTimeContext(rows,{minSamples:5,minDays:2});
   assert.deepEqual(result.comparableBuckets,[]);
+  assert.ok(result.groups.filter(g=>g.bucket===1).every(g=>!g.ready&&g.sharedDays===0));
+});
+
+test('affiche le nombre de jours communs entre niveaux réellement comparables',()=>{
+  const rows=[];
+  for(const day of [0,1,2]){
+    for(const speed of [1,2])for(let i=0;i<3;i++)rows.push(sample(day,8,speed,i));
+  }
+  const result=analyzeSpeedTimeContext(rows,{minSamples:5,minDays:2});
+  const ready=result.groups.filter(g=>g.bucket===1&&g.ready);
+  assert.equal(ready.length,2);
+  assert.ok(ready.every(g=>g.sharedDays===3));
 });
