@@ -109,7 +109,7 @@ test('hourly comparison recalculates both medians on exactly the same shared day
  assert.equal(finding.basis.comparisonSampleCount,12);
  const expected=absoluteHumidity(20,65)-absoluteHumidity(10,25);
  assert.ok(Math.abs(finding.basis.medianDelta-expected)<0.001);
- assert.match(finding.detail,/exactement 2 jours calendaires/);
+ assert.match(finding.detail,/mêmes 2 jours calendaires/);
 });
 
 test('diagnostic reports the actual custom thresholds used',()=>{
