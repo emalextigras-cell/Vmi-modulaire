@@ -30,7 +30,7 @@ Fermer VMI+ avant de se connecter : la VMI n'accepte qu'une seule connexion simu
 - Aucun pilotage automatique par IA n'est activé.
 - Les données sont conservées localement dans IndexedDB.
 - Les indicateurs hygrométriques sont indicatifs. La valeur « Debit » exportée par VMI+ est conservée et tracée en m³/h (unité confirmée).
-- Les comparaisons de niveaux manuels utilisent exclusivement le champ d'annotation `manualLevel` (1/2/3). Le champ historique `vit` et le code `Vitesse` VMI+ restent des données brutes et ne sont jamais assimilés à un niveau manuel. Les exports CSV VMI+ ne fournissent pas, à eux seuls, cette annotation.
+- Les comparaisons de niveaux manuels utilisent exclusivement le champ d'annotation `Mode` (`vmiModeRaw`) (1/2/3). Le champ historique `vit` et le code `Vitesse` VMI+ restent des données brutes et ne sont jamais assimilés à un niveau manuel. Les exports CSV VMI+ ne fournissent pas, à eux seuls, cette annotation.
 - Le régime moteur est présenté en tr/min lorsqu'il est disponible. Les valeurs Débit, PWM et Cons DP restent brutes tant que leur signification/unité n'est pas confirmée.
 - Sans mesure électrique fiable en W ou kWh et sans débit validé, l'application ne calcule ni consommation, ni rendement, ni optimum énergétique.
 
@@ -49,7 +49,7 @@ Fermer VMI+ avant de se connecter : la VMI n'accepte qu'une seule connexion simu
 5. Graphiques et comparaison des vitesses.
 6. Export CSV, sauvegarde JSON et restauration.
 
-Les analyses des niveaux manuels sont descriptives et n'utilisent que `manualLevel`, renseigné par une annotation explicite. Les champs `vit` et `vmiSpeedRaw` ne sont jamais utilisés pour identifier les niveaux 1/2/3. Les comparaisons horaires regroupent les relevés par tranches locales de six heures ; elles exigent au moins cinq relevés par niveau, deux jours distincts et au moins deux jours calendaires communs entre au moins deux niveaux dans la même tranche. Les exports VMI+ seuls ne renseignent pas `manualLevel` : dans ce cas, l'analyse doit rester indisponible plutôt que déduire les niveaux à partir des codes bruts. Même lorsque les critères d'effectif sont atteints, la comparaison ne contrôle pas la météo, l'occupation ni les apports d'humidité et ne désigne pas une vitesse optimale.
+Les analyses des niveaux manuels sont descriptives et n'utilisent que `Mode` (`vmiModeRaw`), renseigné par une annotation explicite. Les champs `vit` et `vmiSpeedRaw` ne sont jamais utilisés pour identifier les niveaux 1/2/3. Les comparaisons horaires regroupent les relevés par tranches locales de six heures ; elles exigent au moins cinq relevés par niveau, deux jours distincts et au moins deux jours calendaires communs entre au moins deux niveaux dans la même tranche. Si le champ `Mode` est absent, l'analyse reste indisponible plutôt que de déduire les niveaux à partir de `Vitesse`. Même lorsque les critères d'effectif sont atteints, la comparaison ne contrôle pas la météo, l'occupation ni les apports d'humidité et ne désigne pas une vitesse optimale.
 7. Commandes manuelles, en vérifiant leur effet réel sur la VMI.
 
 La version modulaire doit être validée sur l'appareil avant de remplacer l'application utilisée au quotidien.
