@@ -121,11 +121,23 @@ export function analyzeSpeedTimeContext(data, { minSamples = 5, minDays = 2 } = 
 export function summarizeEnergyReadiness(data) {
   const rows=Array.isArray(data)?data:[];
   const fields=[
-    {key:'rpm',label:'Régime moteur',unit:'tr/min',verified:true},
+    {key:'rpm',label:'Régime moteur',unit:'tr/min (confirmé)',verified:true},
     {key:'debit',label:'Débit exporté',unit:'m³/h (confirmé)',verified:true},
     {key:'vmiSpeedRaw',label:'Code vitesse VMI+',unit:'code brut',verified:false},
-    {key:'vmiPwmRaw',label:'PWM VMI+',unit:'valeur brute',verified:false},
-    {key:'consDpRaw',label:'Cons DP',unit:'signification à confirmer',verified:false}
+    {key:'vmiPwmRaw',label:'PWM VMI+',unit:'valeur brute (échelle à confirmer)',verified:false},
+    {key:'consDpRaw',label:'Cons DP',unit:'signification et unité à confirmer',verified:false},
+    {key:'consResRaw',label:'Cons Res',unit:'signification et unité à confirmer',verified:false},
+    {key:'consHydroRRaw',label:'Cons HydroR',unit:'signification et unité à confirmer',verified:false},
+    {key:'consTmaxRaw',label:'Cons TMax',unit:'signification et unité à confirmer',verified:false},
+    {key:'kmoteurRaw',label:'Kmoteur',unit:'signification et unité à confirmer',verified:false},
+    {key:'jmoteurRaw',label:'Jmoteur',unit:'signification et unité à confirmer',verified:false},
+    {key:'kreseauRaw',label:'Kreseau',unit:'signification et unité à confirmer',verified:false},
+    {key:'jreseauRaw',label:'Jreseau',unit:'signification et unité à confirmer',verified:false},
+    {key:'motorPressureRaw',label:'Pression Moteur',unit:'unité à confirmer',verified:false},
+    {key:'offsetPressureRaw',label:'Offset Press',unit:'valeur brute',verified:false},
+    {key:'operatingPctRaw',label:'% fonct',unit:'échelle à confirmer',verified:false},
+    {key:'operatingPct2Raw',label:'% fonct.1',unit:'échelle à confirmer',verified:false},
+    {key:'dcintRaw',label:'Dcint',unit:'signification et unité à confirmer',verified:false}
   ].map(field=>{
     const values=rows.map(r=>r?.[field.key]).filter(Number.isFinite);
     return {...field,count:values.length,min:values.length?Math.min(...values):null,
