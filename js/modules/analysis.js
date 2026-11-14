@@ -140,8 +140,13 @@ export function summarizeEnergyReadiness(data) {
     {key:'dcintRaw',label:'Dcint',unit:'signification et unité à confirmer',verified:false}
   ].map(field=>{
     const values=rows.map(r=>r?.[field.key]).filter(Number.isFinite);
-    return {...field,count:values.length,min:values.length?Math.min(...values):null,
-      max:values.length?Math.max(...values):null,distinct:[...new Set(values)].sort((a,b)=>a-b)};
+    return {...field,count:values.length,
+      zeroCount:values.filter(value=>value===0).length,
+      nonZeroCount:values.filter(value=>value!==0).length,
+      missingCount:rows.length-values.length,
+      min:values.length?Math.min(...values):null,
+      max:values.length?Math.max(...values):null,
+      distinct:[...new Set(values)].sort((a,b)=>a-b)};
   });
   return {
     total:rows.length,fields,
