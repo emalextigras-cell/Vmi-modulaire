@@ -460,6 +460,62 @@ export function buildHygrometricDiagnosis(data, {
  * Aucun code n'est converti en niveau manuel et aucune unité n'est attribuée au débit.
  */
 /** Regroupe le débit confirmé en m³/h par mode VMI+ distinct du code vitesse. */
+/**
+ * Référence descriptive du fonctionnement par mode VMI+.
+ * Mode et code Vitesse brut restent distincts ; les unités non confirmées restent brutes.
+ */
+export function summarizeOperatingReference(data, { minSamples = 10 } = {}) {
+  const rows = Array.isArray(data) ? data : [];
+  const modes = new Map();
+  for (const row of rows) {
+    if (!Number.isFinite(row?.vmiModeRaw)) continue;
+    if (!modes.has(row.vmiModeRaw)) modes.set(row.vmiModeRaw, []);
+    modes.get(row.vmiModeRaw).push(row);
+  }
+  const metrics = [
+    { key: 'debit', label: 'Débit', unit: 'm³/h confirmé', verified: true },
+    { key: 'rpm', label: 'Régime moteur', unit: 'tr/min confirmé', verified: true },
+    { key: 'vmiPwmRaw', label: 'PWM', unit: 'valeur brute', verified: false },
+    { key: 'motorPressureRaw', label: 'Pression moteur', unit: 'unité à confirmer', verified: false },
+    { key: 'consDpRaw', label: 'Cons DP', unit: 'sens et unité à confirmer', verified: false }
+  ];
+  const groups = [...modes.entries()].sort((a, b) => a[0] - b[0]).map(([mode, samples]) => {
+    const fields = metrics.map(metric => {
+      const values = samples.map(row => row?.[metric.key]).filter(Number.isFinite);
+      const center = median(values);
+      return {
+        ...metric, count: values.length, median: center,
+        min: values.length ? Math.min(...values) : null,
+        max: values.length ? Math.max(...values) : null,
+        medianAbsoluteDeviation: center == null ? null : median(values.map(value => Math.abs(value - center)))
+      };
+    });
+    const timestamps = samples.map(row => row?.t).filter(Number.isFinite);
+    const days = new Set(timestamps.map(timestamp => {
+      const date = new Date(timestamp);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    }));
+    return {
+      mode, sampleCount: samples.length, dayCount: days.size,
+      firstAt: timestamps.length ? Math.min(...timestamps) : null,
+      lastAt: timestamps.length ? Math.max(...timestamps) : null,
+      ready: samples.length >= minSamples && days.size >= 2,
+      fields
+    };
+  });
+  return {
+    status: groups.some(group => group.ready) ? 'reference-available' : groups.length ? 'provisional' : 'no-mode-data',
+    minSamples, groups,
+    limits: [
+      'Référence descriptive calculée sur les données importées actuellement, séparément pour chaque mode VMI+.',
+      'Le champ Mode est distinct du champ Vitesse brut ; aucun code brut n’est converti en niveau manuel.',
+      'Les médianes et plages ne prouvent ni un fonctionnement normal, ni une panne, ni une cause.',
+      'PWM, Pression moteur et Cons DP restent des valeurs brutes : aucune unité physique ni consommation n’est déduite.',
+      'Une comparaison temporelle fiable nécessitera plusieurs exports couvrant des périodes distinctes et comparables.'
+    ]
+  };
+}
+
 export function summarizeRawVmiMode(data) {
   const groups = new Map();
   for (const row of Array.isArray(data) ? data : []) {
