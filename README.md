@@ -133,3 +133,8 @@ Le téléchargement d'historique, lui, transporte des lignes textuelles séparé
 
 **Décision pour la suite :** conserver `Pression Moteur`, PWM, `Cons Res`, les compteurs et les pourcentages comme variables brutes de diagnostic. Les utiliser éventuellement pour repérer des changements de comportement ou des anomalies relatives à une référence propre à la VMI, après validation de la qualité et de la stabilité des données. Ne pas les convertir en Pa, W, kWh, coût ou rendement et ne pas déclencher de commande sur leur base.
 
+
+
+### Référence descriptive du fonctionnement par mode VMI+
+
+L'interface construit désormais, à partir de l'historique affiché, un profil par valeur du champ `Mode`: effectifs, jours couverts, médianes et plages observées du débit confirmé, du régime moteur et des champs bruts PWM, Pression moteur et Cons DP. Le code `Vitesse` reste strictement séparé et n'est jamais utilisé comme substitut du mode. Cette référence décrit uniquement les données importées ; elle ne qualifie pas un état de normal ou anormal et ne détecte pas encore de panne. Une comparaison entre plusieurs périodes nécessitera plusieurs exports distincts et comparables. Deux tests vérifient la séparation Mode/Vitesse et l'absence de conversion des champs bruts.
