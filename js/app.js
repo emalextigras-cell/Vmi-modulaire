@@ -621,9 +621,59 @@ function renderIntelligentDiagnosis(data){
    action.className='diagnosis-action';
    action.textContent='À faire : '+item.recommendation;
    article.append(tag,heading,detail,action);
+   if(item.basis&&Object.keys(item.basis).length){
+    const proof=document.createElement('details');
+    proof.className='diagnosis-proof';
+    const proofTitle=document.createElement('summary');
+    proofTitle.textContent='Voir les mesures et les critères';
+    const list=document.createElement('dl');
+    const labels={
+     validSamples:'Relevés valides',requiredSamples:'Minimum de relevés requis',
+     distinctDays:'Jours distincts',requiredDays:'Minimum de jours requis',
+     observedHours:'Durée exploitable',requiredObservedHours:'Durée minimale requise',
+     medianIndoorMinusIncomingHA:'Écart médian salon − air entrant',
+     threshold:'Seuil appliqué',durationShare:'Part des durées observées',
+     requiredDurationShare:'Part minimale requise',dryDurationShare:'Air entrant plus sec',
+     humidDurationShare:'Air entrant plus humide',dominanceThreshold:'Seuil de dominance',
+     firstDate:'Première date comparée',lastDate:'Dernière date comparée',
+     firstMedianAbsoluteHumidity:'Humidité absolue médiane au départ',
+     lastMedianAbsoluteHumidity:'Humidité absolue médiane à la fin',
+     change:'Évolution mesurée',timeWindow:'Tranche horaire retenue',
+     medianDelta:'Écart médian observé',sampleCount:'Nombre de relevés',
+     dayCount:'Nombre de jours'
+    };
+    const percentKeys=new Set(['durationShare','requiredDurationShare','dryDurationShare','humidDurationShare','dominanceThreshold']);
+    const hourKeys=new Set(['observedHours','requiredObservedHours']);
+    const humidityKeys=new Set(['medianIndoorMinusIncomingHA','firstMedianAbsoluteHumidity','lastMedianAbsoluteHumidity','change','medianDelta','threshold']);
+    Object.entries(item.basis).forEach(([key,value])=>{
+     if(key==='unit'||value==null||!labels[key])return;
+     const term=document.createElement('dt');
+     const description=document.createElement('dd');
+     term.textContent=labels[key];
+     let shown;
+     if(typeof value==='number'){
+      if(percentKeys.has(key))shown=(value*100).toLocaleString('fr-FR',{maximumFractionDigits:1})+' %';
+      else if(hourKeys.has(key))shown=value.toLocaleString('fr-FR',{maximumFractionDigits:1})+' h';
+      else if(humidityKeys.has(key))shown=value.toLocaleString('fr-FR',{maximumFractionDigits:2})+' g/m³';
+      else shown=value.toLocaleString('fr-FR',{maximumFractionDigits:1});
+     }else shown=String(value);
+     description.textContent=shown;
+     list.append(term,description);
+    });
+    proof.append(proofTitle,list);
+    article.append(proof);
+   }
    evidence.append(article);
   });
  }
+ const method=document.createElement('details');
+ method.className='diagnosis-method';
+ const methodTitle=document.createElement('summary');
+ methodTitle.textContent='Méthode et seuils utilisés';
+ const methodText=document.createElement('p');
+ methodText.textContent='Version '+result.methodology.version+' · écart hygrométrique : '+fmt(result.methodology.dryDeltaThreshold)+' g/m³ · évolution intérieure : '+fmt(result.methodology.trendDeltaThreshold)+' g/m³ · minimum '+result.methodology.minimumSamples+' relevés sur '+result.methodology.minimumDistinctDays+' jours et '+result.methodology.minimumObservedHours+' h exploitables · interruptions de plus de '+fmt(result.methodology.maximumGapHours)+' h exclues · dominance requise : '+Math.round(result.methodology.dominantDurationShare*100)+' % · tranches horaires de '+result.methodology.hourlyBucketHours+' h (au moins '+result.methodology.hourlyMinimumSamples+' relevés sur '+result.methodology.hourlyMinimumDistinctDays+' jours).';
+ method.append(methodTitle,methodText);
+ evidence.append(method);
  limits.textContent='À garder en tête : '+result.limits.join(' ');
 }
 
