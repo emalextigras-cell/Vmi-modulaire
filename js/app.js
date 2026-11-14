@@ -698,7 +698,7 @@ function analyzeSpeeds(data){
  const min=Number($('minSamples').value);
  const result=analyzeSpeedLevels(data,min,Number($('targetRH').value));
  const groups=result.groups;
- let html='<table><thead><tr><th>Niveau manuel</th><th>Relevés</th><th>Jours mesurés</th><th>Jours communs avec autres niveaux</th><th>HR médiane</th><th>HA salon</th><th>Écart HA</th><th>Temps couvert</th><th>RPM médian</th><th>Part avec air entrant plus sec</th></tr></thead><tbody>';
+ let html='<table><thead><tr><th>Niveau manuel</th><th>Relevés</th><th>Jours mesurés</th><th>Maximum de jours communs avec un autre niveau</th><th>HR médiane</th><th>HA salon</th><th>Écart HA</th><th>Temps couvert</th><th>RPM médian</th><th>Part avec air entrant plus sec</th></tr></thead><tbody>';
  for(const g of groups){
   const span=g.spanHours>=24?fmt(g.spanHours/24)+' j':g.spanHours>0?fmt(g.spanHours)+' h':'–';
   html+='<tr><td>'+g.v+'</td><td>'+g.n+'</td><td>'+g.daysCovered+'</td><td>'+g.sharedDays+'</td><td>'+(g.rh==null?'–':fmt(g.rh)+' %')+'</td><td>'+(g.ha==null?'–':fmt(g.ha)+' g/m³')+'</td><td>'+(g.delta==null?'–':fmt(g.delta)+' g/m³')+'</td><td>'+span+'</td><td>'+(g.rpm==null?'–':fmt(g.rpm)+' ('+g.rpmSamples+')')+'</td><td>'+(g.dryingShare==null?'–':fmt(g.dryingShare*100)+' % ('+g.deltaSamples+')')+'</td></tr>';
@@ -708,19 +708,31 @@ function analyzeSpeeds(data){
  let advice='';
  if(result.status==='no-speed-data')advice='Aucun relevé ne contient un niveau manuel identifié. Les codes bruts VMI+ ne sont volontairement pas assimilés aux niveaux 1/2/3. L’analyse reste donc indisponible avec cet import seul.';
  else if(result.status==='insufficient')advice='Données insuffisantes : il faut au moins '+min+' relevés identifiés par niveau pour établir une comparaison. Les résultats partiels restent visibles mais ne permettent pas de conclure.';
- else advice='Comparaison descriptive disponible pour '+usable.map(g=>'niveau '+g.v).join(', ')+'. Les jours communs indiquent sur combien de dates chaque niveau recoupe au moins un autre niveau analysable : plus ce nombre est faible, moins la comparaison est directe. Même avec des jours communs, les heures, la météo et l’occupation peuvent différer. Aucun niveau n’est désigné comme optimal.';
+ else advice='Comparaison descriptive disponible pour '+usable.map(g=>'niveau '+g.v).join(', ')+'. Le nombre de jours communs affiché correspond au meilleur recoupement avec un seul autre niveau, et non à l’addition de dates provenant de plusieurs comparaisons. Les statistiques générales restent descriptives : les heures, la météo et l’occupation peuvent différer. Aucun niveau n’est désigné comme optimal.';
  const context=analyzeSpeedTimeContext(data,{minSamples:5,minDays:2});
- let contextHtml='<h4>Comparaison par tranche horaire</h4><p class="muted">Une tranche n’est comparée que si au moins deux niveaux manuels ont chacun 5 relevés minimum et au moins 2 dates communes dans cette tranche.</p>';
- if(!context.comparableBuckets.length){
-  contextHtml+='<div class="advice">Pas encore assez de données réparties sur plusieurs jours et plusieurs niveaux dans une même tranche horaire. Les valeurs brutes VMI+ ne sont pas utilisées comme vitesses manuelles.</div>';
- }else{
-  contextHtml+='<table><thead><tr><th>Horaire</th><th>Niveau</th><th>Relevés / jours</th><th>HR médiane</th><th>HA salon</th><th>Écart HA salon − entrant</th><th>RPM médian</th></tr></thead><tbody>';
-  for(const bucket of context.comparableBuckets){
-   for(const g of context.groups.filter(x=>x.bucket===bucket&&x.ready)){
-    contextHtml+='<tr><td>'+g.label+'</td><td>'+g.speed+'</td><td>'+g.sampleCount+' / '+g.dayCount+' ('+g.sharedDays+' communes)</td><td>'+fmt(g.medianRH)+' %</td><td>'+fmt(g.medianIndoorHA)+' g/m³</td><td>'+(g.medianDeltaHA==null?'–':fmt(g.medianDeltaHA)+' g/m³ ('+g.deltaSamples+')')+'</td><td>'+(g.medianRPM==null?'–':fmt(g.medianRPM))+'</td></tr>';
+ let contextHtml='<h4>Comparaison par tranche horaire et dates communes</h4><p class="muted">Chaque paire de niveaux est comparée séparément, dans la même tranche de 6 h et uniquement sur les mêmes dates calendaires. Il faut au moins 2 dates communes et 5 relevés par niveau sur ces dates. Les médianes sont recalculées après ce filtrage.</p>';
+ const readyComparisons=context.comparisons.filter(item=>item.ready);
+ if(!readyComparisons.length){
+  const overlaps=context.comparisons.filter(item=>item.sharedDayCount>0);
+  if(!overlaps.length){
+   contextHtml+='<div class="advice">Aucune date commune n’a été trouvée entre deux niveaux manuels dans une même tranche horaire. Il n’est donc pas possible de neutraliser suffisamment les différences de dates. Les codes bruts Vitesse ne sont pas utilisés.</div>';
+  }else{
+   contextHtml+='<table><thead><tr><th>Horaire</th><th>Paire de niveaux</th><th>Dates communes</th><th>Relevés sur ces dates</th><th>État</th></tr></thead><tbody>';
+   for(const item of overlaps){
+    contextHtml+='<tr><td>'+item.label+'</td><td>'+item.speeds[0]+' / '+item.speeds[1]+'</td><td>'+item.sharedDayCount+' / '+context.minDays+'</td><td>'+item.sampleCountFirst+' / '+item.sampleCountSecond+'</td><td>'+item.reason+'</td></tr>';
    }
+   contextHtml+='</tbody></table><div class="advice">Les recoupements actuels ne satisfont pas les critères minimaux. Aucune médiane comparative n’est affichée : c’est préférable à une comparaison trompeuse.</div>';
   }
-  contextHtml+='</tbody></table><div class="advice">Cette lecture réduit une partie des différences horaires, mais ne contrôle pas la météo, les apports d’humidité, l’occupation ni le débit réel. Elle ne permet pas de désigner une vitesse optimale.</div>';
+ }else{
+  contextHtml+='<table><thead><tr><th>Horaire</th><th>Paire</th><th>Jours communs</th><th>Relevés A / B</th><th>HA air entrant A / B</th><th>Écart HA A / B</th><th>Différence d’écart B − A</th></tr></thead><tbody>';
+  for(const item of readyComparisons){
+   const first=item.first,second=item.second;
+   const incoming=first.medianIncomingHA==null||second.medianIncomingHA==null?'–':fmt(first.medianIncomingHA)+' / '+fmt(second.medianIncomingHA)+' g/m³';
+   const delta=first.medianDeltaHA==null||second.medianDeltaHA==null?'–':fmt(first.medianDeltaHA)+' / '+fmt(second.medianDeltaHA)+' g/m³';
+   const deltaDifference=first.medianDeltaHA==null||second.medianDeltaHA==null?'–':(second.medianDeltaHA-first.medianDeltaHA>0?'+':'')+fmt(second.medianDeltaHA-first.medianDeltaHA)+' g/m³';
+   contextHtml+='<tr><td>'+item.label+'</td><td>'+item.speeds[0]+' / '+item.speeds[1]+'</td><td>'+item.sharedDayCount+'</td><td>'+item.sampleCountFirst+' / '+item.sampleCountSecond+'</td><td>'+incoming+'</td><td>'+delta+'</td><td>'+deltaDifference+'</td></tr>';
+  }
+  contextHtml+='</tbody></table><div class="advice">HA air entrant = contexte hygrométrique de l’air extérieur introduit. L’écart HA = humidité absolue intérieure moins air entrant ; une valeur positive indique un potentiel d’assèchement observé. Les deux niveaux sont mesurés les mêmes jours et dans la même tranche, mais pas nécessairement aux mêmes minutes. Cette comparaison ne contrôle pas l’occupation, les apports d’humidité ni tous les écarts météo ; elle ne prouve pas un effet causal et ne désigne pas une vitesse optimale.</div>';
  }
 
  const periods=compareOperatingPeriods(data,{periodDays:7,minSamples:12,minDays:3});

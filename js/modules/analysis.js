@@ -54,9 +54,9 @@ export function analyzeSpeedLevels(data, minSamples = 10, targetRH = 50) {
   const dayKeysBySpeed=new Map(groups.map(group=>[group.v,new Set(group.coveredDayKeys)]));
   for(const group of groups){
     const ownDays=dayKeysBySpeed.get(group.v);
-    const otherDays=new Set(sufficient.filter(other=>other.v!==group.v)
-      .flatMap(other=>[...dayKeysBySpeed.get(other.v)]));
-    group.sharedDays=[...ownDays].filter(day=>otherDays.has(day)).length;
+    group.sharedDays=Math.max(0,...sufficient.filter(other=>other.v!==group.v).map(other=>
+      [...ownDays].filter(day=>dayKeysBySpeed.get(other.v).has(day)).length
+    ));
     delete group.coveredDayKeys;
   }
   const status=rows.length===0?'no-speed-data':sufficient.length?'comparison-ready':'insufficient';
@@ -75,48 +75,107 @@ export function analyzeSpeedTimeContext(data, { minSamples = 5, minDays = 2 } = 
     Number.isFinite(r.st) && isPlausibleTemperature(r.st) &&
     Number.isFinite(r.sh) && isPlausibleHumidity(r.sh)
   );
+  const buckets=['00–05 h','06–11 h','12–17 h','18–23 h'];
+  const bySpeedBucketDay=new Map();
+  const dayKey=t=>{
+    const d=new Date(t);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  };
+  for(const row of rows){
+    const bucket=Math.floor(new Date(row.t).getHours()/6);
+    const key=row.vmiModeRaw+':'+bucket;
+    if(!bySpeedBucketDay.has(key))bySpeedBucketDay.set(key,new Map());
+    const days=bySpeedBucketDay.get(key),day=dayKey(row.t);
+    if(!days.has(day))days.set(day,[]);
+    days.get(day).push(row);
+  }
+  const summarize=samples=>{
+    const incoming=samples.filter(r=>Number.isFinite(r.te)&&isPlausibleTemperature(r.te)&&
+      Number.isFinite(r.he)&&isPlausibleHumidity(r.he));
+    const deltas=incoming.map(r=>absoluteHumidity(r.st,r.sh)-absoluteHumidity(r.te,r.he));
+    const rpms=samples.map(r=>r.rpm).filter(v=>Number.isFinite(v)&&v>0&&v<10000);
+    return {
+      medianRH:median(samples.map(r=>r.sh)),
+      medianIndoorHA:median(samples.map(r=>absoluteHumidity(r.st,r.sh))),
+      medianIncomingHA:median(incoming.map(r=>absoluteHumidity(r.te,r.he))),
+      medianDeltaHA:median(deltas),
+      deltaSamples:deltas.length,
+      medianRPM:median(rpms),
+      rpmSamples:rpms.length
+    };
+  };
+  const comparisons=[];
+  const groupCandidates=new Map();
+  for(let bucket=0;bucket<4;bucket++){
+    for(const pair of [[1,2],[1,3],[2,3]]){
+      const firstDays=bySpeedBucketDay.get(pair[0]+':'+bucket)||new Map();
+      const secondDays=bySpeedBucketDay.get(pair[1]+':'+bucket)||new Map();
+      const sharedDayKeys=[...firstDays.keys()].filter(day=>secondDays.has(day)).sort();
+      const firstSamples=sharedDayKeys.flatMap(day=>firstDays.get(day));
+      const secondSamples=sharedDayKeys.flatMap(day=>secondDays.get(day));
+      const ready=sharedDayKeys.length>=minDays&&firstSamples.length>=minSamples&&secondSamples.length>=minSamples;
+      const comparison={
+        bucket,label:buckets[bucket],speeds:pair,
+        sharedDayCount:sharedDayKeys.length,
+        sampleCountFirst:firstSamples.length,
+        sampleCountSecond:secondSamples.length,
+        ready,
+        reason:ready?null:sharedDayKeys.length<minDays
+          ? 'Pas assez de dates communes'
+          : 'Pas assez de relevés sur les dates communes',
+        first:ready?summarize(firstSamples):null,
+        second:ready?summarize(secondSamples):null,
+        sharedDayKeys
+      };
+      comparisons.push(comparison);
+      for(const [speed,samples,stats,otherSpeed,sampleCount] of [
+        [pair[0],firstSamples,comparison.first,pair[1],firstSamples.length],
+        [pair[1],secondSamples,comparison.second,pair[0],secondSamples.length]
+      ]){
+        const key=speed+':'+bucket;
+        const candidate={
+          speed,bucket,label:buckets[bucket],otherSpeed,
+          sampleCount,dayCount:sharedDayKeys.length,sharedDays:sharedDayKeys.length,
+          ready,stats
+        };
+        const current=groupCandidates.get(key);
+        if(!current||candidate.sharedDays>current.sharedDays||
+          (candidate.sharedDays===current.sharedDays&&candidate.ready&&!current.ready)||
+          (candidate.sharedDays===current.sharedDays&&candidate.ready===current.ready&&candidate.sampleCount>current.sampleCount)){
+          groupCandidates.set(key,candidate);
+        }
+      }
+    }
+  }
   const groups=[];
-  for(const speed of [1,2,3]){
-    for(let bucket=0;bucket<4;bucket++){
-      const samples=rows.filter(r=>r.vmiModeRaw===speed&&Math.floor(new Date(r.t).getHours()/6)===bucket);
-      const dayKeys=new Set(samples.map(r=>{
-        const d=new Date(r.t);
-        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      }));
-      const deltas=samples.map(r=>{
-        if(!Number.isFinite(r.te)||!isPlausibleTemperature(r.te)||!Number.isFinite(r.he)||!isPlausibleHumidity(r.he))return null;
-        return absoluteHumidity(r.st,r.sh)-absoluteHumidity(r.te,r.he);
-      }).filter(Number.isFinite);
-      groups.push({
-        speed,bucket,label:['00–05 h','06–11 h','12–17 h','18–23 h'][bucket],
-        sampleCount:samples.length,dayCount:dayKeys.size,dayKeys:[...dayKeys],
-        ready:samples.length>=minSamples&&dayKeys.size>=minDays,
-        medianRH:median(samples.map(r=>r.sh)),
-        medianIndoorHA:median(samples.map(r=>absoluteHumidity(r.st,r.sh))),
-        medianDeltaHA:deltas.length?median(deltas):null,
-        deltaSamples:deltas.length,
-        medianRPM:median(samples.map(r=>r.rpm).filter(v=>Number.isFinite(v)&&v>0&&v<10000))
+  for(let bucket=0;bucket<4;bucket++){
+    for(const speed of [1,2,3]){
+      const candidate=groupCandidates.get(speed+':'+bucket);
+      groups.push(candidate?{
+        ...candidate,
+        medianRH:candidate.stats?.medianRH??null,
+        medianIndoorHA:candidate.stats?.medianIndoorHA??null,
+        medianIncomingHA:candidate.stats?.medianIncomingHA??null,
+        medianDeltaHA:candidate.stats?.medianDeltaHA??null,
+        deltaSamples:candidate.stats?.deltaSamples??0,
+        medianRPM:candidate.stats?.medianRPM??null,
+        rpmSamples:candidate.stats?.rpmSamples??0
+      }:{
+        speed,bucket,label:buckets[bucket],otherSpeed:null,
+        sampleCount:0,dayCount:0,sharedDays:0,ready:false,
+        medianRH:null,medianIndoorHA:null,medianIncomingHA:null,
+        medianDeltaHA:null,deltaSamples:0,medianRPM:null,rpmSamples:0
       });
     }
   }
-  const comparableBuckets=[];
-  for(let bucket=0;bucket<4;bucket++){
-    const candidates=groups.filter(g=>g.bucket===bucket&&g.ready);
-    const sharedBySpeed=new Map(candidates.map(g=>[g.speed,candidates
-      .filter(other=>other.speed!==g.speed)
-      .reduce((all,other)=>{for(const day of other.dayKeys)if(g.dayKeys.includes(day))all.add(day);return all},new Set()).size
-    ]));
-    for(const group of groups.filter(g=>g.bucket===bucket)){
-      group.sharedDays=sharedBySpeed.get(group.speed)||0;
-      group.ready=group.ready&&group.sharedDays>=minDays;
-      if(!group.ready){group.medianRH=null;group.medianIndoorHA=null;group.medianDeltaHA=null;group.medianRPM=null}
-      delete group.dayKeys;
-    }
-    if(groups.filter(g=>g.bucket===bucket&&g.ready).length>=2)comparableBuckets.push(bucket);
-  }
-  return {groups,minSamples,minDays,comparableBuckets};
+  return {
+    groups,
+    comparisons,
+    minSamples,
+    minDays,
+    comparableBuckets:[...new Set(comparisons.filter(c=>c.ready).map(c=>c.bucket))]
+  };
 }
-
 
 /**
  * Compare deux périodes calendaires successives à mode et tranche horaire identiques.
