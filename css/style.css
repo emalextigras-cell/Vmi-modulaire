@@ -89,3 +89,13 @@ section[id],details[id]{scroll-margin-top:62px}
 .diagnosis-proof dt{margin:0}
 .diagnosis-proof dd{margin:0;text-align:right;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
 .diagnosis-method p{margin:7px 0 2px}
+
+
+/* Carte compacte dédiée à la couverture temporelle des relevés. */
+.coverage-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:center;padding:12px;margin:0 0 14px;border:1px solid var(--line);border-left:4px solid var(--acc);border-radius:9px;background:var(--bg)}
+.coverage-heading{font-size:.88rem;font-weight:700;color:var(--ink)}
+.coverage-value{grid-column:2;grid-row:1 / span 2;font-size:1.8rem;line-height:1.1;font-weight:750;font-variant-numeric:tabular-nums;color:var(--acc)}
+.coverage-card>p{grid-column:1;margin:0;color:var(--mut);font-size:.8rem}
+.coverage-card details{grid-column:1 / -1;margin-top:5px;padding-top:7px;border-top:1px solid var(--line);font-size:.78rem;color:var(--mut)}
+.coverage-card details summary{cursor:pointer;color:var(--acc);font-weight:600}
+.coverage-card details p{margin:6px 0 0}
