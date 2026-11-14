@@ -5,7 +5,7 @@ import { $, sleep, APP_VERSION } from './modules/core.js';
 import { createStore } from './modules/store.js';
 import { fromOldRow } from './modules/legacy-migration.js';
 import { median, analyzeSpeedLevels } from './modules/analysis.js';
-import { renderCharts } from './modules/charts.js';
+import { renderCharts, resetChartViews } from './modules/charts.js';
 import { SVC_C, CH_C, SVC_T, CH_T, crc, frame, timeFrame, hex } from './modules/ble.js';
 import { armDownloadTimeout } from './modules/sync.js';
 import { parseCell, recFrom, getColumnMapping } from './modules/dataio.js';
@@ -383,10 +383,11 @@ $('fx').onchange=async e=>{
 $('clearImport').onclick=async()=>{if(confirm('Effacer tout l’historique importé ?')){hist=[];await dbSet('hist',[]);$('importInfo').textContent='';render()}};
 $('histBtn').onclick=()=>{source='hist';render()};
 $('liveBtn').onclick=()=>{source='live';render()};
-$('dayPicker').onchange=e=>{selectedDate=e.target.value||null;render()};
-$('prev').onclick=()=>{selectedDate=shiftDay(selectedDate,-1);$('dayPicker').value=selectedDate;render()};
-$('next').onclick=()=>{selectedDate=shiftDay(selectedDate,1);$('dayPicker').value=selectedDate;render()};
-document.querySelectorAll('[data-days]').forEach(b=>b.onclick=()=>{daysSetting=Number(b.dataset.days);selectedDate=null;$('dayPicker').value='';render()});
+$('dayPicker').onchange=e=>{selectedDate=e.target.value||null;resetChartViews();render()};
+$('clearDay').onclick=()=>{selectedDate=null;$('dayPicker').value='';resetChartViews();render()};
+$('prev').onclick=()=>{selectedDate=shiftDay(selectedDate,-1);$('dayPicker').value=selectedDate;resetChartViews();render()};
+$('next').onclick=()=>{selectedDate=shiftDay(selectedDate,1);$('dayPicker').value=selectedDate;resetChartViews();render()};
+document.querySelectorAll('[data-days]').forEach(b=>b.onclick=()=>{daysSetting=Number(b.dataset.days);selectedDate=null;$('dayPicker').value='';resetChartViews();render()});
 $('clearLive').onclick=async()=>{if(confirm('Effacer les relevés en direct ?')){live=[];await dbSet('live',[]);$('liveCount').textContent='0';render()}};
 $('csv').onclick=()=>{
  const keys=['t','st','sh','t1','h1','te','he','rpm','fil','vit','boost','hol'];
