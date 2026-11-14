@@ -4,7 +4,7 @@ import { createBackupSnapshot, mergeBackupData } from './modules/backup.js';
 import { $, sleep, APP_VERSION } from './modules/core.js';
 import { createStore } from './modules/store.js';
 import { fromOldRow } from './modules/legacy-migration.js';
-import { median, analyzeSpeedLevels, analyzeSpeedTimeContext, analyzeHygrometricPeriods, summarizeDailyTrends, analyzeHourlyPatterns, detectRapidChanges, summarizeEnergyReadiness, summarizeRawVmiSpeed, summarizeRawVmiMode, summarizeOperatingReference, buildHygrometricDiagnosis } from './modules/analysis.js';
+import { median, analyzeSpeedLevels, analyzeSpeedTimeContext, analyzeHygrometricPeriods, summarizeDailyTrends, analyzeHourlyPatterns, detectRapidChanges, summarizeEnergyReadiness, summarizeRawVmiSpeed, summarizeRawVmiMode, summarizeOperatingReference, compareOperatingPeriods, buildHygrometricDiagnosis } from './modules/analysis.js';
 import { renderCharts, resetChartViews } from './modules/charts.js';
 import { SVC_C, CH_C, SVC_T, CH_T, frame, timeFrame, hex } from './modules/ble.js';
 import { armDownloadTimeout } from './modules/sync.js';
@@ -626,7 +626,26 @@ function analyzeSpeeds(data){
   }
   contextHtml+='</tbody></table><div class="advice">Cette lecture réduit une partie des différences horaires, mais ne contrôle pas la météo, les apports d’humidité, l’occupation ni le débit réel. Elle ne permet pas de désigner une vitesse optimale.</div>';
  }
- $('speedAnalysis').innerHTML=html+'<div class="advice">'+advice+'</div>'+contextHtml;
+
+ const periods=compareOperatingPeriods(data,{periodDays:7,minSamples:12,minDays:3});
+ let periodHtml='<h4>Évolution entre deux périodes successives</h4><p class="muted">Comparaison sur 7 jours consécutifs, à Mode et tranche horaire identiques. Minimum : 12 relevés et 3 jours distincts dans chacune des deux périodes.</p>';
+ if(periods.status!=='comparison-available'){
+  periodHtml+='<div class="advice">Pas encore assez de données Mode réparties sur deux périodes successives comparables. Il faut au moins 12 relevés sur 3 jours dans chaque période, pour un même Mode et une même tranche horaire. Les codes Vitesse bruts ne sont pas utilisés.</div>';
+ }else{
+  periodHtml+='<p class="muted">Période précédente : '+periods.periods[0].start+' au '+periods.periods[0].end+' · Période récente : '+periods.periods[1].start+' au '+periods.periods[1].end+'.</p>';
+  periodHtml+='<table><thead><tr><th>Mode / horaire</th><th>Relevés / jours<br>précédent → récent</th><th>Débit m³/h<br>médiane · Δ</th><th>RPM<br>médiane · Δ</th><th>PWM brut<br>médiane · Δ</th><th>Pression moteur brute<br>médiane · Δ</th></tr></thead><tbody>';
+  for(const item of periods.comparisons.filter(entry=>entry.comparable)){
+   const show=key=>{
+    const value=item.deltas[key];
+    if(!value)return '–';
+    const percent=value.relativePercent==null?'': ' ('+(value.relativePercent>0?'+':'')+fmt(value.relativePercent)+' %)';
+    return fmt(value.previous)+' → '+fmt(value.current)+' · '+(value.absolute>0?'+':'')+fmt(value.absolute)+percent;
+   };
+   periodHtml+='<tr><td>'+item.mode+' · '+item.label+'</td><td>'+item.previous.sampleCount+'/'+item.previous.dayCount+' → '+item.current.sampleCount+'/'+item.current.dayCount+'</td><td>'+show('debit')+'</td><td>'+show('rpm')+'</td><td>'+show('vmiPwmRaw')+'</td><td>'+show('motorPressureRaw')+'</td></tr>';
+  }
+  periodHtml+='</tbody></table><div class="advice">Les écarts sont descriptifs, sans seuil automatique d’alerte. Une évolution du débit, du régime ou des signaux bruts ne prouve pas un filtre encrassé ni une panne. Les changements de météo, d’installation, de réglage, d’entretien et les conditions d’utilisation peuvent expliquer une partie des différences.</div>';
+ }
+ $('speedAnalysis').innerHTML=html+'<div class="advice">'+advice+'</div>'+contextHtml+periodHtml;
 }
 function renderEnergyReadiness(data){
  const result=summarizeEnergyReadiness(data);
