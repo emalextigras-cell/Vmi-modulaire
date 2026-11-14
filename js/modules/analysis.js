@@ -47,3 +47,77 @@ export function analyzeSpeedLevels(data, minSamples = 10, targetRH = 50) {
   }
   return { groups, status, bestSpeed, minSamples, targetRH, sampleCount: rows.length };
 }
+
+/**
+ * Analyse la différence d'humidité absolue salon - air entrant dans le temps.
+ * Les durées sont estimées entre deux mesures successives par interpolation
+ * du delta. Les intervalles supérieurs à maxGapHours ne sont jamais extrapolés.
+ */
+export function analyzeHygrometricPeriods(data, { threshold = 1, maxGapHours = 2 } = {}) {
+  const rows = (Array.isArray(data) ? data : [])
+    .filter(r => Number.isFinite(r?.t) &&
+      Number.isFinite(r.st) && isPlausibleTemperature(r.st) &&
+      Number.isFinite(r.sh) && isPlausibleHumidity(r.sh) &&
+      Number.isFinite(r.te) && isPlausibleTemperature(r.te) &&
+      Number.isFinite(r.he) && isPlausibleHumidity(r.he))
+    .map(r => ({
+      t: r.t,
+      delta: absoluteHumidity(r.st, r.sh) - absoluteHumidity(r.te, r.he)
+    }))
+    .filter(r => Number.isFinite(r.delta))
+    .sort((a, b) => a.t - b.t);
+
+  const result = {
+    sampleCount: rows.length,
+    intervalCount: 0,
+    gapCount: 0,
+    medianDelta: median(rows.map(r => r.delta)),
+    threshold,
+    maxGapHours,
+    observedDurationMs: 0,
+    dryDurationMs: 0,
+    humidDurationMs: 0,
+    neutralDurationMs: 0,
+    longestDryMs: 0,
+    longestHumidMs: 0
+  };
+  if (rows.length < 2) return result;
+
+  const maxGapMs = maxGapHours * 60 * 60 * 1000;
+  let streak = null;
+  const closeStreak = () => {
+    if (!streak) return;
+    if (streak.category === 'dry') result.longestDryMs = Math.max(result.longestDryMs, streak.duration);
+    if (streak.category === 'humid') result.longestHumidMs = Math.max(result.longestHumidMs, streak.duration);
+    streak = null;
+  };
+
+  for (let i = 1; i < rows.length; i++) {
+    const previous = rows[i - 1], current = rows[i];
+    const duration = current.t - previous.t;
+    if (!(duration > 0)) continue;
+    if (duration > maxGapMs) {
+      result.gapCount++;
+      closeStreak();
+      continue;
+    }
+
+    const delta = (previous.delta + current.delta) / 2;
+    const category = delta > threshold ? 'dry' : delta < -threshold ? 'humid' : 'neutral';
+    result.intervalCount++;
+    result.observedDurationMs += duration;
+    if (category === 'dry') result.dryDurationMs += duration;
+    else if (category === 'humid') result.humidDurationMs += duration;
+    else result.neutralDurationMs += duration;
+
+    if (streak && streak.category === category && streak.end === previous.t) {
+      streak.duration += duration;
+      streak.end = current.t;
+    } else {
+      closeStreak();
+      streak = { category, duration, end: current.t };
+    }
+  }
+  closeStreak();
+  return result;
+}
