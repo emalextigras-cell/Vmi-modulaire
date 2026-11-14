@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseCsvRows, getColumnMapping, recFrom } from '../js/modules/dataio.js';
+import { parseCsvRows, getColumnMapping, recFrom, isCsvFile } from '../js/modules/dataio.js';
 
 test('parse les champs CSV entre guillemets contenant une virgule décimale',()=>{
  const rows=parseCsvRows('Date,Temp,Hum\r\n10/11/2026 16:45:35,"09,3",73\r\n');
@@ -27,4 +27,14 @@ test('importe un CSV VMI+ natif avec ses 124 colonnes et sans SheetJS',()=>{
  assert.equal(record.st,19.7);
  assert.equal(record.sh,62);
  assert.equal(record.vit,null);
+});
+
+
+
+
+test('reconnaît les fichiers CSV, quelle que soit la casse',()=>{
+ assert.equal(isCsvFile('export.csv'),true);
+ assert.equal(isCsvFile('EXPORT.CSV'),true);
+ assert.equal(isCsvFile('export.xlsx'),false);
+ assert.equal(isCsvFile('export.csv.tmp'),false);
 });
