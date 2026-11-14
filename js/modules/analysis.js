@@ -51,10 +51,11 @@ export function analyzeSpeedLevels(data, minSamples = 10, targetRH = 50) {
     };
   });
   const sufficient=groups.filter(g=>g.n>=minSamples);
+  const dayKeysBySpeed=new Map(groups.map(group=>[group.v,new Set(group.coveredDayKeys)]));
   for(const group of groups){
-    const ownDays=new Set(group.coveredDayKeys);
+    const ownDays=dayKeysBySpeed.get(group.v);
     const otherDays=new Set(sufficient.filter(other=>other.v!==group.v)
-      .flatMap(other=>other.coveredDayKeys));
+      .flatMap(other=>[...dayKeysBySpeed.get(other.v)]));
     group.sharedDays=[...ownDays].filter(day=>otherDays.has(day)).length;
     delete group.coveredDayKeys;
   }
