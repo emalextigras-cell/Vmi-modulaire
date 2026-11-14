@@ -817,8 +817,11 @@ function renderEnergyReadiness(data){
    if(item.modes.length){
     temperatureLimitHtml+='<table><thead><tr><th>Mode manuel</th><th>Au-dessus du seuil</th><th>Au seuil ou en dessous</th></tr></thead><tbody>';
     for(const group of item.modes){
-     const cell=segment=>segment.sampleCount+' relevé(s) · débit médian '+(segment.medianDebit==null?'–':fmt(segment.medianDebit)+' m³/h')+' · régime médian '+(segment.medianRPM==null?'–':fmt(segment.medianRPM)+' tr/min');
-     temperatureLimitHtml+='<tr><td>'+group.mode+'</td><td>'+cell(group.above)+'</td><td>'+cell(group.atOrBelow)+'</td></tr>';
+     const cell=segment=>segment.sampleCount+' relevé(s) au total · '+segment.dayCount+' jour(s)';
+     const paired=segment=>group.comparable
+      ?' · médiane appariée '+(segment.medianDebit==null?'–':fmt(segment.medianDebit)+' m³/h')+' · '+(segment.medianRPM==null?'–':fmt(segment.medianRPM)+' tr/min')
+      :' · comparaison non disponible (effectif ou dates communes insuffisants)';
+     temperatureLimitHtml+='<tr><td>'+group.mode+'</td><td>'+cell(group.above)+paired(group.pairedAbove)+'</td><td>'+cell(group.atOrBelow)+paired(group.pairedAtOrBelow)+'</td></tr>';
     }
     temperatureLimitHtml+='</tbody></table>';
    }else{
