@@ -46,7 +46,7 @@ let meta={},cur={},lastSeen={},live=[],hist=[],source='hist',selectedDate=null,d
 let logLines=[],dlFrames=0;
 let download={on:false,rows:[],buf:'',total:0,sigs:new Set(),got:false,lastPacket:0,timeout:null};
 const DB='VMI_PUREVENT_DB_TEST',STORE='data';
-const { get: dbGet, set: dbSet } = createStore({ databaseName: DB, storeName: STORE, onError: message => log(message) });
+const { get: dbGet, set: dbSet, setMany: dbSetMany } = createStore({ databaseName: DB, storeName: STORE, onError: message => log(message) });
 const connected=()=>!!(chC&&dev&&dev.gatt&&dev.gatt.connected);
 
 function showError(e){$('err').textContent=e?String(e.message||e):''}
@@ -418,12 +418,14 @@ function histToCsv(rows){
  return lines.join('\r\n');
 }
 function makeBackup(){return createBackupSnapshot({hist,live,meta})}
-function restoreBackup(obj){
- const previousLastSync=meta.lastSync;
+async function restoreBackup(obj){
  const result=mergeBackupData({backup:obj,currentHist:hist,currentLive:live,currentMeta:meta,minValid:MIN_VALID});
- hist=result.hist;live=result.live;meta=result.meta;
- pruneHist();dbSet('hist',hist);dbSet('live',live);
- if(meta.lastSync!==previousLastSync)dbSet('meta',meta);
+ const nextHist=pruneHistory(result.hist,HIST_MAX).records;
+ const entries=[['hist',nextHist],['live',result.live]];
+ if(result.meta.lastSync!==meta.lastSync)entries.push(['meta',result.meta]);
+ // Ne modifier l'état en mémoire qu'après validation atomique du stockage local.
+ await dbSetMany(entries);
+ hist=nextHist;live=result.live;meta=result.meta;
  return {add:result.addedHistory,enriched:result.enrichedHistory,addL:result.addedLive};
 }
 $('expHist').onclick=()=>{
@@ -440,7 +442,7 @@ $('restoreFile').onchange=async e=>{
  const file=e.target.files&&e.target.files[0];if(!file)return;
  try{
   const obj=JSON.parse(await file.text());
-  const {add,enriched,addL}=restoreBackup(obj);
+  const {add,enriched,addL}=await restoreBackup(obj);
   $('backupInfo').textContent=`Sauvegarde restaurée : ${add} relevés d’historique ajoutés, ${enriched} complétés et ${addL} relevés en direct ajoutés.`;
   render();
  }catch(err){$('backupInfo').textContent='Restauration impossible : '+err.message}
