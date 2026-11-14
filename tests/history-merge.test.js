@@ -7,18 +7,20 @@ test('mergeImportedHistory trie les relevés par date', () => {
   assert.deepEqual(result.map(row => row.t), [10, 20, 30]);
 });
 
-test('mergeImportedHistory remplace un relevé existant au même timestamp', () => {
-  const existing = { t: 100, sh: 48 };
-  const imported = { t: 100, sh: 52 };
+test('mergeImportedHistory complète un relevé existant sans perdre ses champs', () => {
+  const existing = { t: 100, sh: 48, st: 19.2, te: null };
+  const imported = { t: 100, sh: 52, st: null, te: 16.4 };
   const result = mergeImportedHistory([existing], [imported]);
-  assert.equal(result.length, 1);
-  assert.equal(result[0], imported);
-  assert.equal(result[0].sh, 52);
+  assert.deepEqual(result[0], { t: 100, sh: 52, st: 19.2, te: 16.4 });
+});
+
+test('mergeImportedHistory conserve les valeurs existantes si l’import ne les fournit pas', () => {
+  const result = mergeImportedHistory([{ t: 100, sh: 48, st: 19.2 }], [{ t: 100, sh: null, st: undefined }]);
+  assert.deepEqual(result[0], { t: 100, sh: 48, st: 19.2 });
 });
 
 test('mergeImportedHistory ne modifie pas les tableaux sources', () => {
-  const current = [{ t: 20 }];
-  const imported = [{ t: 10 }];
+  const current = [{ t: 20 }], imported = [{ t: 10 }];
   mergeImportedHistory(current, imported);
   assert.deepEqual(current.map(row => row.t), [20]);
   assert.deepEqual(imported.map(row => row.t), [10]);
