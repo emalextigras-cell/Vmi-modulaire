@@ -67,11 +67,11 @@ import { analyzeSpeedLevels } from '../js/modules/analysis.js';
 
 test('analyzeSpeedLevels compare les vitesses manuelles identifiées et ignore les valeurs brutes VMI+', () => {
   const data = [
-    { vit: 1, sh: 48, st: 20, te: 15, he: 60 },
+    { vmiModeRaw: 1, vit: 99, sh: 48, st: 20, te: 15, he: 60 },
     { vit: 1, sh: 52, st: 20, te: 15, he: 60 },
-    { vit: 2, sh: 55, st: 20, te: 15, he: 60 },
+    { vmiModeRaw: 2, vit: 99, sh: 55, st: 20, te: 15, he: 60 },
     { vit: 2, sh: 57, st: 20, te: 15, he: 60 },
-    { vit: 3, sh: 65, st: 20, te: 15, he: 60 },
+    { vmiModeRaw: 3, vit: 99, sh: 65, st: 20, te: 15, he: 60 },
     { vit: null, vmiSpeedRaw: 3, sh: 40, st: 20, te: 15, he: 60 }
   ];
   const result = analyzeSpeedLevels(data, 2, 55);
@@ -82,7 +82,7 @@ test('analyzeSpeedLevels compare les vitesses manuelles identifiées et ignore l
 });
 
 test('analyzeSpeedLevels signale un échantillon insuffisant', () => {
-  const result = analyzeSpeedLevels([{ vit: 1, sh: 50, st: 20 }], 5, 50);
+  const result = analyzeSpeedLevels([{ vmiModeRaw: 1, vit: 99, sh: 50, st: 20 }], 5, 50);
   assert.equal(result.status, 'insufficient');
 });
 
