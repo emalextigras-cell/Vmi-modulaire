@@ -75,48 +75,66 @@ export function analyzeSpeedTimeContext(data, { minSamples = 5, minDays = 2 } = 
     Number.isFinite(r.st) && isPlausibleTemperature(r.st) &&
     Number.isFinite(r.sh) && isPlausibleHumidity(r.sh)
   );
-  const groups=[];
-  for(const speed of [1,2,3]){
-    for(let bucket=0;bucket<4;bucket++){
-      const samples=rows.filter(r=>r.vmiModeRaw===speed&&Math.floor(new Date(r.t).getHours()/6)===bucket);
-      const dayKeys=new Set(samples.map(r=>{
-        const d=new Date(r.t);
-        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      }));
-      const deltas=samples.map(r=>{
-        if(!Number.isFinite(r.te)||!isPlausibleTemperature(r.te)||!Number.isFinite(r.he)||!isPlausibleHumidity(r.he))return null;
-        return absoluteHumidity(r.st,r.sh)-absoluteHumidity(r.te,r.he);
-      }).filter(Number.isFinite);
-      groups.push({
-        speed,bucket,label:['00–05 h','06–11 h','12–17 h','18–23 h'][bucket],
-        sampleCount:samples.length,dayCount:dayKeys.size,dayKeys:[...dayKeys],
-        ready:samples.length>=minSamples&&dayKeys.size>=minDays,
-        medianRH:median(samples.map(r=>r.sh)),
-        medianIndoorHA:median(samples.map(r=>absoluteHumidity(r.st,r.sh))),
-        medianDeltaHA:deltas.length?median(deltas):null,
-        deltaSamples:deltas.length,
-        medianRPM:median(samples.map(r=>r.rpm).filter(v=>Number.isFinite(v)&&v>0&&v<10000))
+  const buckets=['00–05 h','06–11 h','12–17 h','18–23 h'];
+  const bySpeedBucketDay=new Map();
+  const dayKey=t=>{
+    const d=new Date(t);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  };
+  for(const row of rows){
+    const bucket=Math.floor(new Date(row.t).getHours()/6);
+    const key=row.vmiModeRaw+':'+bucket;
+    if(!bySpeedBucketDay.has(key))bySpeedBucketDay.set(key,new Map());
+    const days=bySpeedBucketDay.get(key),day=dayKey(row.t);
+    if(!days.has(day))days.set(day,[]);
+    days.get(day).push(row);
+  }
+  const summarize=samples=>{
+    const incoming=samples.filter(r=>Number.isFinite(r.te)&&isPlausibleTemperature(r.te)&&
+      Number.isFinite(r.he)&&isPlausibleHumidity(r.he));
+    const deltas=incoming.map(r=>absoluteHumidity(r.st,r.sh)-absoluteHumidity(r.te,r.he));
+    const rpms=samples.map(r=>r.rpm).filter(v=>Number.isFinite(v)&&v>0&&v<10000);
+    return {
+      medianRH:median(samples.map(r=>r.sh)),
+      medianIndoorHA:median(samples.map(r=>absoluteHumidity(r.st,r.sh))),
+      medianIncomingHA:median(incoming.map(r=>absoluteHumidity(r.te,r.he))),
+      medianDeltaHA:median(deltas),
+      deltaSamples:deltas.length,
+      medianRPM:median(rpms),
+      rpmSamples:rpms.length
+    };
+  };
+  const comparisons=[];
+  for(let bucket=0;bucket<4;bucket++){
+    for(const pair of [[1,2],[1,3],[2,3]]){
+      const firstDays=bySpeedBucketDay.get(pair[0]+':'+bucket)||new Map();
+      const secondDays=bySpeedBucketDay.get(pair[1]+':'+bucket)||new Map();
+      const sharedDayKeys=[...firstDays.keys()].filter(day=>secondDays.has(day)).sort();
+      const firstSamples=sharedDayKeys.flatMap(day=>firstDays.get(day));
+      const secondSamples=sharedDayKeys.flatMap(day=>secondDays.get(day));
+      const ready=sharedDayKeys.length>=minDays&&firstSamples.length>=minSamples&&secondSamples.length>=minSamples;
+      comparisons.push({
+        bucket,label:buckets[bucket],speeds:pair,
+        sharedDayCount:sharedDayKeys.length,
+        sampleCountFirst:firstSamples.length,
+        sampleCountSecond:secondSamples.length,
+        ready,
+        reason:ready?null:sharedDayKeys.length<minDays
+          ? 'Pas assez de dates communes'
+          : 'Pas assez de relevés sur les dates communes',
+        first:ready?summarize(firstSamples):null,
+        second:ready?summarize(secondSamples):null,
+        sharedDayKeys
       });
     }
   }
-  const comparableBuckets=[];
-  for(let bucket=0;bucket<4;bucket++){
-    const candidates=groups.filter(g=>g.bucket===bucket&&g.ready);
-    const sharedBySpeed=new Map(candidates.map(g=>[g.speed,candidates
-      .filter(other=>other.speed!==g.speed)
-      .reduce((all,other)=>{for(const day of other.dayKeys)if(g.dayKeys.includes(day))all.add(day);return all},new Set()).size
-    ]));
-    for(const group of groups.filter(g=>g.bucket===bucket)){
-      group.sharedDays=sharedBySpeed.get(group.speed)||0;
-      group.ready=group.ready&&group.sharedDays>=minDays;
-      if(!group.ready){group.medianRH=null;group.medianIndoorHA=null;group.medianDeltaHA=null;group.medianRPM=null}
-      delete group.dayKeys;
-    }
-    if(groups.filter(g=>g.bucket===bucket&&g.ready).length>=2)comparableBuckets.push(bucket);
-  }
-  return {groups,minSamples,minDays,comparableBuckets};
+  return {
+    comparisons,
+    minSamples,
+    minDays,
+    comparableBuckets:[...new Set(comparisons.filter(c=>c.ready).map(c=>c.bucket))]
+  };
 }
-
 
 /**
  * Compare deux périodes calendaires successives à mode et tranche horaire identiques.
