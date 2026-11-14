@@ -645,7 +645,18 @@ function renderEnergyReadiness(data){
   for(const group of rawGroups){rawHtml+='<tr><td>'+fmt(group.code)+'</td><td>'+group.sampleCount+'</td><td>'+(group.medianDebit==null?'–':fmt(group.medianDebit))+'</td><td>'+(group.minDebit==null?'–':fmt(group.minDebit))+'</td><td>'+(group.maxDebit==null?'–':fmt(group.maxDebit))+'</td></tr>'}
   rawHtml+='</tbody></table>';
  }
- $('energyReadiness').innerHTML=html+rawHtml+'<div class="advice">'+result.message+' Les valeurs brutes sont conservées, mais aucune conversion en watts, kWh, m³/h ou rendement n’est appliquée sans documentation fiable.</div>';
+ const volumes=data.map(r=>r?.volumeRaw).filter(v=>Number.isFinite(v)&&v>0);
+ const volumeValues=[...new Set(volumes)].sort((a,b)=>a-b);
+ const volumeMedian=median(volumes);
+ let volumeHtml='<h4>Volume du logement enregistré dans la VMI+</h4>';
+ if(volumeMedian==null){
+  volumeHtml+='<div class="advice">Aucune valeur de volume (champ Vol(m³)) disponible dans cette période.</div>';
+ }else{
+  volumeHtml+='<div class="advice"><strong>'+fmt(volumeMedian)+' m³</strong> · '+volumes.length+' relevé(s) renseigné(s)'+
+   (volumeValues.length>1?' · valeurs rencontrées : '+volumeValues.map(fmt).join(', ')+' m³':' · valeur constante dans les relevés')+
+   '. Cette donnée correspond au volume du logement déclaré dans la VMI+, pas à un volume d’air réellement renouvelé.</div>';
+ }
+ $('energyReadiness').innerHTML=volumeHtml+html+rawHtml+'<div class="advice">'+result.message+' Les valeurs brutes sont conservées, mais aucune conversion en watts, kWh, m³/h ou rendement n’est appliquée sans documentation fiable.</div>';
 }
 
 function renderRecommendation(data){
