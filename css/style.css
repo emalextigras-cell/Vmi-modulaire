@@ -63,3 +63,7 @@ details.card[open]>summary{margin-bottom:12px}
 details.card.compact:not([open]){padding-top:12px;padding-bottom:12px}
 section[id],details[id]{scroll-margin-top:62px}
 @media(min-width:650px){.dashboard-status{grid-template-columns:1fr 1fr}}
+
+.analysis-details{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+.analysis-details>summary{cursor:pointer;color:var(--acc);font-weight:600;font-size:.88rem}
+.analysis-details[open]>summary{margin-bottom:10px}
