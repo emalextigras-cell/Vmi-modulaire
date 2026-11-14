@@ -169,7 +169,7 @@ function handleNotification(ev){
  log('< '+hex(a));
  if(type===1&&a.length>53){
   cur.filtre=a[28];cur.jours=a[26];cur.vol=a[22]|(a[23]<<8);cur.tmax=a[38];
-  cur.vit=a[34]+1;cur.boost=a[44];cur.hol=a[43];cur.rpm=null;
+  cur.vit=a[34]+1; // code brut VMI : ne jamais le traiter comme niveau manuel\n   cur.boost=a[44];cur.hol=a[43];cur.rpm=null;
   lastSeen.state=now;
   $('fi').textContent=cur.filtre;$('jf').textContent=cur.jours;$('vo').textContent=cur.vol;$('tm').textContent=cur.tmax;
   $('sp').textContent=cur.vit;$('bo').textContent=cur.boost?'Actif':'Arrêté';$('ho').textContent=cur.hol?'Actif':'Arrêté';
@@ -208,7 +208,7 @@ function takeSnapshot(){
  if(!lastSeen.salon||now-lastSeen.salon>90000)return;
  const pf=lastSeen.probes&&now-lastSeen.probes<=90000;
  const row={t:now,st:cur.sal_t,sh:cur.sal_h,t1:pf?cur.s1_t:null,h1:pf?cur.s1_h:null,te:pf?cur.s2_t:null,he:pf?cur.s2_h:null,
-  rpm:null,fil:Number.isFinite(cur.filtre)?cur.filtre:null,vit:Number.isFinite(cur.vit)?cur.vit:null,
+  rpm:null,fil:Number.isFinite(cur.filtre)?cur.filtre:null,vit:Number.isFinite(cur.vit)?cur.vit:null,manualLevel:null,
   boost:cur.boost!=null?cur.boost:null,hol:cur.hol!=null?cur.hol:null};
  if(!Number.isFinite(row.st)&&!Number.isFinite(row.sh))return;
  live.push(row);
