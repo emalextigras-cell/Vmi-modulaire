@@ -637,7 +637,15 @@ function renderEnergyReadiness(data){
   html+='<tr><td>'+labels[f.key]+'</td><td>'+f.count+'</td><td>'+(f.min==null?'–':fmt(f.min))+'</td><td>'+(f.max==null?'–':fmt(f.max))+'</td><td>'+distinct+'</td></tr>';
  }
  html+='</tbody></table>';
- $('energyReadiness').innerHTML=html+'<div class="advice">'+result.message+' Les valeurs brutes sont conservées, mais aucune conversion en watts, kWh, m³/h ou rendement n’est appliquée sans documentation fiable.</div>';
+ const rawGroups=summarizeRawVmiSpeed(data);
+ let rawHtml='<h4>Débit exporté selon le code vitesse brut VMI+</h4><p class="muted">Regroupement descriptif. Les codes bruts ne sont pas assimilés aux niveaux manuels 1 à 3 et l’unité du débit reste à confirmer.</p>';
+ if(!rawGroups.length){rawHtml+='<div class="advice">Aucun code vitesse brut exploitable dans la période sélectionnée.</div>'}
+ else{
+  rawHtml+='<table><thead><tr><th>Code brut</th><th>Débits renseignés</th><th>Médiane brute</th><th>Minimum brut</th><th>Maximum brut</th></tr></thead><tbody>';
+  for(const group of rawGroups){rawHtml+='<tr><td>'+fmt(group.code)+'</td><td>'+group.sampleCount+'</td><td>'+(group.medianDebit==null?'–':fmt(group.medianDebit))+'</td><td>'+(group.minDebit==null?'–':fmt(group.minDebit))+'</td><td>'+(group.maxDebit==null?'–':fmt(group.maxDebit))+'</td></tr>'}
+  rawHtml+='</tbody></table>';
+ }
+ $('energyReadiness').innerHTML=html+rawHtml+'<div class="advice">'+result.message+' Les valeurs brutes sont conservées, mais aucune conversion en watts, kWh, m³/h ou rendement n’est appliquée sans documentation fiable.</div>';
 }
 
 function renderRecommendation(data){
