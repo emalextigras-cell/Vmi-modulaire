@@ -54,9 +54,9 @@ import { analyzeSpeedLevels, summarizeEnergyReadiness } from '../js/modules/anal
 
 test('compare les niveaux manuels sans inventer un niveau à partir du code VMI+ brut',()=>{
  const rows=[
-  {vit:1,t:1000,st:20,sh:55,te:10,he:45,rpm:1200},
-  {vit:1,t:2000,st:20,sh:54,te:10,he:45,rpm:1210},
-  {vit:2,t:3000,st:20,sh:52,te:10,he:45,rpm:1400},
+  {vmiModeRaw:1,vit:99,t:1000,st:20,sh:55,te:10,he:45,rpm:1200},
+  {vmiModeRaw:1,vit:99,t:2000,st:20,sh:54,te:10,he:45,rpm:1210},
+  {vmiModeRaw:2,vit:99,t:3000,st:20,sh:52,te:10,he:45,rpm:1400},
   {vmiSpeedRaw:3,st:20,sh:40}
  ];
  const result=analyzeSpeedLevels(rows,2,50);
