@@ -419,7 +419,7 @@ function restoreBackup(obj){
  hist=result.hist;live=result.live;meta=result.meta;
  pruneHist();dbSet('hist',hist);dbSet('live',live);
  if(meta.lastSync!==previousLastSync)dbSet('meta',meta);
- return {add:result.addedHistory,addL:result.addedLive};
+ return {add:result.addedHistory,enriched:result.enrichedHistory,addL:result.addedLive};
 }
 $('expHist').onclick=()=>{
  const rows=hist.filter(r=>r.t>=MIN_VALID);
@@ -435,8 +435,8 @@ $('restoreFile').onchange=async e=>{
  const file=e.target.files&&e.target.files[0];if(!file)return;
  try{
   const obj=JSON.parse(await file.text());
-  const {add,addL}=restoreBackup(obj);
-  $('backupInfo').textContent=`Sauvegarde restaurée : ${add} relevés d’historique et ${addL} relevés en direct ajoutés.`;
+  const {add,enriched,addL}=restoreBackup(obj);
+  $('backupInfo').textContent=`Sauvegarde restaurée : ${add} relevés d’historique ajoutés, ${enriched} complétés et ${addL} relevés en direct ajoutés.`;
   render();
  }catch(err){$('backupInfo').textContent='Restauration impossible : '+err.message}
  e.target.value='';
