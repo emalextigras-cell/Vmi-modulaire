@@ -67,3 +67,16 @@ section[id],details[id]{scroll-margin-top:62px}
 .analysis-details{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
 .analysis-details>summary{cursor:pointer;color:var(--acc);font-weight:600;font-size:.88rem}
 .analysis-details[open]>summary{margin-bottom:10px}
+
+
+/* Diagnostic lisible : chaque constat est séparé et son niveau est explicite. */
+.diagnosis-list{display:grid;gap:9px;margin:10px 0}
+.diagnosis-item{padding:11px 12px;border:1px solid var(--line);border-left:4px solid var(--blue);border-radius:8px;background:var(--card)}
+.diagnosis-item.diagnosis-positive{border-left-color:var(--good)}
+.diagnosis-item.diagnosis-caution{border-left-color:var(--warn)}
+.diagnosis-item h4{font-size:.9rem;margin:6px 0}
+.diagnosis-item p{font-size:.86rem;margin:5px 0}
+.diagnosis-item .diagnosis-action{color:var(--mut);padding-top:6px;border-top:1px solid var(--line)}
+.diagnosis-tag{display:inline-block;font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;font-weight:700;color:var(--mut)}
+.diagnosis-limit{margin-top:10px;font-size:.82rem;color:var(--mut)}
+.diagnosis-limit summary{cursor:pointer}
