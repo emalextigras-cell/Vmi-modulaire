@@ -38,5 +38,28 @@ export function createStore({ databaseName, storeName, onError = () => {} }) {
       });
     } catch (error) { onError('IndexedDB écriture : ' + error.message); }
   }
-  return { get, set };
+  /**
+   * Écrit plusieurs clés dans une seule transaction : soit toutes sont validées,
+   * soit IndexedDB annule l'ensemble. Utilisé pour les restaurations de sauvegarde.
+   */
+  async function setMany(entries) {
+    if (!Array.isArray(entries) || entries.some(entry => !Array.isArray(entry) || entry.length !== 2)) {
+      throw new TypeError('Écritures IndexedDB invalides.');
+    }
+    try {
+      const database = await db();
+      await new Promise((resolve, reject) => {
+        const tx = database.transaction(storeName, 'readwrite');
+        const objectStore = tx.objectStore(storeName);
+        for (const [key, value] of entries) objectStore.put(value, key);
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error || new Error('Transaction IndexedDB échouée.'));
+        tx.onabort = () => reject(tx.error || new Error('Transaction IndexedDB annulée.'));
+      });
+    } catch (error) {
+      onError('IndexedDB restauration : ' + error.message);
+      throw error;
+    }
+  }
+  return { get, set, setMany };
 }
