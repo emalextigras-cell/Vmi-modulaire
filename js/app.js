@@ -8,7 +8,7 @@ import { median, analyzeSpeedLevels, analyzeSpeedTimeContext, analyzeHygrometric
 import { renderCharts, resetChartViews } from './modules/charts.js';
 import { SVC_C, CH_C, SVC_T, CH_T, frame, timeFrame, hex } from './modules/ble.js';
 import { armDownloadTimeout } from './modules/sync.js';
-import { parseCell, recFrom, getColumnMapping, parseCsvRows } from './modules/dataio.js';
+import { parseCell, recFrom, getColumnMapping, parseCsvRows, isCsvFile } from './modules/dataio.js';
 import { fixClock } from './modules/clock-correction.js';
 import { absoluteHumidity, psychro, validTemp } from './modules/psychrometry.js';
 import { summarizeDataQuality, isPlausibleHumidity, isPlausibleTemperature } from './modules/data-quality.js';
@@ -368,7 +368,7 @@ $('fx').onchange=async e=>{
  const file=e.target.files&&e.target.files[0];if(!file)return;showError('');
  try{
   let rows,spreadsheet=null;
-  if(/\\.csv$/i.test(file.name)){
+  if(isCsvFile(file.name)){
    $('importInfo').textContent='Lecture du CSV…';
    rows=parseCsvRows(await file.text());
   }else{
