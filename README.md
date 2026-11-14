@@ -49,7 +49,7 @@ Fermer VMI+ avant de se connecter : la VMI n'accepte qu'une seule connexion simu
 5. Graphiques et comparaison des vitesses.
 6. Export CSV, sauvegarde JSON et restauration.
 
-Les analyses par vitesse sont descriptives : nombre de relevés, jours couverts, jours communs avec les autres niveaux analysables, humidité relative et absolue médianes, écart d'humidité absolue salon − air entrant, part des relevés où l'air entrant est plus sec, durée couverte et régime moteur médian. Les jours communs aident à repérer les comparaisons qui reposent sur des périodes différentes ; ils ne neutralisent pas les différences d'heure, de météo ou d'occupation. Elles ne désignent pas automatiquement une vitesse optimale.
+Les analyses par vitesse sont descriptives : nombre de relevés, jours couverts, jours communs avec les autres niveaux analysables, humidité relative et absolue médianes, écart d'humidité absolue salon − air entrant, part des relevés où l'air entrant est plus sec, durée couverte et régime moteur médian. Une seconde lecture regroupe les niveaux manuels par tranches horaires locales de six heures ; elle n'affiche une comparaison que si au moins deux niveaux ont chacun cinq relevés répartis sur deux jours dans la même tranche. Elle réduit certaines différences d'horaires, sans contrôler la météo, l'occupation ni les apports d'humidité. Les jours communs aident à repérer les comparaisons qui reposent sur des périodes différentes ; ils ne neutralisent pas les différences d'heure, de météo ou d'occupation. Elles ne désignent pas automatiquement une vitesse optimale.
 7. Commandes manuelles, en vérifiant leur effet réel sur la VMI.
 
 La version modulaire doit être validée sur l'appareil avant de remplacer l'application utilisée au quotidien.
