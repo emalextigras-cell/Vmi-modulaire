@@ -589,8 +589,10 @@ function renderIntelligentDiagnosis(data){
  const box=$('diagnosisStatus'), evidence=$('diagnosisEvidence'), limits=$('diagnosisLimits');
  const available=result.status==='analysis-available';
  const confidence='Couverture '+result.coverageLevel+' · '+result.sampleCount+' relevés valides · '+result.dayCount+' jour(s) · '+fmt(result.observedHours)+' h exploitables';
+ const quality=result.inputQuality;
+ const inputSummary='Entrée : '+quality.inputSampleCount+' lignes · '+quality.acceptedSampleCount+' retenues après contrôle et dédoublonnage · '+quality.excludedSampleCount+' écartées ou regroupées ('+quality.missingTimestampCount+' sans horodatage, '+quality.incompleteSensorRecordCount+' incomplètes, '+quality.implausibleSensorRecordCount+' avec valeurs aberrantes, '+quality.duplicateTimestampCount+' doublons). Les catégories peuvent se chevaucher.';
  box.className=available?'advice good':'advice warn';
- box.textContent=(available?'Analyse possible avec les données disponibles. ':'Diagnostic non concluant pour le moment. ')+confidence+'.';
+ box.textContent=(available?'Analyse possible avec les données disponibles. ':'Diagnostic non concluant pour le moment. ')+confidence+'. '+inputSummary;
  if(result.medianSampleIntervalMinutes!=null){
   box.textContent+=' Intervalle médian entre relevés : '+fmt(result.medianSampleIntervalMinutes)+' min.';
  }
