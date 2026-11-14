@@ -73,3 +73,29 @@ test('un pic de température à 79 °C est compté comme anomalie', () => {
   assert.equal(result.affectedRecords, 1);
   assert.deepEqual(result.fields.map(field => field.key), ['st']);
 });
+
+
+test('le contrôle qualité distingue les mesures absentes des valeurs aberrantes', () => {
+  const result = summarizeDataQuality([
+    { sh: 55, st: 20, he: 60, te: 12 },
+    { sh: 48, st: 19, he: null, te: 11 },
+    { sh: 589.4, st: 18, he: 52, te: 10 },
+    { sh: 51, st: 21 }
+  ]);
+  assert.equal(result.total, 4);
+  assert.equal(result.completeHygrometricRecords, 2);
+  assert.equal(result.incompleteHygrometricRecords, 2);
+  assert.equal(result.hygrometricCoveragePercent, 50);
+  assert.equal(result.fieldCoverage.find(field => field.key === 'he').missingCount, 2);
+  assert.equal(result.fieldCoverage.find(field => field.key === 'sh').invalidCount, 1);
+  assert.equal(result.affectedRecords, 1);
+  assert.equal(result.hasAnomalies, true);
+});
+
+test('un historique vide ne produit ni couverture ni anomalie', () => {
+  const result = summarizeDataQuality([]);
+  assert.equal(result.total, 0);
+  assert.equal(result.completeHygrometricRecords, 0);
+  assert.equal(result.hygrometricCoveragePercent, 0);
+  assert.equal(result.hasAnomalies, false);
+});
