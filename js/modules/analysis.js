@@ -14,38 +14,61 @@ export function median(values) {
  * Les valeurs brutes importées de VMI+ ne sont pas assimilées à ces niveaux.
  */
 export function analyzeSpeedLevels(data, minSamples = 10, targetRH = 50) {
-  const rows = data.filter(r =>
-    Number.isFinite(r.vit) && r.vit >= 1 && r.vit <= 3 &&
-    Number.isFinite(r.sh) && isPlausibleHumidity(r.sh) && Number.isFinite(r.st) && isPlausibleTemperature(r.st)
+  const rows = (Array.isArray(data) ? data : []).filter(r =>
+    Number.isFinite(r?.vit) && r.vit >= 1 && r.vit <= 3 &&
+    Number.isFinite(r.sh) && isPlausibleHumidity(r.sh) &&
+    Number.isFinite(r.st) && isPlausibleTemperature(r.st)
   );
   const groups = [1,2,3].map(v => {
-    const samples = rows.filter(r => r.vit === v);
+    const samples = rows.filter(r => r.vit === v).sort((a,b)=>a.t-b.t);
+    const deltas = samples.map(r => {
+      const inside = absoluteHumidity(r.st,r.sh);
+      const incoming = Number.isFinite(r.te) && isPlausibleTemperature(r.te) &&
+        Number.isFinite(r.he) && isPlausibleHumidity(r.he)
+        ? absoluteHumidity(r.te,r.he) : null;
+      return inside != null && incoming != null ? inside-incoming : null;
+    }).filter(Number.isFinite);
+    const times=samples.map(r=>r.t).filter(Number.isFinite);
+    const rpms=samples.map(r=>r.rpm).filter(v=>Number.isFinite(v)&&v>0&&v<10000);
     return {
-      v,
-      n: samples.length,
-      rh: median(samples.map(r => r.sh)),
-      ha: median(samples.map(r => absoluteHumidity(r.st, r.sh))),
-      delta: median(samples.map(r => {
-        const inside = absoluteHumidity(r.st, r.sh);
-        const incoming = absoluteHumidity(r.te, r.he);
-        return inside != null && incoming != null ? inside - incoming : null;
-      }))
+      v,n:samples.length,
+      rh:median(samples.map(r=>r.sh)),
+      ha:median(samples.map(r=>absoluteHumidity(r.st,r.sh))),
+      delta:median(deltas),
+      dryingShare:deltas.length?deltas.filter(v=>v>1).length/deltas.length:null,
+      rpm:median(rpms),
+      rpmSamples:rpms.length,
+      deltaSamples:deltas.length,
+      firstAt:times.length?Math.min(...times):null,
+      lastAt:times.length?Math.max(...times):null,
+      spanHours:times.length>1?(Math.max(...times)-Math.min(...times))/3600000:0
     };
   });
-  const sufficient = groups.filter(g => g.n >= minSamples);
-  let status = 'no-speed-data';
-  let bestSpeed = null;
-  if (rows.length) {
-    status = sufficient.length ? 'no-level-meets-target' : 'insufficient';
-    const eligible = sufficient
-      .filter(g => g.rh != null && g.rh <= targetRH)
-      .sort((x,y) => x.v-y.v);
-    if (eligible.length) {
-      status = 'best-found';
-      bestSpeed = eligible[0].v;
-    }
-  }
-  return { groups, status, bestSpeed, minSamples, targetRH, sampleCount: rows.length };
+  const sufficient=groups.filter(g=>g.n>=minSamples);
+  const status=rows.length===0?'no-speed-data':sufficient.length?'comparison-ready':'insufficient';
+  return {groups,status,bestSpeed:null,minSamples,targetRH,sampleCount:rows.length,
+    comparableGroups:sufficient.length};
+}
+
+/** Inventaire des champs VMI+ disponibles ; aucune unité ni consommation n'est déduite. */
+export function summarizeEnergyReadiness(data) {
+  const rows=Array.isArray(data)?data:[];
+  const fields=[
+    {key:'rpm',label:'Régime moteur',unit:'tr/min',verified:true},
+    {key:'debit',label:'Débit exporté',unit:'unité non confirmée',verified:false},
+    {key:'vmiSpeedRaw',label:'Code vitesse VMI+',unit:'code brut',verified:false},
+    {key:'vmiPwmRaw',label:'PWM VMI+',unit:'valeur brute',verified:false},
+    {key:'consDpRaw',label:'Cons DP',unit:'signification à confirmer',verified:false}
+  ].map(field=>{
+    const values=rows.map(r=>r?.[field.key]).filter(Number.isFinite);
+    return {...field,count:values.length,min:values.length?Math.min(...values):null,
+      max:values.length?Math.max(...values):null,distinct:[...new Set(values)].sort((a,b)=>a-b)};
+  });
+  return {
+    total:rows.length,fields,
+    hasVerifiedElectricalEnergy:false,
+    message:'Aucune mesure électrique vérifiée en watts ou kWh n’est disponible : la consommation et le rendement énergétique ne peuvent pas encore être calculés.'
+  };
 }
 
 /**
