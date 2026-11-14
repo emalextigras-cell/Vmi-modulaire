@@ -587,17 +587,44 @@ function renderTemporalAnalysis(data){
 function renderIntelligentDiagnosis(data){
  const result=buildHygrometricDiagnosis(data);
  const box=$('diagnosisStatus'), evidence=$('diagnosisEvidence'), limits=$('diagnosisLimits');
- const confidence='Couverture '+result.coverageLevel+' (indicateur heuristique) · '+result.sampleCount+' relevés simultanés valides · '+result.dayCount+' jour(s) · '+fmt(result.observedHours)+' h observées · intervalle médian '+(result.medianSampleIntervalMinutes==null?'–':fmt(result.medianSampleIntervalMinutes)+' min')+' · '+result.excludedGapCount+' trou(s) > '+result.maxGapHours+' h';
- box.className=result.status==='analysis-available'?'advice':'advice warn';
- box.textContent=confidence+'.'+(result.largestExcludedGapHours>0?' Plus grand trou exclu : '+fmt(result.largestExcludedGapHours)+' h.':'');
- if(!result.observations.length){
-  evidence.textContent='Aucun constat ne peut être établi avec les mesures disponibles.';
- }else{
-  evidence.textContent=result.observations.map((item,index)=>
-   (index+1)+'. '+item.title+' — '+item.detail+' Action proposée : '+item.recommendation
-  ).join(' ');
+ const available=result.status==='analysis-available';
+ const confidence='Couverture '+result.coverageLevel+' · '+result.sampleCount+' relevés valides · '+result.dayCount+' jour(s) · '+fmt(result.observedHours)+' h exploitables';
+ box.className=available?'advice good':'advice warn';
+ box.textContent=(available?'Analyse possible avec les données disponibles. ':'Diagnostic non concluant pour le moment. ')+confidence+'.';
+ if(result.medianSampleIntervalMinutes!=null){
+  box.textContent+=' Intervalle médian entre relevés : '+fmt(result.medianSampleIntervalMinutes)+' min.';
  }
- limits.textContent='Limites : '+result.limits.join(' ');
+ if(result.excludedGapCount){
+  box.textContent+=' '+result.excludedGapCount+' interruption(s) de plus de '+result.maxGapHours+' h exclue(s)';
+  if(result.largestExcludedGapHours>0)box.textContent+=' ; plus longue : '+fmt(result.largestExcludedGapHours)+' h';
+  box.textContent+='.';
+ }
+ evidence.replaceChildren();
+ if(!result.observations.length){
+  const empty=document.createElement('p');
+  empty.className='muted';
+  empty.textContent='Aucun constat ne peut être établi avec les mesures disponibles.';
+  evidence.append(empty);
+ }else{
+  result.observations.forEach((item,index)=>{
+   const article=document.createElement('article');
+   const heading=document.createElement('h4');
+   const detail=document.createElement('p');
+   const action=document.createElement('p');
+   const tag=document.createElement('span');
+   const level=item.level==='positive'?'favorable':item.level==='caution'?'à surveiller':'information';
+   article.className='diagnosis-item diagnosis-'+(item.level==='positive'?'positive':item.level==='caution'?'caution':'info');
+   tag.className='diagnosis-tag';
+   tag.textContent=level;
+   heading.textContent=(index+1)+'. '+item.title;
+   detail.textContent=item.detail;
+   action.className='diagnosis-action';
+   action.textContent='À faire : '+item.recommendation;
+   article.append(tag,heading,detail,action);
+   evidence.append(article);
+  });
+ }
+ limits.textContent='À garder en tête : '+result.limits.join(' ');
 }
 
 /* Affichage de la comparaison calculée par le module d'analyse. */

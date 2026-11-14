@@ -79,9 +79,9 @@
  </div>
  <div id="hygroAdvice" class="advice">Les indicateurs apparaîtront lorsque les mesures seront disponibles.</div>
  <h3>Diagnostic intelligent</h3>
- <div id="diagnosisStatus" class="advice">Le diagnostic attend des mesures valides.</div>
- <div id="diagnosisEvidence" class="advice">Les constats et pistes d’action apparaîtront avec un historique suffisant.</div>
- <p id="diagnosisLimits" class="note">Le diagnostic est explicable et indicatif ; il ne pilote pas la VMI.</p>
+ <div id="diagnosisStatus" class="advice" role="status" aria-live="polite">Le diagnostic attend des mesures valides.</div>
+ <div id="diagnosisEvidence" class="diagnosis-list" aria-live="polite">Les constats et pistes d’action apparaîtront avec un historique suffisant.</div>
+ <details class="diagnosis-limit"><summary>Comprendre les limites du diagnostic</summary><p id="diagnosisLimits" class="note">Le diagnostic est explicable et indicatif ; il ne pilote pas la VMI.</p></details>
  <details class="analysis-details"><summary>Voir les tendances et les détails de l’analyse</summary>
  <div id="hygroPeriods" class="advice">Les durées seront calculées à partir de l’historique disponible.</div>
  <p class="note">Les durées sont estimées par interpolation linéaire entre deux relevés successifs, avec découpage au franchissement des seuils. Les intervalles de plus de 2 h sont exclus. Ce n’est pas une mesure continue.</p>
