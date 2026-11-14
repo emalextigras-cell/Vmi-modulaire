@@ -42,7 +42,7 @@ test('ne comble pas un trou de mesure supérieur à deux heures', () => {
 });
 
 test('ignore les mesures invalides et ne modifie pas les relevés sources', () => {
-  const rows = [dry(0), { ...dry(HOUR), sh: 150 }, dry(2 * HOUR)];
+  const rows = [dry(0), { ...dry(HOUR), sh: 150 }, dry(3 * HOUR)];
   const before = JSON.stringify(rows);
   const result = analyzeHygrometricPeriods(rows);
   assert.equal(result.sampleCount, 2);
