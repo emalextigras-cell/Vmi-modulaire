@@ -16,6 +16,42 @@ function makeRows({days=3,perDay=10,indoorRH=65,incomingRH=40,indoorTemp=20,inco
   return rows;
 }
 
+
+test('diagnostic exposes its thresholds and the measured basis of each finding',()=>{
+ const result=buildHygrometricDiagnosis(makeRows());
+ assert.deepEqual(result.methodology,{
+  version:'hygrometric-diagnostic-v1',
+  dryDeltaThreshold:1,
+  trendDeltaThreshold:0.8,
+  minimumSamples:12,
+  minimumDistinctDays:2,
+  minimumObservedHours:3,
+  dominantDurationShare:0.6,
+  maximumGapHours:2,
+  hourlyBucketHours:6,
+  hourlyMinimumSamples:5,
+  hourlyMinimumDistinctDays:2
+ });
+ const finding=result.observations.find(x=>x.code==='air-drying-potential');
+ assert.ok(finding);
+ assert.equal(finding.basis.unit,'g/m³');
+ assert.equal(finding.basis.threshold,1);
+ assert.ok(finding.basis.medianIndoorMinusIncomingHA>1);
+ assert.ok(finding.basis.durationShare>=finding.basis.requiredDurationShare);
+});
+
+test('diagnostic reports the actual custom thresholds used',()=>{
+ const result=buildHygrometricDiagnosis(makeRows(),{
+  dryDelta:1.5,trendDelta:1.1,minSamples:15,maxGapHours:1.5
+ });
+ assert.equal(result.methodology.dryDeltaThreshold,1.5);
+ assert.equal(result.methodology.trendDeltaThreshold,1.1);
+ assert.equal(result.methodology.minimumSamples,15);
+ assert.equal(result.methodology.maximumGapHours,1.5);
+ const finding=result.observations.find(x=>x.code==='air-drying-potential');
+ assert.equal(finding.basis.threshold,1.5);
+});
+
 test('diagnostic identifies a sustained favourable drying potential with moderate confidence',()=>{
  const result=buildHygrometricDiagnosis(makeRows());
  assert.equal(result.status,'analysis-available');
