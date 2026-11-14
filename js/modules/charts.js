@@ -1,2 +1,2 @@
 /** Point d'entrée du moteur de graphiques. */
-export { renderCharts } from './chart-renderer.js';
+export { renderCharts, resetChartViews } from './chart-renderer.js';
