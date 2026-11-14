@@ -427,16 +427,31 @@ export function buildHygrometricDiagnosis(data, {
   minSamples = 12,
   maxGapHours = 2
 } = {}) {
+  const inputRows = Array.isArray(data) ? data : [];
   const unique = new Map();
-  for (const r of Array.isArray(data) ? data : []) {
-    if (!Number.isFinite(r?.t) ||
-        !Number.isFinite(r.st) || !isPlausibleTemperature(r.st) ||
-        !Number.isFinite(r.sh) || !isPlausibleHumidity(r.sh) ||
-        !Number.isFinite(r.te) || !isPlausibleTemperature(r.te) ||
-        !Number.isFinite(r.he) || !isPlausibleHumidity(r.he)) continue;
+  let missingTimestampCount = 0;
+  let incompleteSensorRecordCount = 0;
+  let implausibleSensorRecordCount = 0;
+  let duplicateTimestampCount = 0;
+  for (const r of inputRows) {
+    if (!Number.isFinite(r?.t)) {
+      missingTimestampCount++;
+      continue;
+    }
+    const missingSensor = !Number.isFinite(r.st) || !Number.isFinite(r.sh) ||
+      !Number.isFinite(r.te) || !Number.isFinite(r.he);
+    const implausibleSensor =
+      (Number.isFinite(r.st) && !isPlausibleTemperature(r.st)) ||
+      (Number.isFinite(r.sh) && !isPlausibleHumidity(r.sh)) ||
+      (Number.isFinite(r.te) && !isPlausibleTemperature(r.te)) ||
+      (Number.isFinite(r.he) && !isPlausibleHumidity(r.he));
+    if (missingSensor) incompleteSensorRecordCount++;
+    if (implausibleSensor) implausibleSensorRecordCount++;
+    if (missingSensor || implausibleSensor) continue;
     const indoor = absoluteHumidity(r.st, r.sh);
     const incoming = absoluteHumidity(r.te, r.he);
     if (!Number.isFinite(indoor) || !Number.isFinite(incoming)) continue;
+    if (unique.has(r.t)) duplicateTimestampCount++;
     unique.set(r.t, {
       t:r.t, st:r.st, sh:r.sh, te:r.te, he:r.he,
       indoorHA:indoor, incomingHA:incoming, delta:indoor-incoming,
@@ -547,6 +562,15 @@ export function buildHygrometricDiagnosis(data, {
   return {
     methodology:{version:'hygrometric-diagnostic-v1',dryDeltaThreshold:dryDelta,trendDeltaThreshold:trendDelta,minimumSamples:minSamples,minimumDistinctDays:2,minimumObservedHours:3,dominantDurationShare:0.6,maximumGapHours:maxGapHours,hourlyBucketHours:6,hourlyMinimumSamples:5,hourlyMinimumDistinctDays:2},
     status:sufficient?'analysis-available':'insufficient-data',
+    inputQuality:{
+      inputSampleCount:inputRows.length,
+      acceptedSampleCount:rows.length,
+      missingTimestampCount,
+      incompleteSensorRecordCount,
+      implausibleSensorRecordCount,
+      duplicateTimestampCount,
+      excludedSampleCount:inputRows.length-rows.length
+    },
     coverageLevel,
     sampleCount:rows.length,
     dayCount:days.size,
