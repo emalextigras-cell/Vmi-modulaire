@@ -9,6 +9,7 @@ Copie de travail indépendante du dépôt source `emalextigras-cell/Vmi`. Le dé
 - `js/app.js` : orchestration de l'application, connexion BLE, stockage, historique, import/export et événements.
 - `js/modules/bluetooth-protocol.js` : UUID, CRC et construction des trames Bluetooth VMI.
 - `js/modules/psychrometry.js` : humidité absolue, point de rosée et indicateurs hygrométriques.
+- `js/modules/analysis.js` : tendances temporelles, comparaison descriptive des niveaux manuels et inventaire des champs énergétiques bruts.
 - `js/modules/legacy-migration.js` : conversion des anciennes lignes historiques, sans modifier le schéma IndexedDB.
 - `js/modules/date-utils.js` : dates, normalisation et constantes partagées.
 - `js/modules/chart-renderer.js` : graphiques SVG, gestion des courbes et infobulles tactiles.
@@ -27,7 +28,10 @@ Fermer VMI+ avant de se connecter : la VMI n'accepte qu'une seule connexion simu
 - Les commandes sont envoyées séquentiellement et leur état est vérifié par retour de la VMI.
 - Aucun pilotage automatique par IA n'est activé.
 - Les données sont conservées localement dans IndexedDB.
-- Les indicateurs hygrométriques sont indicatifs. La valeur « Debit » exportée par VMI+ est conservée et tracée comme valeur brute (unité non précisée). Sans mesure fiable de consommation électrique et sans validation de l'unité du débit, l'application ne calcule pas d'optimum énergétique réel.
+- Les indicateurs hygrométriques sont indicatifs. La valeur « Debit » exportée par VMI+ est conservée et tracée comme valeur brute (unité non précisée).
+- Les comparaisons de vitesses n'utilisent que les niveaux manuels explicitement enregistrés en direct ; aucun code brut VMI+ n'est converti en niveau 1/2/3.
+- Le régime moteur est présenté en tr/min lorsqu'il est disponible. Les valeurs Débit, PWM et Cons DP restent brutes tant que leur signification/unité n'est pas confirmée.
+- Sans mesure électrique fiable en W ou kWh et sans débit validé, l'application ne calcule ni consommation, ni rendement, ni optimum énergétique.
 
 ## Tests locaux
 
@@ -43,6 +47,8 @@ Fermer VMI+ avant de se connecter : la VMI n'accepte qu'une seule connexion simu
 4. Import d'un export CSV ou XLSX VMI+.
 5. Graphiques et comparaison des vitesses.
 6. Export CSV, sauvegarde JSON et restauration.
+
+Les analyses par vitesse sont descriptives : nombre de relevés, humidité relative et absolue médianes, écart d'humidité absolue salon − air entrant, part des relevés où l'air entrant est plus sec, durée couverte et régime moteur médian. Elles ne désignent pas automatiquement une vitesse optimale.
 7. Commandes manuelles, en vérifiant leur effet réel sur la VMI.
 
 La version modulaire doit être validée sur l'appareil avant de remplacer l'application utilisée au quotidien.
