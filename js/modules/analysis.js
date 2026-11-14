@@ -63,6 +63,49 @@ export function analyzeSpeedLevels(data, minSamples = 10, targetRH = 50) {
     comparableGroups:sufficient.length};
 }
 
+/**
+ * Décrit les mesures par niveau manuel et tranche horaire locale de 6 h.
+ * Une médiane n'est affichée que si l'effectif et le nombre de jours suffisent.
+ * Les tranches ne sont pas considérées comme des essais contrôlés.
+ */
+export function analyzeSpeedTimeContext(data, { minSamples = 5, minDays = 2 } = {}) {
+  const rows=(Array.isArray(data)?data:[]).filter(r=>
+    Number.isFinite(r?.t) && Number.isFinite(r?.vit) &&
+    [1,2,3].includes(r.vit) &&
+    Number.isFinite(r.st) && isPlausibleTemperature(r.st) &&
+    Number.isFinite(r.sh) && isPlausibleHumidity(r.sh)
+  );
+  const groups=[];
+  for(const speed of [1,2,3]){
+    for(let bucket=0;bucket<4;bucket++){
+      const samples=rows.filter(r=>r.vit===speed&&Math.floor(new Date(r.t).getHours()/6)===bucket);
+      const days=new Set(samples.map(r=>{
+        const d=new Date(r.t);
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      }));
+      const deltas=samples.map(r=>{
+        if(!Number.isFinite(r.te)||!isPlausibleTemperature(r.te)||
+           !Number.isFinite(r.he)||!isPlausibleHumidity(r.he))return null;
+        return absoluteHumidity(r.st,r.sh)-absoluteHumidity(r.te,r.he);
+      }).filter(Number.isFinite);
+      const ready=samples.length>=minSamples&&days.size>=minDays;
+      groups.push({
+        speed,bucket,label:['00–05 h','06–11 h','12–17 h','18–23 h'][bucket],
+        sampleCount:samples.length,dayCount:days.size,ready,
+        medianRH:ready?median(samples.map(r=>r.sh)):null,
+        medianIndoorHA:ready?median(samples.map(r=>absoluteHumidity(r.st,r.sh))):null,
+        medianDeltaHA:ready&&deltas.length?median(deltas):null,
+        deltaSamples:deltas.length,
+        medianRPM:ready?median(samples.map(r=>r.rpm).filter(v=>Number.isFinite(v)&&v>0&&v<10000)):null
+      });
+    }
+  }
+  const comparableBuckets=[0,1,2,3].filter(bucket=>
+    groups.filter(g=>g.bucket===bucket&&g.ready).length>=2
+  );
+  return {groups,minSamples,minDays,comparableBuckets};
+}
+
 /** Inventaire des champs VMI+ disponibles ; aucune unité ni consommation n'est déduite. */
 export function summarizeEnergyReadiness(data) {
   const rows=Array.isArray(data)?data:[];
