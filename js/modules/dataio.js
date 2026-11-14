@@ -103,9 +103,9 @@ export const dayNumber = timestamp => {
 
 /** Parse un CSV délimité en respectant les champs entre guillemets et les guillemets doublés. */
 export function parseCsvRows(text, delimiter = null) {
-  const source=String(text??'').replace(/^\\uFEFF/,'');
+  const source=String(text??'').replace(/^\uFEFF/,'');
   if(!delimiter){
-    const first=source.split(/\\r?\\n/,1)[0]||'';
+    const first=source.split(/\r?\n/,1)[0]||'';
     const count=char=>[...first].filter(c=>c===char).length;
     delimiter=count(';')>count(',')?';':',';
   }
@@ -118,8 +118,8 @@ export function parseCsvRows(text, delimiter = null) {
       else field+=char;
     }else if(char==='"'&&field==='')quoted=true;
     else if(char===delimiter){row.push(field);field=''}
-    else if(char==='\\n'||char==='\\r'){
-      if(char==='\\r'&&source[i+1]==='\\n')i++;
+    else if(char==='\n'||char==='\r'){
+      if(char==='\r'&&source[i+1]==='\n')i++;
       row.push(field);field='';rows.push(row);row=[];
     }else field+=char;
   }
