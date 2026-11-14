@@ -140,6 +140,15 @@ Le téléchargement d'historique, lui, transporte des lignes textuelles séparé
 L'interface construit désormais, à partir de l'historique affiché, un profil par valeur du champ `Mode`: effectifs, jours couverts, médianes et plages observées du débit confirmé, du régime moteur et des champs bruts PWM, Pression moteur et Cons DP. Le code `Vitesse` reste strictement séparé et n'est jamais utilisé comme substitut du mode. Cette référence décrit uniquement les données importées ; elle ne qualifie pas un état de normal ou anormal et ne détecte pas encore de panne. Une comparaison entre plusieurs périodes nécessitera plusieurs exports distincts et comparables. Deux tests vérifient la séparation Mode/Vitesse et l'absence de conversion des champs bruts.
 
 
+## Séparation des données directes et des analyses
+
+- L'enregistrement direct Bluetooth est facultatif : il dépend de la proximité du téléphone avec la VMI et de la connexion. Son absence, son interruption ou ses trous ne signifient pas que la VMI est arrêtée ou en panne.
+- Les relevés directs sont conservés dans leur espace local distinct et servent uniquement à afficher les graphiques et le comportement observé pendant les périodes où l'utilisateur choisit de se connecter.
+- Toutes les analyses, références de fonctionnement, comparaisons temporelles et aides au diagnostic utilisent exclusivement l'historique importé depuis VMI+ ou téléchargé depuis la VMI.
+- Les données directes ne sont jamais fusionnées automatiquement avec l'historique et ne peuvent pas modifier une référence historique.
+- L'interface indique explicitement la source des graphiques et rappelle que les analyses reposent sur l'historique, même lorsque l'affichage des graphiques est basculé sur l'enregistrement direct.
+- Si aucun historique exploitable n'est disponible, l'application doit signaler le manque de données historiques plutôt que de produire un diagnostic à partir du seul enregistrement direct.
+
 ## Comparaison de l'évolution du fonctionnement
 - Une nouvelle lecture compare deux périodes calendaires successives de 7 jours, en conservant le même champ `Mode` (`vmiModeRaw`) et la même tranche horaire locale de 6 heures.
 - Chaque période doit contenir au moins 12 relevés répartis sur au moins 3 jours distincts pour le même Mode et la même tranche horaire.
