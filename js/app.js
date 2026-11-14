@@ -664,7 +664,7 @@ function renderEnergyReadiness(data){
    (volumeValues.length>1?' · valeurs rencontrées : '+volumeValues.map(fmt).join(', ')+' m³':' · valeur constante dans les relevés')+
    '. Cette donnée correspond au volume du logement déclaré dans la VMI+, pas à un volume d’air réellement renouvelé.</div>';
  }
- $('energyReadiness').innerHTML=volumeHtml+html+modeHtml+rawHtml+'<div class="advice">'+result.message+' Les valeurs brutes sont conservées, mais aucune conversion en watts, kWh, m³/h ou rendement n’est appliquée sans documentation fiable.</div>';
+ $('energyReadiness').innerHTML=volumeHtml+html+modeHtml+rawHtml+'<div class="advice">'+result.message+' Les valeurs brutes sont conservées ; aucune conversion des champs non documentés en watts, kWh ou rendement n’est appliquée. Le débit confirmé reste affiché en m³/h.</div>';
 }
 
 function renderRecommendation(data){
