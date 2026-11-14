@@ -62,3 +62,19 @@ test('distingue les deux colonnes VMI+ portant le même en-tête % fonct', () =>
   assert.equal(record.operatingPctRaw, 7);
   assert.equal(record.operatingPct2Raw, 3);
 });
+
+test('distingue les valeurs nulles des valeurs absentes dans l’inventaire', () => {
+  const result = summarizeEnergyReadiness([
+    { rpm: 0, debit: 121, consResRaw: 0 },
+    { rpm: 1300, debit: null, consResRaw: null }
+  ]);
+  const rpm = result.fields.find(field => field.key === 'rpm');
+  const debit = result.fields.find(field => field.key === 'debit');
+  const resistance = result.fields.find(field => field.key === 'consResRaw');
+  assert.equal(rpm.zeroCount, 1);
+  assert.equal(rpm.missingCount, 0);
+  assert.equal(debit.zeroCount, 0);
+  assert.equal(debit.missingCount, 1);
+  assert.equal(resistance.zeroCount, 1);
+  assert.equal(resistance.missingCount, 1);
+});
