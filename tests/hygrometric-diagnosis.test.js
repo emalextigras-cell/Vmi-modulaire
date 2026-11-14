@@ -21,7 +21,7 @@ function makeHourlyRows(groups) {
   for(let i=0;i<6;i++){
    rows.push({
     t:new Date(2026,10,10+day,hour, i*30,0).getTime(),
-    st:20,sh:65,te:10,he:40
+    st:20,sh:group.indoorRH??65,te:10,he:group.incomingRH??40
    });
   }
  }
@@ -32,7 +32,7 @@ function makeHourlyRows(groups) {
 test('diagnostic exposes its thresholds and the measured basis of each finding',()=>{
  const result=buildHygrometricDiagnosis(makeRows());
  assert.deepEqual(result.methodology,{
-  version:'hygrometric-diagnostic-v3',
+  version:'hygrometric-diagnostic-v4',
   dryDeltaThreshold:1,
   trendDeltaThreshold:0.8,
   minimumSamples:12,
@@ -74,7 +74,42 @@ test('hourly window comparison requires and reports shared calendar days',()=>{
  assert.ok(finding);
  assert.equal(finding.basis.dayCount,2);
  assert.equal(finding.basis.sharedDayCount,2);
- assert.match(finding.detail,/2 jours communs/);
+ assert.equal(finding.basis.comparisonWindow,'06–11 h');
+ assert.equal(finding.basis.sampleCount,12);
+ assert.equal(finding.basis.comparisonSampleCount,12);
+ assert.match(finding.detail,/2 jours calendaires/);
+});
+
+
+test('hourly comparison rejects a false overlap spread across three different pairs',()=>{
+ const rows=makeHourlyRows([
+  {day:0,hour:7},{day:1,hour:7},
+  {day:0,hour:13},{day:2,hour:13},
+  {day:1,hour:19},{day:2,hour:19}
+ ]);
+ const result=buildHygrometricDiagnosis(rows);
+ assert.equal(result.bestWindow,null);
+ assert.ok(!result.observations.some(x=>x.code==='favorable-time-window'));
+});
+
+test('hourly comparison recalculates both medians on exactly the same shared days',()=>{
+ const rows=makeHourlyRows([
+  {day:0,hour:7,incomingRH:25},{day:1,hour:7,incomingRH:25},
+  {day:2,hour:7,incomingRH:5},
+  {day:0,hour:13,incomingRH:50},{day:1,hour:13,incomingRH:50},
+  {day:3,hour:13,incomingRH:95}
+ ]);
+ const result=buildHygrometricDiagnosis(rows);
+ const finding=result.observations.find(x=>x.code==='favorable-time-window');
+ assert.ok(finding);
+ assert.equal(finding.basis.timeWindow,'06–11 h');
+ assert.equal(finding.basis.comparisonWindow,'12–17 h');
+ assert.equal(finding.basis.sharedDayCount,2);
+ assert.equal(finding.basis.sampleCount,12);
+ assert.equal(finding.basis.comparisonSampleCount,12);
+ const expected=absoluteHumidity(20,65)-absoluteHumidity(10,25);
+ assert.ok(Math.abs(finding.basis.medianDelta-expected)<0.001);
+ assert.match(finding.detail,/exactement 2 jours calendaires/);
 });
 
 test('diagnostic reports the actual custom thresholds used',()=>{
