@@ -591,7 +591,17 @@ function renderTemporalAnalysis(data){
 function renderIntelligentDiagnosis(data){
  const result=buildHygrometricDiagnosis(data);
  const box=$('diagnosisStatus'), evidence=$('diagnosisEvidence'), limits=$('diagnosisLimits');
+ const coverageValue=$('coverageValue'), coverageDescription=$('coverageDescription'), coverageMethod=$('coverageMethod');
  const available=result.status==='analysis-available';
+ if(result.observedCoveragePercent!=null){
+  coverageValue.textContent=fmt(result.observedCoveragePercent)+' %';
+  coverageDescription.textContent='Part de la période entre le premier et le dernier relevé couverte par des intervalles exploitables.';
+  coverageMethod.textContent='Durée exploitable : '+fmt(result.observedHours)+' h sur '+fmt(result.coverageSpanHours)+' h. Les intervalles de plus de '+result.maxGapHours+' h sont exclus. Cette estimation dépend de la fréquence des relevés et ne représente pas une mesure continue.';
+ }else{
+  coverageValue.textContent='–';
+  coverageDescription.textContent='Pas assez de relevés datés pour calculer une couverture temporelle.';
+  coverageMethod.textContent='Il faut au moins deux horodatages valides distincts. Les intervalles de plus de '+result.maxGapHours+' h sont exclus.';
+ }
  const confidence='Couverture '+result.coverageLevel+' · '+result.sampleCount+' relevés valides · '+result.dayCount+' jour(s) · '+fmt(result.observedHours)+' h exploitables';
  const quality=result.inputQuality;
  const inputSummary='Entrée : '+quality.inputSampleCount+' lignes · '+quality.acceptedSampleCount+' retenues après contrôle et dédoublonnage · '+quality.excludedSampleCount+' écartées ou regroupées ('+quality.missingTimestampCount+' sans horodatage, '+quality.incompleteSensorRecordCount+' incomplètes, '+quality.implausibleSensorRecordCount+' avec valeurs aberrantes, '+quality.duplicateTimestampCount+' doublons). Les catégories peuvent se chevaucher.';
@@ -599,9 +609,6 @@ function renderIntelligentDiagnosis(data){
  box.textContent=(available?'Analyse possible avec les données disponibles. ':'Diagnostic non concluant pour le moment. ')+confidence+'. '+inputSummary;
  if(result.medianSampleIntervalMinutes!=null){
   box.textContent+=' Intervalle médian entre relevés : '+fmt(result.medianSampleIntervalMinutes)+' min.';
- }
- if(result.observedCoveragePercent!=null){
-  box.textContent+=' Couverture temporelle observée : '+fmt(result.observedCoveragePercent)+' % de la période entre le premier et le dernier relevé (intervalles exploitables de '+result.maxGapHours+' h maximum).';
  }
  if(result.excludedGapCount){
   box.textContent+=' '+result.excludedGapCount+' interruption(s) de plus de '+result.maxGapHours+' h exclue(s)';
