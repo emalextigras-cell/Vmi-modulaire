@@ -323,7 +323,7 @@ export function summarizeEnergyReadiness(data) {
     {key:'consDpRaw',label:'Cons DP',unit:'signification et unité à confirmer',verified:false},
     {key:'consResRaw',label:'Cons Res',unit:'signification et unité à confirmer',verified:false},
     {key:'consHydroRRaw',label:'Cons HydroR',unit:'signification et unité à confirmer',verified:false},
-    {key:'consTmaxRaw',label:'Cons TMax',unit:'signification et unité à confirmer',verified:false},
+    {key:'consTmaxRaw',label:'Seuil température extérieure (Cons TMax)',unit:'consigne en °C (sens confirmé)',verified:true},
     {key:'kmoteurRaw',label:'Kmoteur',unit:'signification et unité à confirmer',verified:false},
     {key:'jmoteurRaw',label:'Jmoteur',unit:'signification et unité à confirmer',verified:false},
     {key:'kreseauRaw',label:'Kreseau',unit:'signification et unité à confirmer',verified:false},
@@ -347,6 +347,75 @@ export function summarizeEnergyReadiness(data) {
     total:rows.length,fields,
     hasVerifiedElectricalEnergy:false,
     message:'Aucune mesure électrique vérifiée en watts ou kWh n’est disponible : la consommation et le rendement énergétique ne peuvent pas encore être calculés.'
+  };
+}
+
+/**
+ * Analyse les relevés autour de la consigne de température extérieure Cons TMax.
+ * Les comparaisons restent descriptives et sont séparées par mode manuel déclaré.
+ */
+export function summarizeTemperatureLimit(data, { minimumGroupSamples = 5 } = {}) {
+  const rows = Array.isArray(data) ? data : [];
+  const eligible = rows.filter(row =>
+    Number.isFinite(row?.consTmaxRaw) && isPlausibleTemperature(row.consTmaxRaw) &&
+    Number.isFinite(row?.tExt) && isPlausibleTemperature(row.tExt)
+  );
+  const settings = new Map();
+  for (const row of eligible) {
+    const threshold = row.consTmaxRaw;
+    if (!settings.has(threshold)) settings.set(threshold, []);
+    settings.get(threshold).push(row);
+  }
+  const summarize = samples => {
+    const timestamps = samples.map(row => row.t).filter(Number.isFinite);
+    const outdoor = samples.map(row => row.tExt).filter(Number.isFinite);
+    return {
+      sampleCount: samples.length,
+      dayCount: new Set(timestamps.map(timestamp => {
+        const date = new Date(timestamp);
+        return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+      })).size,
+      medianOutdoorTemp: median(outdoor),
+      medianDebit: median(samples.map(row => row.debit).filter(value => Number.isFinite(value) && value >= 0)),
+      medianRPM: median(samples.map(row => row.rpm).filter(value => Number.isFinite(value) && value > 0 && value < 10000))
+    };
+  };
+  const thresholds = [...settings.entries()].sort((a,b) => a[0]-b[0]).map(([threshold, samples]) => {
+    const aboveRows = samples.filter(row => row.tExt > threshold);
+    const atOrBelowRows = samples.filter(row => row.tExt <= threshold);
+    const modes = [1,2,3].map(mode => {
+      const above = summarize(aboveRows.filter(row => row.vmiModeRaw === mode));
+      const atOrBelow = summarize(atOrBelowRows.filter(row => row.vmiModeRaw === mode));
+      return {
+        mode, above, atOrBelow,
+        comparable: above.sampleCount >= minimumGroupSamples &&
+          atOrBelow.sampleCount >= minimumGroupSamples
+      };
+    }).filter(group => group.above.sampleCount || group.atOrBelow.sampleCount);
+    return {
+      threshold, sampleCount: samples.length,
+      aboveThresholdCount: aboveRows.length,
+      atOrBelowThresholdCount: atOrBelowRows.length,
+      above: summarize(aboveRows),
+      atOrBelow: summarize(atOrBelowRows),
+      modes
+    };
+  });
+  return {
+    status: thresholds.length ? 'available' : 'no-comparable-data',
+    minimumGroupSamples,
+    inputSampleCount: rows.length,
+    eligibleSampleCount: eligible.length,
+    missingOutdoorTemperatureCount: rows.filter(row =>
+      Number.isFinite(row?.consTmaxRaw) && isPlausibleTemperature(row.consTmaxRaw) &&
+      (!Number.isFinite(row?.tExt) || !isPlausibleTemperature(row.tExt))
+    ).length,
+    thresholds,
+    limits: [
+      'Cons TMax est interprété comme une consigne de température extérieure en °C, selon la confirmation de l’utilisateur.',
+      'Un relevé au-dessus du seuil indique une condition où la réduction de ventilation peut s’appliquer ; il ne prouve pas à lui seul que la régulation a effectivement réduit le débit.',
+      'Les médianes sont descriptives et séparées par Mode manuel déclaré. Elles ne neutralisent pas l’heure, la saison, les autres réglages ni les conditions d’installation.'
+    ]
   };
 }
 
