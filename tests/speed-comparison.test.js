@@ -14,7 +14,8 @@ function makeSpeedRows(speed, days, {
   const rows=[];
   for(const day of days){
     const config=typeof day==='number'?{day}:day;
-    for(let i=0;i<count;i++){
+    const sampleCount=config.count??count;
+    for(let i=0;i<sampleCount;i++){
       rows.push({
         t:new Date(2026,10,10+config.day,hour,i*10,0).getTime(),
         vmiModeRaw:speed,
