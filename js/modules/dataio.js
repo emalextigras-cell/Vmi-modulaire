@@ -11,6 +11,8 @@ const FALLBACK_COLUMN = Object.freeze({
   salonHumidity: 118
 });
 
+export const isCsvFile = name => /\.csv$/i.test(String(name ?? ''));
+
 const normalizeHeader = value => String(value ?? '')
   .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   .toLowerCase().replace(/[^a-z0-9%]+/g, ' ').trim();
