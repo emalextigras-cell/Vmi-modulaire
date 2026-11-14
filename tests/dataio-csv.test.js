@@ -39,3 +39,31 @@ test('reconnaît les fichiers CSV, quelle que soit la casse',()=>{
  assert.equal(isCsvFile('export.xlsx'),false);
  assert.equal(isCsvFile('export.csv.tmp'),false);
 });
+
+
+test('détecte le séparateur sur l’en-tête VMI+ plutôt que sur la première ligne descriptive',()=>{
+ const source=[
+  'export;vmi;metadata;version',
+  'information secondaire',
+  'créé par VMI+',
+  'Date,Température,Humidité,Débit,Mode',
+  '10/11/2026 16:45:35,19.7,62,121,1'
+ ].join('\n');
+ const rows=parseCsvRows(source);
+ assert.equal(rows[3].length,5);
+ assert.equal(rows[4][0],'10/11/2026 16:45:35');
+ assert.equal(rows[4][3],'121');
+});
+
+test('détecte également un CSV séparé par points-virgules malgré des virgules dans les métadonnées',()=>{
+ const source=[
+  'export, VMI+, version 13',
+  'information secondaire',
+  'Date;Température;Humidité;Débit',
+  '10/11/2026 16:45:35;19,7;62;121'
+ ].join('\n');
+ const rows=parseCsvRows(source);
+ assert.equal(rows[2].length,4);
+ assert.equal(rows[3][1],'19,7');
+ assert.equal(rows[3][3],'121');
+});

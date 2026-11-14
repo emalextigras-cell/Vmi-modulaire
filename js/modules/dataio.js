@@ -145,9 +145,25 @@ export const dayNumber = timestamp => {
 export function parseCsvRows(text, delimiter = null) {
   const source=String(text??'').replace(/^\uFEFF/,'');
   if(!delimiter){
-    const first=source.split(/\r?\n/,1)[0]||'';
-    const count=char=>[...first].filter(c=>c===char).length;
-    delimiter=count(';')>count(',')?';':',';
+    // Les exports VMI+ comportent plusieurs lignes de métadonnées avant
+    // l'en-tête (4e ligne). Détecter sur plusieurs lignes évite qu'une
+    // première ligne descriptive fausse le choix du séparateur.
+    const sample=source.split(/\r?\n/).filter(line=>line.trim()).slice(0,12);
+    const countOutsideQuotes=(line,separator)=>{
+      let count=0,quoted=false;
+      for(let i=0;i<line.length;i++){
+        const char=line[i];
+        if(char==='"'&&quoted&&line[i+1]==='"'){i++;continue}
+        if(char==='"'){quoted=!quoted;continue}
+        if(!quoted&&char===separator)count++;
+      }
+      return count;
+    };
+    const score=separator=>{
+      const counts=sample.map(line=>countOutsideQuotes(line,separator));
+      return Math.max(0,...counts)*100+counts.reduce((sum,value)=>sum+value,0);
+    };
+    delimiter=score(';')>score(',')?';':',';
   }
   const rows=[];let row=[],field='',quoted=false;
   for(let i=0;i<source.length;i++){
