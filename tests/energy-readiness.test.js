@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getColumnMapping, recFrom } from '../js/modules/dataio.js';
-import { summarizeEnergyReadiness } from '../js/modules/analysis.js';
+import { summarizeEnergyReadiness, summarizeOperatingReference } from '../js/modules/analysis.js';
 
 test('recFrom conserve les champs énergétiques VMI+ sous forme brute', () => {
   const headers = [
@@ -77,4 +77,32 @@ test('distingue les valeurs nulles des valeurs absentes dans l’inventaire', ()
   assert.equal(debit.missingCount, 1);
   assert.equal(resistance.zeroCount, 1);
   assert.equal(resistance.missingCount, 1);
+});
+
+
+test('construit une référence descriptive séparée par mode VMI+ sans convertir les champs bruts', () => {
+  const day = 24 * 60 * 60 * 1000;
+  const rows = [
+    { t: 1, vmiModeRaw: 1, vmiSpeedRaw: 4, debit: 120, rpm: 1300, vmiPwmRaw: 300, motorPressureRaw: 10, consDpRaw: 100 },
+    { t: 1 + day, vmiModeRaw: 1, vmiSpeedRaw: 5, debit: 124, rpm: 1320, vmiPwmRaw: 310, motorPressureRaw: 11, consDpRaw: 110 },
+    { t: 2, vmiModeRaw: 2, vmiSpeedRaw: 4, debit: 150, rpm: 1600, vmiPwmRaw: 400, motorPressureRaw: 18, consDpRaw: 180 },
+    { t: 2 + day, vmiModeRaw: 2, vmiSpeedRaw: 5, debit: 152, rpm: 1620, vmiPwmRaw: 410, motorPressureRaw: 19, consDpRaw: 190 }
+  ];
+  const result = summarizeOperatingReference(rows, { minSamples: 2 });
+  assert.equal(result.status, 'reference-available');
+  assert.deepEqual(result.groups.map(group => group.mode), [1, 2]);
+  assert.equal(result.groups[0].fields.find(field => field.key === 'debit').median, 122);
+  assert.equal(result.groups[1].fields.find(field => field.key === 'debit').median, 151);
+  assert.equal(result.groups[0].fields.find(field => field.key === 'vmiPwmRaw').verified, false);
+  assert.equal(result.groups[0].fields.find(field => field.key === 'motorPressureRaw').unit, 'unité à confirmer');
+  assert.equal(result.groups[0].sampleCount, 2);
+});
+
+test('ne confond pas le code Vitesse brut avec le champ Mode', () => {
+  const result = summarizeOperatingReference([
+    { vmiSpeedRaw: 3, debit: 120, rpm: 1300 },
+    { vmiSpeedRaw: 5, debit: 150, rpm: 1600 }
+  ]);
+  assert.equal(result.status, 'no-mode-data');
+  assert.deepEqual(result.groups, []);
 });
