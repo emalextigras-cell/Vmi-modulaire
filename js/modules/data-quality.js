@@ -54,14 +54,10 @@ export function summarizeDataQuality(records) {
     }
   });
   const coreKeys = ['sh', 'st', 'he', 'te'];
+  // La complétude mesure la présence des quatre valeurs numériques.
+  // La plausibilité est suivie séparément dans invalidCount / affectedRecords.
   const completeHygrometricRecords = rows.filter(row =>
-    coreKeys.every(key => {
-      const field = FIELDS.find(item => item.key === key);
-      const value = row?.[key];
-      return Number.isFinite(value) && (field.type === 'humidity'
-        ? isPlausibleHumidity(value)
-        : isPlausibleTemperature(value));
-    })
+    coreKeys.every(key => Number.isFinite(row?.[key]))
   ).length;
   return {
     total: rows.length,
