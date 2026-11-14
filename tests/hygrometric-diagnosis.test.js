@@ -106,9 +106,9 @@ test('diagnostic quantifies sampling intervals and excludes long data gaps',()=>
 
 test('diagnostic reports the share of the first-to-last period covered by usable intervals',()=>{
  const result=buildHygrometricDiagnosis(makeRows({days:3,perDay:10}));
- assert.equal(result.observedHours,4.5);
+ assert.equal(result.observedHours,13.5);
  assert.equal(result.coverageSpanHours,52.5);
- assert.ok(Math.abs(result.observedCoveragePercent-(4.5/52.5*100))<0.1);
+ assert.ok(Math.abs(result.observedCoveragePercent-(13.5/52.5*100))<0.1);
 });
 
 test('diagnostic leaves temporal coverage undefined when there is no elapsed span',()=>{
