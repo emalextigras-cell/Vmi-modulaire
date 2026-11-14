@@ -292,7 +292,8 @@ export function buildHygrometricDiagnosis(data, {
   const maxGapMs=maxGapHours*3600000;
   const acceptedIntervals=intervalMs.filter(gap=>gap<=maxGapMs);
   const excludedIntervals=intervalMs.filter(gap=>gap>maxGapMs);
-  const medianSampleIntervalMinutes=median(acceptedIntervals)/60000;
+  const medianAcceptedIntervalMs=median(acceptedIntervals);
+  const medianSampleIntervalMinutes=medianAcceptedIntervalMs==null?null:medianAcceptedIntervalMs/60000;
   const largestExcludedGapHours=excludedIntervals.length?Math.max(...excludedIntervals)/3600000:0;
   const coverageSpanHours=rows.length>1?(rows.at(-1).t-rows[0].t)/3600000:0;
   const dryShare=periods.observedDurationMs?periods.dryDurationMs/periods.observedDurationMs:null;
