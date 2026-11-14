@@ -76,8 +76,8 @@ test('analyzeSpeedLevels compare les vitesses manuelles identifiées et ignore l
   ];
   const result = analyzeSpeedLevels(data, 2, 55);
   assert.equal(result.sampleCount, 5);
-  assert.equal(result.status, 'best-found');
-  assert.equal(result.bestSpeed, 1);
+  assert.equal(result.status, 'comparison-ready');
+  assert.equal(result.bestSpeed, null);
   assert.deepEqual(result.groups.map(g => g.n), [2, 2, 1]);
 });
 
