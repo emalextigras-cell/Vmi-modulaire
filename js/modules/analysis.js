@@ -485,6 +485,11 @@ export function buildHygrometricDiagnosis(data, {
   if(!sufficient){
     observations.push({
       code:'coverage-limited',level:'info',
+      basis:{
+        validSamples:rows.length,requiredSamples:minSamples,
+        distinctDays:days.size,requiredDays:2,
+        observedHours,requiredObservedHours:3
+      },
       title:'Historique encore trop limité',
       detail:`${rows.length} relevé(s) simultanés valides sur ${days.size} jour(s), avec ${fmtHours(observedHours)} de périodes exploitables. Il faut davantage de mesures réparties sur plusieurs jours pour produire un diagnostic fiable.`,
       recommendation:'Importer un historique plus long et vérifier que les températures et humidités du salon et de l’air entrant sont présentes.'
@@ -492,6 +497,10 @@ export function buildHygrometricDiagnosis(data, {
   } else if(periods.medianDelta!=null&&periods.medianDelta>dryDelta&&dryShare>=0.6){
     observations.push({
       code:'air-drying-potential',level:'positive',
+      basis:{
+        medianIndoorMinusIncomingHA:periods.medianDelta,unit:'g/m³',
+        threshold:dryDelta,durationShare:dryShare,requiredDurationShare:0.6
+      },
       title:'Conditions souvent favorables à l’assèchement',
       detail:`L’air entrant est plus sec que l’air du logement pendant ${Math.round(dryShare*100)} % des durées observées. L’écart médian salon − air entrant est de ${periods.medianDelta.toFixed(1)} g/m³.`,
       recommendation:'Le renouvellement d’air dispose d’un potentiel hygrométrique favorable pendant ces périodes. Cela ne mesure pas l’effet réel sans débit d’air validé.'
@@ -499,6 +508,10 @@ export function buildHygrometricDiagnosis(data, {
   } else if(periods.medianDelta!=null&&periods.medianDelta< -dryDelta&&humidShare>=0.6){
     observations.push({
       code:'air-moisture-potential',level:'caution',
+      basis:{
+        medianIndoorMinusIncomingHA:periods.medianDelta,unit:'g/m³',
+        threshold:-dryDelta,durationShare:humidShare,requiredDurationShare:0.6
+      },
       title:'L’air entrant est souvent plus humide',
       detail:`L’air entrant est plus humide que l’air intérieur pendant ${Math.round(humidShare*100)} % des durées observées. L’écart médian salon − air entrant est de ${periods.medianDelta.toFixed(1)} g/m³.`,
       recommendation:'Une hausse de vitesse ne garantit pas un assèchement dans ces conditions. Comparer les périodes et suivre l’évolution intérieure avant toute modification manuelle.'
@@ -506,6 +519,10 @@ export function buildHygrometricDiagnosis(data, {
   } else {
     observations.push({
       code:'mixed-air-conditions',level:'info',
+      basis:{
+        dryDurationShare:dryShare,humidDurationShare:humidShare,
+        dominanceThreshold:0.6
+      },
       title:'Conditions hygrométriques variables',
       detail:`Aucune situation dominante nette : air entrant plus sec ${Math.round((dryShare||0)*100)} % du temps observé, plus humide ${Math.round((humidShare||0)*100)} %.`,
       recommendation:'Privilégier l’analyse des périodes horaires et saisonnières plutôt qu’une conclusion basée sur un relevé isolé.'
@@ -515,6 +532,12 @@ export function buildHygrometricDiagnosis(data, {
   if(trendChange!=null&&trendChange>=trendDelta){
     observations.push({
       code:'indoor-moisture-rising',level:'caution',
+      basis:{
+        firstDate:first.date,lastDate:last.date,
+        firstMedianAbsoluteHumidity:first.medianAbsoluteHumidity,
+        lastMedianAbsoluteHumidity:last.medianAbsoluteHumidity,
+        change:trendChange,threshold:trendDelta,unit:'g/m³'
+      },
       title:'Humidité absolue intérieure en hausse',
       detail:`L’humidité absolue médiane du logement a augmenté de ${trendChange.toFixed(1)} g/m³ entre le ${first.date} et le ${last.date}.`,
       recommendation:'Examiner les apports de vapeur d’eau (douches, cuisson, séchage du linge, occupation), les extractions et les conditions extérieures. Cette tendance ne suffit pas à identifier une cause.'
@@ -522,6 +545,12 @@ export function buildHygrometricDiagnosis(data, {
   } else if(trendChange!=null&&trendChange<=-trendDelta){
     observations.push({
       code:'indoor-moisture-falling',level:'positive',
+      basis:{
+        firstDate:first.date,lastDate:last.date,
+        firstMedianAbsoluteHumidity:first.medianAbsoluteHumidity,
+        lastMedianAbsoluteHumidity:last.medianAbsoluteHumidity,
+        change:trendChange,threshold:-trendDelta,unit:'g/m³'
+      },
       title:'Humidité absolue intérieure en baisse',
       detail:`L’humidité absolue médiane du logement a diminué de ${Math.abs(trendChange).toFixed(1)} g/m³ entre le ${first.date} et le ${last.date}.`,
       recommendation:'Poursuivre l’observation pour vérifier que cette baisse se maintient sur les prochains jours.'
@@ -531,6 +560,10 @@ export function buildHygrometricDiagnosis(data, {
   if(bestWindow&&bestWindow.medianDelta>dryDelta){
     observations.push({
       code:'favorable-time-window',level:'positive',
+      basis:{
+        timeWindow:bestWindow.label,medianDelta:bestWindow.medianDelta,
+        unit:'g/m³',sampleCount:bestWindow.sampleCount,dayCount:bestWindow.dayCount
+      },
       title:'Période horaire plus favorable repérée',
       detail:`Sur les tranches comparables, ${bestWindow.label} présente l’écart médian le plus favorable (${bestWindow.medianDelta.toFixed(1)} g/m³), sur ${bestWindow.sampleCount} relevés répartis sur ${bestWindow.dayCount} jours.`,
       recommendation:'Vérifier si ce créneau se retrouve sur d’autres semaines et saisons avant d’en tirer une règle de réglage.'
@@ -538,6 +571,19 @@ export function buildHygrometricDiagnosis(data, {
   }
 
   return {
+    methodology:{
+      version:'hygrometric-diagnostic-v1',
+      dryDeltaThreshold:dryDelta,
+      trendDeltaThreshold:trendDelta,
+      minimumSamples:minSamples,
+      minimumDistinctDays:2,
+      minimumObservedHours:3,
+      dominantDurationShare:0.6,
+      maximumGapHours:maxGapHours,
+      hourlyBucketHours:6,
+      hourlyMinimumSamples:5,
+      hourlyMinimumDistinctDays:2
+    },
     status:sufficient?'analysis-available':'insufficient-data',
     coverageLevel,
     sampleCount:rows.length,
