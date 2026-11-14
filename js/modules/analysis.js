@@ -89,7 +89,7 @@ export function analyzeSpeedTimeContext(data, { minSamples = 5, minDays = 2 } = 
     if(!days.has(day))days.set(day,[]);
     days.get(day).push(row);
   }
-  const summarize=samples=>{
+  const summarizeDay=samples=>{
     const incoming=samples.filter(r=>Number.isFinite(r.te)&&isPlausibleTemperature(r.te)&&
       Number.isFinite(r.he)&&isPlausibleHumidity(r.he));
     const deltas=incoming.map(r=>absoluteHumidity(r.st,r.sh)-absoluteHumidity(r.te,r.he));
@@ -104,6 +104,23 @@ export function analyzeSpeedTimeContext(data, { minSamples = 5, minDays = 2 } = 
       rpmSamples:rpms.length
     };
   };
+  // Chaque date pèse autant : on calcule d'abord une médiane par jour,
+  // puis la médiane de ces valeurs journalières (et non une médiane globale pondérée par le volume).
+  const summarize=daySamples=>{
+    const daily=daySamples.map(samples=>summarizeDay(samples));
+    const sum=key=>daily.reduce((total,item)=>total+item[key+'Samples'],0);
+    return {
+      medianRH:median(daily.map(day=>day.medianRH)),
+      medianIndoorHA:median(daily.map(day=>day.medianIndoorHA)),
+      medianIncomingHA:median(daily.map(day=>day.medianIncomingHA)),
+      medianDeltaHA:median(daily.map(day=>day.medianDeltaHA)),
+      deltaSamples:sum('delta'),
+      medianRPM:median(daily.map(day=>day.medianRPM)),
+      rpmSamples:sum('rpm'),
+      dayCount:daily.length,
+      daily
+    };
+  };
   const comparisons=[];
   const groupCandidates=new Map();
   for(let bucket=0;bucket<4;bucket++){
@@ -111,9 +128,13 @@ export function analyzeSpeedTimeContext(data, { minSamples = 5, minDays = 2 } = 
       const firstDays=bySpeedBucketDay.get(pair[0]+':'+bucket)||new Map();
       const secondDays=bySpeedBucketDay.get(pair[1]+':'+bucket)||new Map();
       const sharedDayKeys=[...firstDays.keys()].filter(day=>secondDays.has(day)).sort();
-      const firstSamples=sharedDayKeys.flatMap(day=>firstDays.get(day));
-      const secondSamples=sharedDayKeys.flatMap(day=>secondDays.get(day));
+      const firstDaySamples=sharedDayKeys.map(day=>firstDays.get(day));
+      const secondDaySamples=sharedDayKeys.map(day=>secondDays.get(day));
+      const firstSamples=firstDaySamples.flat();
+      const secondSamples=secondDaySamples.flat();
       const ready=sharedDayKeys.length>=minDays&&firstSamples.length>=minSamples&&secondSamples.length>=minSamples;
+      const firstStats=ready?summarize(firstDaySamples):null;
+      const secondStats=ready?summarize(secondDaySamples):null;
       const comparison={
         bucket,label:buckets[bucket],speeds:pair,
         sharedDayCount:sharedDayKeys.length,
@@ -123,8 +144,14 @@ export function analyzeSpeedTimeContext(data, { minSamples = 5, minDays = 2 } = 
         reason:ready?null:sharedDayKeys.length<minDays
           ? 'Pas assez de dates communes'
           : 'Pas assez de relevés sur les dates communes',
-        first:ready?summarize(firstSamples):null,
-        second:ready?summarize(secondSamples):null,
+        first:firstStats,
+        second:secondStats,
+        medianIncomingHADifference:ready?median(firstStats.daily.map((day,index)=>
+          (secondStats.daily[index].medianIncomingHA??NaN)-(day.medianIncomingHA??NaN)
+        )):null,
+        medianDeltaHADifference:ready?median(firstStats.daily.map((day,index)=>
+          (secondStats.daily[index].medianDeltaHA??NaN)-(day.medianDeltaHA??NaN)
+        )):null,
         sharedDayKeys
       };
       comparisons.push(comparison);

@@ -14,7 +14,8 @@ function makeSpeedRows(speed, days, {
   const rows=[];
   for(const day of days){
     const config=typeof day==='number'?{day}:day;
-    for(let i=0;i<count;i++){
+    const sampleCount=config.count??count;
+    for(let i=0;i<sampleCount;i++){
       rows.push({
         t:new Date(2026,10,10+config.day,hour,i*10,0).getTime(),
         vmiModeRaw:speed,
@@ -91,4 +92,24 @@ test('overall speed summary reports the maximum overlap with one other mode, not
   assert.equal(result.groups.find(group=>group.v===1).sharedDays,1);
   assert.equal(result.groups.find(group=>group.v===2).sharedDays,1);
   assert.equal(result.groups.find(group=>group.v===3).sharedDays,1);
+});
+
+
+test('les jours ont le même poids même si les nombres de relevés diffèrent fortement',()=>{
+  const rows=[
+    ...makeSpeedRows(1,[{day:0,count:9,indoorRH:60},{day:1,count:1,indoorRH:80}]),
+    ...makeSpeedRows(2,[{day:0,count:1,indoorRH:60},{day:1,count:9,indoorRH:60}])
+  ];
+  const result=analyzeSpeedTimeContext(rows,{minSamples:5,minDays:2});
+  const comparison=result.comparisons.find(item=>item.bucket===1&&item.speeds.join('-')==='1-2');
+  assert.equal(comparison.ready,true);
+  assert.equal(comparison.sampleCountFirst,10);
+  assert.equal(comparison.sampleCountSecond,10);
+  const expectedFirst=(absoluteHumidity(20,60)+absoluteHumidity(20,80))/2;
+  const expectedSecond=absoluteHumidity(20,60);
+  assert.ok(Math.abs(comparison.first.medianIndoorHA-expectedFirst)<0.001);
+  assert.ok(Math.abs(comparison.second.medianIndoorHA-expectedSecond)<0.001);
+  assert.equal(comparison.first.dayCount,2);
+  assert.ok(Number.isFinite(comparison.medianIncomingHADifference));
+  assert.ok(Number.isFinite(comparison.medianDeltaHADifference));
 });

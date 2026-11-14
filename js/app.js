@@ -710,7 +710,7 @@ function analyzeSpeeds(data){
  else if(result.status==='insufficient')advice='Données insuffisantes : il faut au moins '+min+' relevés identifiés par niveau pour établir une comparaison. Les résultats partiels restent visibles mais ne permettent pas de conclure.';
  else advice='Comparaison descriptive disponible pour '+usable.map(g=>'niveau '+g.v).join(', ')+'. Le nombre de jours communs affiché correspond au meilleur recoupement avec un seul autre niveau, et non à l’addition de dates provenant de plusieurs comparaisons. Les statistiques générales restent descriptives : les heures, la météo et l’occupation peuvent différer. Aucun niveau n’est désigné comme optimal.';
  const context=analyzeSpeedTimeContext(data,{minSamples:5,minDays:2});
- let contextHtml='<h4>Comparaison par tranche horaire et dates communes</h4><p class="muted">Chaque paire de niveaux est comparée séparément, dans la même tranche de 6 h et uniquement sur les mêmes dates calendaires. Il faut au moins 2 dates communes et 5 relevés par niveau sur ces dates. Les médianes sont recalculées après ce filtrage.</p>';
+ let contextHtml='<h4>Comparaison par tranche horaire et dates communes</h4><p class="muted">Chaque paire de niveaux est comparée séparément, dans la même tranche de 6 h et uniquement sur les mêmes dates calendaires. Il faut au moins 2 dates communes et 5 relevés par niveau sur ces dates. Les relevés sont d’abord résumés par jour, puis chaque jour reçoit le même poids dans la médiane finale.</p>';
  const readyComparisons=context.comparisons.filter(item=>item.ready);
  if(!readyComparisons.length){
   const overlaps=context.comparisons.filter(item=>item.sharedDayCount>0);
@@ -724,15 +724,16 @@ function analyzeSpeeds(data){
    contextHtml+='</tbody></table><div class="advice">Les recoupements actuels ne satisfont pas les critères minimaux. Aucune médiane comparative n’est affichée : c’est préférable à une comparaison trompeuse.</div>';
   }
  }else{
-  contextHtml+='<table><thead><tr><th>Horaire</th><th>Paire</th><th>Jours communs</th><th>Relevés A / B</th><th>HA air entrant A / B</th><th>Écart HA A / B</th><th>Différence d’écart B − A</th></tr></thead><tbody>';
+  contextHtml+='<table><thead><tr><th>Horaire</th><th>Paire</th><th>Jours communs</th><th>Relevés A / B</th><th>HA air entrant A / B</th><th>Écart HA A / B</th><th>Écart météo B − A</th><th>Différence d’écart B − A</th></tr></thead><tbody>';
   for(const item of readyComparisons){
    const first=item.first,second=item.second;
    const incoming=first.medianIncomingHA==null||second.medianIncomingHA==null?'–':fmt(first.medianIncomingHA)+' / '+fmt(second.medianIncomingHA)+' g/m³';
    const delta=first.medianDeltaHA==null||second.medianDeltaHA==null?'–':fmt(first.medianDeltaHA)+' / '+fmt(second.medianDeltaHA)+' g/m³';
-   const deltaDifference=first.medianDeltaHA==null||second.medianDeltaHA==null?'–':(second.medianDeltaHA-first.medianDeltaHA>0?'+':'')+fmt(second.medianDeltaHA-first.medianDeltaHA)+' g/m³';
-   contextHtml+='<tr><td>'+item.label+'</td><td>'+item.speeds[0]+' / '+item.speeds[1]+'</td><td>'+item.sharedDayCount+'</td><td>'+item.sampleCountFirst+' / '+item.sampleCountSecond+'</td><td>'+incoming+'</td><td>'+delta+'</td><td>'+deltaDifference+'</td></tr>';
+   const weatherDifference=item.medianIncomingHADifference==null?'–':(item.medianIncomingHADifference>0?'+':'')+fmt(item.medianIncomingHADifference)+' g/m³';
+   const deltaDifference=item.medianDeltaHADifference==null?'–':(item.medianDeltaHADifference>0?'+':'')+fmt(item.medianDeltaHADifference)+' g/m³';
+   contextHtml+='<tr><td>'+item.label+'</td><td>'+item.speeds[0]+' / '+item.speeds[1]+'</td><td>'+item.sharedDayCount+'</td><td>'+item.sampleCountFirst+' / '+item.sampleCountSecond+'</td><td>'+incoming+'</td><td>'+delta+'</td><td>'+weatherDifference+'</td><td>'+deltaDifference+'</td></tr>';
   }
-  contextHtml+='</tbody></table><div class="advice">HA air entrant = contexte hygrométrique de l’air extérieur introduit. L’écart HA = humidité absolue intérieure moins air entrant ; une valeur positive indique un potentiel d’assèchement observé. Les deux niveaux sont mesurés les mêmes jours et dans la même tranche, mais pas nécessairement aux mêmes minutes. Cette comparaison ne contrôle pas l’occupation, les apports d’humidité ni tous les écarts météo ; elle ne prouve pas un effet causal et ne désigne pas une vitesse optimale.</div>';
+  contextHtml+='</tbody></table><div class="advice">HA air entrant = contexte hygrométrique de l’air extérieur introduit. « Écart météo B − A » mesure la différence d’humidité absolue entrante entre les deux modes. L’écart HA = humidité absolue intérieure moins air entrant ; « Différence d’écart » est calculée date par date avant agrégation. Les deux niveaux sont mesurés les mêmes jours et dans la même tranche, mais pas nécessairement aux mêmes minutes. Cette comparaison ne contrôle pas l’occupation, les apports d’humidité ni tous les écarts météo ; elle ne prouve pas un effet causal et ne désigne pas une vitesse optimale.</div>';
  }
 
  const periods=compareOperatingPeriods(data,{periodDays:7,minSamples:12,minDays:3});
