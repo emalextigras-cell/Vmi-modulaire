@@ -819,7 +819,7 @@ function renderEnergyReadiness(data){
     for(const group of item.modes){
      const cell=segment=>segment.sampleCount+' relevé(s) au total · '+segment.dayCount+' jour(s)';
      const paired=segment=>group.comparable
-      ?' · médiane appariée '+(segment.medianDebit==null?'–':fmt(segment.medianDebit)+' m³/h')+' · '+(segment.medianRPM==null?'–':fmt(segment.medianRPM)+' tr/min')
+      ?' · comparaison sur '+segment.dayCount+' jours communs ('+segment.sampleCount+' relevés) : débit '+(segment.medianDebit==null?'–':fmt(segment.medianDebit)+' m³/h')+' · régime '+(segment.medianRPM==null?'–':fmt(segment.medianRPM)+' tr/min')
       :' · comparaison non disponible (effectif ou dates communes insuffisants)';
      temperatureLimitHtml+='<tr><td>'+group.mode+'</td><td>'+cell(group.above)+paired(group.pairedAbove)+'</td><td>'+cell(group.atOrBelow)+paired(group.pairedAtOrBelow)+'</td></tr>';
     }
