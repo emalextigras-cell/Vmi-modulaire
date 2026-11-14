@@ -252,3 +252,16 @@ test('getColumnMapping reconnaît les en-têtes exacts du CSV VMI+ fourni', () =
     }
   );
 });
+
+
+test('parseCell refuse les dates calendaires impossibles et les suffixes parasites',()=>{
+ assert.equal(parseCell('31/02/2026 16:45:35',null),null);
+ assert.equal(parseCell('10/11/2026 16:45:35 texte',null),null);
+ assert.equal(parseCell('10/11/2026 25:45:35',null),null);
+ assert.equal(parseCell('10/11/2026 16:60:35',null),null);
+});
+
+test('parseCell accepte le 29 février uniquement lors d’une année bissextile',()=>{
+ assert.equal(parseCell('29/02/2024 12:00:00',null)?.rk,'29/02/2024 12:00:00');
+ assert.equal(parseCell('29/02/2025 12:00:00',null),null);
+});
