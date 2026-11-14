@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { analyzeSpeedLevels } from '../js/modules/analysis.js';
 
-const day = (n, vit, sh = 60) => ({
+const day = (n, mode, sh = 60) => ({
   t: new Date(2026, 10, 1 + n, 10, 0, 0).getTime(),
-  vit, st: 20, sh, te: 10, he: 40, rpm: 1200 + vit * 100
+  vmiModeRaw: mode, vit: 99, st: 20, sh, te: 10, he: 40, rpm: 1200 + mode * 100
 });
 
 test('compte les jours couverts et les jours communs entre niveaux manuels', () => {
@@ -25,7 +25,7 @@ test('compte les jours couverts et les jours communs entre niveaux manuels', () 
 });
 
 test('ne compte pas les codes vitesse bruts hors niveaux manuels 1 à 3', () => {
-  const result = analyzeSpeedLevels([day(0, 0), day(1, 4), day(2, 5)], 1);
+  const result = analyzeSpeedLevels([{ ...day(0, 1), vmiModeRaw: null, vit: 0, vmiSpeedRaw: 0 }, { ...day(1, 2), vmiModeRaw: null, vit: 4, vmiSpeedRaw: 4 }, { ...day(2, 3), vmiModeRaw: null, vit: 5, vmiSpeedRaw: 5 }], 1);
   assert.equal(result.status, 'no-speed-data');
   assert.equal(result.sampleCount, 0);
   assert.ok(result.groups.every(group => group.daysCovered === 0 && group.sharedDays === 0));
