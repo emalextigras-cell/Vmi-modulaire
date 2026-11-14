@@ -4,7 +4,7 @@ import { createBackupSnapshot, mergeBackupData } from './modules/backup.js';
 import { $, sleep, APP_VERSION } from './modules/core.js';
 import { createStore } from './modules/store.js';
 import { fromOldRow } from './modules/legacy-migration.js';
-import { median, analyzeSpeedLevels } from './modules/analysis.js';
+import { median, analyzeSpeedLevels, analyzeHygrometricPeriods } from './modules/analysis.js';
 import { renderCharts, resetChartViews } from './modules/charts.js';
 import { SVC_C, CH_C, SVC_T, CH_T, crc, frame, timeFrame, hex } from './modules/ble.js';
 import { armDownloadTimeout } from './modules/sync.js';
@@ -512,6 +512,33 @@ function selectedData(){
  if(daysSetting&&data.length){const end=data[data.length-1].t;return data.filter(r=>r.t>=end-daysSetting*86400000)}
  return data;
 }
+function formatDuration(ms){
+ const minutes=Math.round(ms/60000),hours=Math.floor(minutes/60),days=Math.floor(hours/24);
+ if(days)return days+' j '+(hours%24)+' h';
+ if(hours)return hours+' h '+(minutes%60)+' min';
+ return minutes+' min';
+}
+function renderHygrometricPeriods(data){
+ const box=$('hygroPeriods');
+ const result=analyzeHygrometricPeriods(data,{threshold:1,maxGapHours:2});
+ if(result.sampleCount<2||!result.observedDurationMs){
+  box.className='advice';
+  box.textContent=result.sampleCount<2?'Pas assez de mesures simultanées valides pour analyser une durée.':'Aucune durée exploitable : les mesures sont trop espacées (plus de 2 h entre deux relevés).';
+  return;
+ }
+ const total=result.observedDurationMs;
+ const pct=value=>Math.round(value/total*100);
+ let message='Sur '+formatDuration(total)+' de périodes observées (sans extrapoler les trous de plus de 2 h) : ';
+ message+='Air entrant plus sec : '+formatDuration(result.dryDurationMs)+' ('+pct(result.dryDurationMs)+' %). ';
+ message+='Air entrant plus humide : '+formatDuration(result.humidDurationMs)+' ('+pct(result.humidDurationMs)+' %). ';
+ message+='Écart faible : '+formatDuration(result.neutralDurationMs)+' ('+pct(result.neutralDurationMs)+' %). ';
+ message+='Écart médian salon − air entrant : '+fmt(result.medianDelta)+' g/m³. ';
+ message+='Plus longue séquence asséchante estimée : '+formatDuration(result.longestDryMs)+'. ';
+ message+='Plus longue séquence où l’air entrant est plus humide : '+formatDuration(result.longestHumidMs)+'.';
+ if(result.gapCount)message+=' '+result.gapCount+' interruption(s) de plus de 2 h exclue(s) du calcul.';
+ box.className=result.humidDurationMs>result.dryDurationMs?'advice warn':'advice';
+ box.textContent=message;
+}
 /* Affichage de la comparaison calculée par le module d'analyse. */
 function analyzeSpeeds(data){
  const min=Number($('minSamples').value),target=Number($('targetRH').value);
@@ -559,7 +586,7 @@ function render(){
   qualityBox.className='advice warn';
   qualityBox.textContent=`Contrôle qualité : ${quality.affectedRecords} relevé(s) contiennent des valeurs physiquement improbables (${details}). Ces valeurs sont masquées dans les graphiques concernés, mais conservées dans l’historique et les exports.`;
  }else{qualityBox.className='advice';qualityBox.textContent='Contrôle qualité : aucune valeur aberrante détectée sur les capteurs pour cette période. Les données manquantes ne sont pas comptées comme anomalies.';}
- renderCharts(data,selectedDate,$);renderRecommendation(data);analyzeSpeeds(data);renderFreshness();
+ renderCharts(data,selectedDate,$);renderRecommendation(data);renderHygrometricPeriods(data);analyzeSpeeds(data);renderFreshness();
 }
 $('targetRH').onchange=render;$('minSamples').onchange=render;
 
