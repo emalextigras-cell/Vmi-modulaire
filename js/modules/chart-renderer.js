@@ -3,6 +3,8 @@ import { absoluteHumidity } from './psychrometry.js';
 import { pad, dayStart } from './date-utils.js';
 import { isPlausibleHumidity, isPlausibleTemperature } from './data-quality.js';
 const COLORS=['#286348','#c16b32','#356da5','#8056a8'];
+const viewStates=new Map();
+export function resetChartViews(){viewStates.clear();}
 const fmtTick=(t,withHour)=>{const d=new Date(t);return withHour?`${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}h`:`${pad(d.getDate())}/${pad(d.getMonth()+1)}/${String(d.getFullYear()).slice(2)}`};
 const fmtPoint=(t,daily)=>{const d=new Date(t);return daily?`${pad(d.getHours())}:${pad(d.getMinutes())}`:`${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`};
 /* Conserve les relevés tels quels : aucune valeur manquante n'est interpolée.
@@ -21,6 +23,10 @@ function drawChart(id,title,series,selectedDate,$){
  let x0,x1;
  if(daily){x0=dayStart(selectedDate);x1=x0+86400000}
  else{x0=Math.min(...all.map(p=>p.t));x1=Math.max(...all.map(p=>p.t));if(x0===x1)x1=x0+3600000}
+ const baseX0=x0,baseX1=x1,baseSpan=baseX1-baseX0;
+ const view=viewStates.get(id)||{factor:1,center:.5};viewStates.set(id,view);
+ const viewSpan=baseSpan/view.factor;
+ x0=baseX0+(baseSpan-viewSpan)*view.center;x1=x0+viewSpan;
  const vals=all.map(p=>p.v);let y0=Math.min(...vals),y1=Math.max(...vals);if(y0===y1){y0-=1;y1+=1}
  const margin=(y1-y0)*.1;y0-=margin;y1+=margin;
  const X=t=>L+(t-x0)/(x1-x0)*(W-L-R),Y=v=>T+(1-(v-y0)/(y1-y0))*(H-T-B);
@@ -48,7 +54,10 @@ function drawChart(id,title,series,selectedDate,$){
   svg+=`<path d="${d}" fill="none" stroke="${s.color}" stroke-width="1.8" stroke-linejoin="round"/>${dots}`;
  }
  const legend=series.map(s=>`<span><i class="dot" style="background:${s.color}"></i>${s.name}</span>`).join('');
- el.innerHTML=`<div class="legend">${legend}</div><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title}">${svg}<line id="${id}Cur" class="gridline" y1="${T}" y2="${H-B}" x1="0" x2="0" style="display:none"/></svg><div class="tip"></div>`;
+ el.innerHTML=`<div class="chart-toolbar"><div class="legend">${legend}</div><div class="zoom-controls"><button type="button" data-zoom="out" aria-label="Dézoomer" ${view.factor<=1?'disabled':''}>−</button><span>${view.factor.toFixed(1).replace('.0','')}×</span><button type="button" data-zoom="in" aria-label="Zoomer" ${view.factor>=20?'disabled':''}>+</button><button type="button" data-zoom="left" aria-label="Déplacer vers la gauche" ${view.factor<=1?'disabled':''}>◀</button><button type="button" data-zoom="right" aria-label="Déplacer vers la droite" ${view.factor<=1?'disabled':''}>▶</button><button type="button" data-zoom="reset" ${view.factor<=1?'disabled':''}>Réinitialiser</button></div></div><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title}">${svg}<line id="${id}Cur" class="gridline" y1="${T}" y2="${H-B}" x1="0" x2="0" style="display:none"/></svg><div class="tip"></div>`;
+ el.querySelectorAll('[data-zoom]').forEach(button=>button.addEventListener('click',()=>{const action=button.dataset.zoom;if(action==='in'){view.factor=Math.min(20,view.factor*1.6);}else if(action==='out'){view.factor=Math.max(1,view.factor/1.6);if(view.factor===1)view.center=.5;}else if(action==='left'){view.center=Math.max(0,view.center-.18/view.factor);}else if(action==='right'){view.center=Math.min(1,view.center+.18/view.factor);}else{view.factor=1;view.center=.5;}drawChart(id,title,series,selectedDate,$);}));
+ /* Recherche dichotomique : évite de parcourir tout l'historique à chaque mouvement du doigt. */
+ const nearest=(points,t)=>{let lo=0,hi=points.length;while(lo<hi){const mid=(lo+hi)>>1;if(points[mid].t<t)lo=mid+1;else hi=mid;}let best=null;for(let k=Math.max(0,lo-1);k<Math.min(points.length,lo+2);k++){const p=points[k];if(Number.isFinite(p.v)){const dd=Math.abs(p.t-t);if(!best||dd<best.dd)best={dd,t:p.t,v:p.v};}}return best;};
  /* Infobulle : pour chaque courbe, le relevé le plus proche du doigt */
  const svgEl=el.querySelector('svg'),tip=el.querySelector('.tip'),cursor=el.querySelector('#'+id+'Cur');
  const move=e=>{
@@ -56,8 +65,7 @@ function drawChart(id,title,series,selectedDate,$){
   const tVal=x0+((e.clientX-rect.left)*(W/w)-L)/(W-L-R)*(x1-x0);
   let txt=null,tShown=null;
   for(const s of series){
-   let q=null;
-   for(const p of s.points){if(!Number.isFinite(p.v))continue;const dd=Math.abs(p.t-tVal);if(q===null||dd<q.dd)q={dd,t:p.t,v:p.v}}
+   const q=nearest(s.points,tVal);
    if(q&&q.dd<=Math.max(1800000,(x1-x0)/50)){if(txt===null){txt=fmtPoint(q.t,daily)+' · ';tShown=q.t}txt+=`${s.name} ${q.v.toFixed(1)}  `}
   }
   if(txt===null)return;
