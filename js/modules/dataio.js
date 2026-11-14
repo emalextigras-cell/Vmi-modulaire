@@ -99,3 +99,30 @@ export const dayNumber = timestamp => {
   const d = new Date(timestamp);
   return Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / DAY);
 };
+
+
+/** Parse un CSV délimité en respectant les champs entre guillemets et les guillemets doublés. */
+export function parseCsvRows(text, delimiter = null) {
+  const source=String(text??'').replace(/^\\uFEFF/,'');
+  if(!delimiter){
+    const first=source.split(/\\r?\\n/,1)[0]||'';
+    const count=char=>[...first].filter(c=>c===char).length;
+    delimiter=count(';')>count(',')?';':',';
+  }
+  const rows=[];let row=[],field='',quoted=false;
+  for(let i=0;i<source.length;i++){
+    const char=source[i];
+    if(quoted){
+      if(char==='"'&&source[i+1]==='"'){field+='"';i++}
+      else if(char==='"')quoted=false;
+      else field+=char;
+    }else if(char==='"'&&field==='')quoted=true;
+    else if(char===delimiter){row.push(field);field=''}
+    else if(char==='\\n'||char==='\\r'){
+      if(char==='\\r'&&source[i+1]==='\\n')i++;
+      row.push(field);field='';rows.push(row);row=[];
+    }else field+=char;
+  }
+  if(field!==''||row.length){row.push(field);rows.push(row)}
+  return rows;
+}
