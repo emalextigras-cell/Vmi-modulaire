@@ -87,3 +87,9 @@ Ce moteur est une première couche de diagnostic déterministe et explicable ; c
 - Les durées hygrométriques sont réparties au franchissement interpolé des seuils, en supposant une évolution linéaire entre deux mesures acceptées. Ce calcul reste une estimation et les intervalles supérieurs à deux heures sont exclus.
 - Les comparaisons par tranche horaire exigent au moins deux jours calendaires communs entre au moins deux niveaux manuels. Cela ne corrige pas les différences de météo, d'occupation ou d'intensité des apports d'humidité.
 - Les bornes d'une journée locale utilisent le calendrier local plutôt qu'une durée fixe de 24 heures, afin de respecter les journées de 23 ou 25 heures lors des changements d'heure.
+
+## Phase 10 — préparation de l'analyse énergétique
+
+L'import CSV conserve désormais séparément les champs énergétiques ou de fonctionnement supplémentaires de VMI+ : `Cons Res`, `Cons HydroR`, `Cons TMax`, `Kmoteur`, `Jmoteur`, `Kreseau`, `Jreseau`, `Pression Moteur`, `Offset Press`, `% fonct`, `% fonct.1` et `Dcint`. Ils sont affichés dans l'inventaire avec leurs valeurs min/max et leur effectif, sans leur attribuer de signification ni d'unité non documentée.
+
+Le régime moteur reste exprimé en tr/min et le débit en m³/h selon les confirmations disponibles. Les valeurs PWM, Cons DP et les autres champs ci-dessus restent bruts. Aucun calcul de watts, kWh, coût, consommation ou rendement n'est effectué tant qu'une mesure électrique et sa définition ne sont pas vérifiées. Des tests dédiés vérifient la conservation des champs et l'absence d'interprétation énergétique abusive.
