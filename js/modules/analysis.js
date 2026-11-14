@@ -105,6 +105,7 @@ export function analyzeSpeedTimeContext(data, { minSamples = 5, minDays = 2 } = 
     };
   };
   const comparisons=[];
+  const groupCandidates=new Map();
   for(let bucket=0;bucket<4;bucket++){
     for(const pair of [[1,2],[1,3],[2,3]]){
       const firstDays=bySpeedBucketDay.get(pair[0]+':'+bucket)||new Map();
@@ -113,7 +114,7 @@ export function analyzeSpeedTimeContext(data, { minSamples = 5, minDays = 2 } = 
       const firstSamples=sharedDayKeys.flatMap(day=>firstDays.get(day));
       const secondSamples=sharedDayKeys.flatMap(day=>secondDays.get(day));
       const ready=sharedDayKeys.length>=minDays&&firstSamples.length>=minSamples&&secondSamples.length>=minSamples;
-      comparisons.push({
+      const comparison={
         bucket,label:buckets[bucket],speeds:pair,
         sharedDayCount:sharedDayKeys.length,
         sampleCountFirst:firstSamples.length,
@@ -125,10 +126,50 @@ export function analyzeSpeedTimeContext(data, { minSamples = 5, minDays = 2 } = 
         first:ready?summarize(firstSamples):null,
         second:ready?summarize(secondSamples):null,
         sharedDayKeys
+      };
+      comparisons.push(comparison);
+      for(const [speed,samples,stats,otherSpeed,sampleCount] of [
+        [pair[0],firstSamples,comparison.first,pair[1],firstSamples.length],
+        [pair[1],secondSamples,comparison.second,pair[0],secondSamples.length]
+      ]){
+        const key=speed+':'+bucket;
+        const candidate={
+          speed,bucket,label:buckets[bucket],otherSpeed,
+          sampleCount,dayCount:sharedDayKeys.length,sharedDays:sharedDayKeys.length,
+          ready,stats
+        };
+        const current=groupCandidates.get(key);
+        if(!current||candidate.sharedDays>current.sharedDays||
+          (candidate.sharedDays===current.sharedDays&&candidate.ready&&!current.ready)||
+          (candidate.sharedDays===current.sharedDays&&candidate.ready===current.ready&&candidate.sampleCount>current.sampleCount)){
+          groupCandidates.set(key,candidate);
+        }
+      }
+    }
+  }
+  const groups=[];
+  for(let bucket=0;bucket<4;bucket++){
+    for(const speed of [1,2,3]){
+      const candidate=groupCandidates.get(speed+':'+bucket);
+      groups.push(candidate?{
+        ...candidate,
+        medianRH:candidate.stats?.medianRH??null,
+        medianIndoorHA:candidate.stats?.medianIndoorHA??null,
+        medianIncomingHA:candidate.stats?.medianIncomingHA??null,
+        medianDeltaHA:candidate.stats?.medianDeltaHA??null,
+        deltaSamples:candidate.stats?.deltaSamples??0,
+        medianRPM:candidate.stats?.medianRPM??null,
+        rpmSamples:candidate.stats?.rpmSamples??0
+      }:{
+        speed,bucket,label:buckets[bucket],otherSpeed:null,
+        sampleCount:0,dayCount:0,sharedDays:0,ready:false,
+        medianRH:null,medianIndoorHA:null,medianIncomingHA:null,
+        medianDeltaHA:null,deltaSamples:0,medianRPM:null,rpmSamples:0
       });
     }
   }
   return {
+    groups,
     comparisons,
     minSamples,
     minDays,
