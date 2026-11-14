@@ -820,7 +820,7 @@ function render(){
   .map(field=>`${field.label} : ${field.missingCount} absent(s)`);
  const invalidDetails=quality.fields.map(field=>`${field.label} : ${field.invalidCount} aberrant(s)`);
  const coverageText=quality.total
-  ? `${quality.completeHygrometricRecords}/${quality.total} relevés complets pour comparer l’air intérieur et l’air entrant (${fmt(quality.hygrometricCoveragePercent)} %).`
+  ? `${quality.completeHygrometricRecords}/${quality.total} relevés avec les quatre mesures présentes (air intérieur et air entrant) (${fmt(quality.hygrometricCoveragePercent)} %).`
   : 'Aucun relevé historique dans la période sélectionnée.';
  const missingText=missingDetails.length
   ? ' Mesures absentes : '+missingDetails.join(' · ')+'.'
