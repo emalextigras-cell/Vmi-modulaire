@@ -488,9 +488,17 @@ export function buildHygrometricDiagnosis(data, {
   const hourly=analyzeHourlyPatterns(rows,5);
   const hourlyDetails=hourly.buckets.map((bucket,index)=>{
     const samples=rows.filter(r=>Math.floor(new Date(r.t).getHours()/6)===index);
-    return {...bucket,dayCount:new Set(samples.map(r=>dayKey(r.t))).size};
+    const dayKeys=[...new Set(samples.map(r=>dayKey(r.t)))];
+    return {...bucket,dayCount:dayKeys.length,dayKeys};
   });
-  const comparableHours=hourlyDetails.filter(b=>b.sampleCount>=5&&b.dayCount>=2);
+  const eligibleHours=hourlyDetails.filter(b=>b.sampleCount>=5&&b.dayCount>=2);
+  const comparableHours=eligibleHours.map(bucket=>{
+    const sharedDayCount=new Set(eligibleHours
+      .filter(other=>other.startHour!==bucket.startHour)
+      .flatMap(other=>other.dayKeys)
+      .filter(day=>bucket.dayKeys.includes(day))).size;
+    return {...bucket,sharedDayCount};
+  }).filter(bucket=>bucket.sharedDayCount>=2);
   const bestWindow=comparableHours.length>=2
     ? [...comparableHours].sort((a,b)=>b.medianDelta-a.medianDelta)[0]
     : null;
@@ -555,15 +563,15 @@ export function buildHygrometricDiagnosis(data, {
   if(bestWindow&&bestWindow.medianDelta>dryDelta){
     observations.push({
       code:'favorable-time-window',level:'positive',
-      basis:{timeWindow:bestWindow.label,medianDelta:bestWindow.medianDelta,unit:'g/m³',sampleCount:bestWindow.sampleCount,dayCount:bestWindow.dayCount},
+      basis:{timeWindow:bestWindow.label,medianDelta:bestWindow.medianDelta,unit:'g/m³',sampleCount:bestWindow.sampleCount,dayCount:bestWindow.dayCount,sharedDayCount:bestWindow.sharedDayCount},
       title:'Période horaire plus favorable repérée',
-      detail:`Sur les tranches comparables, ${bestWindow.label} présente l’écart médian le plus favorable (${bestWindow.medianDelta.toFixed(1)} g/m³), sur ${bestWindow.sampleCount} relevés répartis sur ${bestWindow.dayCount} jours.`,
+      detail:`Sur les tranches comparables, ${bestWindow.label} présente l’écart médian le plus favorable (${bestWindow.medianDelta.toFixed(1)} g/m³), sur ${bestWindow.sampleCount} relevés répartis sur ${bestWindow.dayCount} jours, dont ${bestWindow.sharedDayCount} jours communs aux tranches comparées.`,
       recommendation:'Vérifier si ce créneau se retrouve sur d’autres semaines et saisons avant d’en tirer une règle de réglage.'
     });
   }
 
   return {
-    methodology:{version:'hygrometric-diagnostic-v2',dryDeltaThreshold:dryDelta,trendDeltaThreshold:trendDelta,minimumSamples:minSamples,minimumDistinctDays:2,minimumObservedHours:3,dominantDurationShare:0.6,maximumGapHours:maxGapHours,hourlyBucketHours:6,hourlyMinimumSamples:5,hourlyMinimumDistinctDays:2},
+    methodology:{version:'hygrometric-diagnostic-v3',dryDeltaThreshold:dryDelta,trendDeltaThreshold:trendDelta,minimumSamples:minSamples,minimumDistinctDays:2,minimumObservedHours:3,dominantDurationShare:0.6,maximumGapHours:maxGapHours,hourlyBucketHours:6,hourlyMinimumSamples:5,hourlyMinimumDistinctDays:2,hourlyMinimumSharedDays:2},
     status:sufficient?'analysis-available':'insufficient-data',
     inputQuality:{
       inputSampleCount:inputRows.length,
