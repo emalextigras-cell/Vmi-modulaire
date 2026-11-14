@@ -71,8 +71,7 @@ export function analyzeSpeedLevels(data, minSamples = 10, targetRH = 50) {
  */
 export function analyzeSpeedTimeContext(data, { minSamples = 5, minDays = 2 } = {}) {
   const rows=(Array.isArray(data)?data:[]).filter(r=>
-    Number.isFinite(r?.t) && Number.isFinite(r?.vit) &&
-    [1,2,3].includes(r.vit) &&
+    Number.isFinite(r?.t) && Number.isFinite(r?.vit) && [1,2,3].includes(r.vit) &&
     Number.isFinite(r.st) && isPlausibleTemperature(r.st) &&
     Number.isFinite(r.sh) && isPlausibleHumidity(r.sh)
   );
@@ -80,30 +79,41 @@ export function analyzeSpeedTimeContext(data, { minSamples = 5, minDays = 2 } = 
   for(const speed of [1,2,3]){
     for(let bucket=0;bucket<4;bucket++){
       const samples=rows.filter(r=>r.vit===speed&&Math.floor(new Date(r.t).getHours()/6)===bucket);
-      const days=new Set(samples.map(r=>{
+      const dayKeys=new Set(samples.map(r=>{
         const d=new Date(r.t);
         return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
       }));
       const deltas=samples.map(r=>{
-        if(!Number.isFinite(r.te)||!isPlausibleTemperature(r.te)||
-           !Number.isFinite(r.he)||!isPlausibleHumidity(r.he))return null;
+        if(!Number.isFinite(r.te)||!isPlausibleTemperature(r.te)||!Number.isFinite(r.he)||!isPlausibleHumidity(r.he))return null;
         return absoluteHumidity(r.st,r.sh)-absoluteHumidity(r.te,r.he);
       }).filter(Number.isFinite);
-      const ready=samples.length>=minSamples&&days.size>=minDays;
       groups.push({
         speed,bucket,label:['00–05 h','06–11 h','12–17 h','18–23 h'][bucket],
-        sampleCount:samples.length,dayCount:days.size,ready,
-        medianRH:ready?median(samples.map(r=>r.sh)):null,
-        medianIndoorHA:ready?median(samples.map(r=>absoluteHumidity(r.st,r.sh))):null,
-        medianDeltaHA:ready&&deltas.length?median(deltas):null,
+        sampleCount:samples.length,dayCount:dayKeys.size,dayKeys:[...dayKeys],
+        ready:samples.length>=minSamples&&dayKeys.size>=minDays,
+        medianRH:median(samples.map(r=>r.sh)),
+        medianIndoorHA:median(samples.map(r=>absoluteHumidity(r.st,r.sh))),
+        medianDeltaHA:deltas.length?median(deltas):null,
         deltaSamples:deltas.length,
-        medianRPM:ready?median(samples.map(r=>r.rpm).filter(v=>Number.isFinite(v)&&v>0&&v<10000)):null
+        medianRPM:median(samples.map(r=>r.rpm).filter(v=>Number.isFinite(v)&&v>0&&v<10000))
       });
     }
   }
-  const comparableBuckets=[0,1,2,3].filter(bucket=>
-    groups.filter(g=>g.bucket===bucket&&g.ready).length>=2
-  );
+  const comparableBuckets=[];
+  for(let bucket=0;bucket<4;bucket++){
+    const candidates=groups.filter(g=>g.bucket===bucket&&g.ready);
+    const sharedBySpeed=new Map(candidates.map(g=>[g.speed,candidates
+      .filter(other=>other.speed!==g.speed)
+      .reduce((all,other)=>{for(const day of other.dayKeys)if(g.dayKeys.includes(day))all.add(day);return all},new Set()).size
+    ]));
+    for(const group of groups.filter(g=>g.bucket===bucket)){
+      group.sharedDays=sharedBySpeed.get(group.speed)||0;
+      group.ready=group.ready&&group.sharedDays>=minDays;
+      if(!group.ready){group.medianRH=null;group.medianIndoorHA=null;group.medianDeltaHA=null;group.medianRPM=null}
+      delete group.dayKeys;
+    }
+    if(groups.filter(g=>g.bucket===bucket&&g.ready).length>=2)comparableBuckets.push(bucket);
+  }
   return {groups,minSamples,minDays,comparableBuckets};
 }
 
@@ -134,68 +144,51 @@ export function summarizeEnergyReadiness(data) {
  * du delta. Les intervalles supérieurs à maxGapHours ne sont jamais extrapolés.
  */
 export function analyzeHygrometricPeriods(data, { threshold = 1, maxGapHours = 2 } = {}) {
-  const rows = (Array.isArray(data) ? data : [])
-    .filter(r => Number.isFinite(r?.t) &&
-      Number.isFinite(r.st) && isPlausibleTemperature(r.st) &&
-      Number.isFinite(r.sh) && isPlausibleHumidity(r.sh) &&
-      Number.isFinite(r.te) && isPlausibleTemperature(r.te) &&
-      Number.isFinite(r.he) && isPlausibleHumidity(r.he))
-    .map(r => ({
-      t: r.t,
-      delta: absoluteHumidity(r.st, r.sh) - absoluteHumidity(r.te, r.he)
-    }))
-    .filter(r => Number.isFinite(r.delta))
-    .sort((a, b) => a.t - b.t);
-
-  const result = {
-    sampleCount: rows.length,
-    intervalCount: 0,
-    gapCount: 0,
-    medianDelta: median(rows.map(r => r.delta)),
-    threshold,
-    maxGapHours,
-    observedDurationMs: 0,
-    dryDurationMs: 0,
-    humidDurationMs: 0,
-    neutralDurationMs: 0,
-    longestDryMs: 0,
-    longestHumidMs: 0
+  const rows=(Array.isArray(data)?data:[])
+    .filter(r=>Number.isFinite(r?.t)&&Number.isFinite(r.st)&&isPlausibleTemperature(r.st)&&
+      Number.isFinite(r.sh)&&isPlausibleHumidity(r.sh)&&Number.isFinite(r.te)&&
+      isPlausibleTemperature(r.te)&&Number.isFinite(r.he)&&isPlausibleHumidity(r.he))
+    .map(r=>({t:r.t,delta:absoluteHumidity(r.st,r.sh)-absoluteHumidity(r.te,r.he)}))
+    .filter(r=>Number.isFinite(r.delta)).sort((a,b)=>a.t-b.t);
+  const result={sampleCount:rows.length,intervalCount:0,gapCount:0,medianDelta:median(rows.map(r=>r.delta)),
+    threshold,maxGapHours,observedDurationMs:0,dryDurationMs:0,humidDurationMs:0,
+    neutralDurationMs:0,longestDryMs:0,longestHumidMs:0};
+  if(rows.length<2)return result;
+  const maxGapMs=maxGapHours*3600000;
+  let streak=null;
+  const closeStreak=()=>{
+    if(!streak)return;
+    if(streak.category==='dry')result.longestDryMs=Math.max(result.longestDryMs,streak.duration);
+    if(streak.category==='humid')result.longestHumidMs=Math.max(result.longestHumidMs,streak.duration);
+    streak=null;
   };
-  if (rows.length < 2) return result;
-
-  const maxGapMs = maxGapHours * 60 * 60 * 1000;
-  let streak = null;
-  const closeStreak = () => {
-    if (!streak) return;
-    if (streak.category === 'dry') result.longestDryMs = Math.max(result.longestDryMs, streak.duration);
-    if (streak.category === 'humid') result.longestHumidMs = Math.max(result.longestHumidMs, streak.duration);
-    streak = null;
-  };
-
-  for (let i = 1; i < rows.length; i++) {
-    const previous = rows[i - 1], current = rows[i];
-    const duration = current.t - previous.t;
-    if (!(duration > 0)) continue;
-    if (duration > maxGapMs) {
-      result.gapCount++;
-      closeStreak();
-      continue;
+  for(let i=1;i<rows.length;i++){
+    const a=rows[i-1],b=rows[i],duration=b.t-a.t;
+    if(!(duration>0))continue;
+    if(duration>maxGapMs){result.gapCount++;closeStreak();continue}
+    result.intervalCount++;result.observedDurationMs+=duration;
+    const cuts=[0,1];
+    for(const boundary of [threshold,-threshold]){
+      if((a.delta<boundary&&b.delta>boundary)||(a.delta>boundary&&b.delta<boundary)){
+        cuts.push((boundary-a.delta)/(b.delta-a.delta));
+      }
     }
-
-    const delta = (previous.delta + current.delta) / 2;
-    const category = delta > threshold ? 'dry' : delta < -threshold ? 'humid' : 'neutral';
-    result.intervalCount++;
-    result.observedDurationMs += duration;
-    if (category === 'dry') result.dryDurationMs += duration;
-    else if (category === 'humid') result.humidDurationMs += duration;
-    else result.neutralDurationMs += duration;
-
-    if (streak && streak.category === category && streak.end === previous.t) {
-      streak.duration += duration;
-      streak.end = current.t;
-    } else {
-      closeStreak();
-      streak = { category, duration, end: current.t };
+    cuts.sort((x,y)=>x-y);
+    for(let j=1;j<cuts.length;j++){
+      const from=cuts[j-1],to=cuts[j],part=(to-from)*duration;
+      if(part<=0)continue;
+      const midpoint=(from+to)/2;
+      const delta=a.delta+(b.delta-a.delta)*midpoint;
+      const category=delta>threshold?'dry':delta< -threshold?'humid':'neutral';
+      if(category==='dry')result.dryDurationMs+=part;
+      else if(category==='humid')result.humidDurationMs+=part;
+      else result.neutralDurationMs+=part;
+      const start=a.t+from*duration,end=a.t+to*duration;
+      if(streak&&streak.category===category&&Math.abs(streak.end-start)<1){
+        streak.duration+=part;streak.end=end;
+      }else{
+        closeStreak();streak={category,duration:part,end};
+      }
     }
   }
   closeStreak();
@@ -345,7 +338,7 @@ export function buildHygrometricDiagnosis(data, {
   const daily=summarizeDailyTrends(rows);
   const first=daily.days.filter(d=>d.sampleCount>=3)[0]||null;
   const last=[...daily.days].reverse().find(d=>d.sampleCount>=3)||null;
-  const trendSpanDays=first&&last?(new Date(last.date+'T12:00:00').getTime()-new Date(first.date+'T12:00:00').getTime())/86400000:0;
+  const trendSpanDays=first&&last?(Date.parse(last.date+'T00:00:00Z')-Date.parse(first.date+'T00:00:00Z'))/86400000:0;
   const trendChange=first&&last&&trendSpanDays>=2?last.medianAbsoluteHumidity-first.medianAbsoluteHumidity:null;
 
   const hourly=analyzeHourlyPatterns(rows,5);
@@ -358,7 +351,7 @@ export function buildHygrometricDiagnosis(data, {
     ? [...comparableHours].sort((a,b)=>b.medianDelta-a.medianDelta)[0]
     : null;
 
-  const confidence=rows.length>=60&&days.size>=5&&observedHours>=24?'élevée'
+  const coverageLevel=rows.length>=60&&days.size>=5&&observedHours>=24?'élevée'
     :rows.length>=24&&days.size>=3&&observedHours>=12?'modérée':'faible';
   const sufficient=rows.length>=minSamples&&days.size>=2&&observedHours>=3;
   const observations=[];
@@ -420,7 +413,7 @@ export function buildHygrometricDiagnosis(data, {
 
   return {
     status:sufficient?'analysis-available':'insufficient-data',
-    confidence,
+    coverageLevel,
     sampleCount:rows.length,
     dayCount:days.size,
     observedHours,
