@@ -8,7 +8,7 @@ import { median, analyzeSpeedLevels, analyzeSpeedTimeContext, analyzeHygrometric
 import { renderCharts, resetChartViews } from './modules/charts.js';
 import { SVC_C, CH_C, SVC_T, CH_T, crc, frame, timeFrame, hex } from './modules/ble.js';
 import { armDownloadTimeout } from './modules/sync.js';
-import { parseCell, recFrom, getColumnMapping } from './modules/dataio.js';
+import { parseCell, recFrom, getColumnMapping, parseCsvRows } from './modules/dataio.js';
 import { fixClock } from './modules/clock-correction.js';
 import { absoluteHumidity, dewPoint, psychro, validTemp } from './modules/psychrometry.js';
 import { summarizeDataQuality, isPlausibleHumidity, isPlausibleTemperature } from './modules/data-quality.js';
@@ -368,14 +368,20 @@ function loadXLSX(){
 $('fx').onchange=async e=>{
  const file=e.target.files&&e.target.files[0];if(!file)return;showError('');
  try{
-  $('importInfo').textContent='Chargement de la bibliothèque Excel…';
-  await loadXLSX();
-  const wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});
-  const sheet=wb.Sheets[wb.SheetNames[0]];
-  if(!sheet)throw new Error('Aucune feuille trouvée.');
-  const rows=XLSX.utils.sheet_to_json(sheet,{header:1,raw:true,defval:''});
+  let rows,spreadsheet=null;
+  if(/\\.csv$/i.test(file.name)){
+   $('importInfo').textContent='Lecture du CSV…';
+   rows=parseCsvRows(await file.text());
+  }else{
+   $('importInfo').textContent='Chargement de la bibliothèque Excel…';
+   await loadXLSX();spreadsheet=XLSX;
+   const wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});
+   const sheet=wb.Sheets[wb.SheetNames[0]];
+   if(!sheet)throw new Error('Aucune feuille trouvée.');
+   rows=XLSX.utils.sheet_to_json(sheet,{header:1,raw:true,defval:''});
+  }
   const columnMapping=getColumnMapping(rows[3]||[]);
-  const recs=[];for(let i=4;i<rows.length;i++){const r=recFrom(rows[i],XLSX,columnMapping);if(r)recs.push(r)}
+  const recs=[];for(let i=4;i<rows.length;i++){const r=recFrom(rows[i],spreadsheet,columnMapping);if(r)recs.push(r)}
   ingest(recs,'Import');
  }catch(err){showError('Import impossible : '+err.message)}
  e.target.value='';
@@ -508,7 +514,7 @@ $('diagCopy').onclick=async()=>{
 /* ---------- Graphiques SVG ---------- */
 function selectedData(){
  const data=(source==='live'?live:hist).filter(r=>r.t>=MIN_VALID).sort((a,b)=>a.t-b.t);
- if(selectedDate){const start=dayStart(selectedDate),end=start+86400000;return data.filter(r=>r.t>=start&&r.t<end)}
+ if(selectedDate){const start=dayStart(selectedDate),end=dayStart(shiftDay(selectedDate,1));return data.filter(r=>r.t>=start&&r.t<end)}
  if(daysSetting&&data.length){const end=data[data.length-1].t;return data.filter(r=>r.t>=end-daysSetting*86400000)}
  return data;
 }
@@ -579,7 +585,7 @@ function renderTemporalAnalysis(data){
 function renderIntelligentDiagnosis(data){
  const result=buildHygrometricDiagnosis(data);
  const box=$('diagnosisStatus'), evidence=$('diagnosisEvidence'), limits=$('diagnosisLimits');
- const confidence='Confiance '+result.confidence+' · '+result.sampleCount+' relevés simultanés valides · '+result.dayCount+' jour(s) · '+fmt(result.observedHours)+' h observées · intervalle médian '+(result.medianSampleIntervalMinutes==null?'–':fmt(result.medianSampleIntervalMinutes)+' min')+' · '+result.excludedGapCount+' trou(s) > '+result.maxGapHours+' h';
+ const confidence='Couverture '+result.coverageLevel+' (indicateur heuristique) · '+result.sampleCount+' relevés simultanés valides · '+result.dayCount+' jour(s) · '+fmt(result.observedHours)+' h observées · intervalle médian '+(result.medianSampleIntervalMinutes==null?'–':fmt(result.medianSampleIntervalMinutes)+' min')+' · '+result.excludedGapCount+' trou(s) > '+result.maxGapHours+' h';
  box.className=result.status==='analysis-available'?'advice':'advice warn';
  box.textContent=confidence+'.'+(result.largestExcludedGapHours>0?' Plus grand trou exclu : '+fmt(result.largestExcludedGapHours)+' h.':'');
  if(!result.observations.length){
@@ -609,14 +615,14 @@ function analyzeSpeeds(data){
  else if(result.status==='insufficient')advice='Données insuffisantes : il faut au moins '+min+' relevés identifiés par niveau pour établir une comparaison. Les résultats partiels restent visibles mais ne permettent pas de conclure.';
  else advice='Comparaison descriptive disponible pour '+usable.map(g=>'niveau '+g.v).join(', ')+'. Les jours communs indiquent sur combien de dates chaque niveau recoupe au moins un autre niveau analysable : plus ce nombre est faible, moins la comparaison est directe. Même avec des jours communs, les heures, la météo et l’occupation peuvent différer. Aucun niveau n’est désigné comme optimal.';
  const context=analyzeSpeedTimeContext(data,{minSamples:5,minDays:2});
- let contextHtml='<h4>Comparaison par tranche horaire</h4><p class="muted">Une tranche n’est comparée que si au moins deux niveaux manuels disposent chacun d’au moins 5 relevés sur 2 jours ou plus.</p>';
+ let contextHtml='<h4>Comparaison par tranche horaire</h4><p class="muted">Une tranche n’est comparée que si au moins deux niveaux manuels ont chacun 5 relevés minimum et au moins 2 dates communes dans cette tranche.</p>';
  if(!context.comparableBuckets.length){
   contextHtml+='<div class="advice">Pas encore assez de données réparties sur plusieurs jours et plusieurs niveaux dans une même tranche horaire. Les valeurs brutes VMI+ ne sont pas utilisées comme vitesses manuelles.</div>';
  }else{
   contextHtml+='<table><thead><tr><th>Horaire</th><th>Niveau</th><th>Relevés / jours</th><th>HR médiane</th><th>HA salon</th><th>Écart HA salon − entrant</th><th>RPM médian</th></tr></thead><tbody>';
   for(const bucket of context.comparableBuckets){
    for(const g of context.groups.filter(x=>x.bucket===bucket&&x.ready)){
-    contextHtml+='<tr><td>'+g.label+'</td><td>'+g.speed+'</td><td>'+g.sampleCount+' / '+g.dayCount+'</td><td>'+fmt(g.medianRH)+' %</td><td>'+fmt(g.medianIndoorHA)+' g/m³</td><td>'+(g.medianDeltaHA==null?'–':fmt(g.medianDeltaHA)+' g/m³ ('+g.deltaSamples+')')+'</td><td>'+(g.medianRPM==null?'–':fmt(g.medianRPM))+'</td></tr>';
+    contextHtml+='<tr><td>'+g.label+'</td><td>'+g.speed+'</td><td>'+g.sampleCount+' / '+g.dayCount+' ('+g.sharedDays+' communes)</td><td>'+fmt(g.medianRH)+' %</td><td>'+fmt(g.medianIndoorHA)+' g/m³</td><td>'+(g.medianDeltaHA==null?'–':fmt(g.medianDeltaHA)+' g/m³ ('+g.deltaSamples+')')+'</td><td>'+(g.medianRPM==null?'–':fmt(g.medianRPM))+'</td></tr>';
    }
   }
   contextHtml+='</tbody></table><div class="advice">Cette lecture réduit une partie des différences horaires, mais ne contrôle pas la météo, les apports d’humidité, l’occupation ni le débit réel. Elle ne permet pas de désigner une vitesse optimale.</div>';
