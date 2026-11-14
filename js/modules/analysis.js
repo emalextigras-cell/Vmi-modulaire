@@ -1,5 +1,5 @@
 /** Analyses statistiques communes (sans effet sur les commandes VMI). */
-import { absoluteHumidity } from './psychrometry.js';
+import { absoluteHumidity, dewPoint } from './psychrometry.js';
 import { isPlausibleHumidity, isPlausibleTemperature } from './data-quality.js';
 
 export function median(values) {
@@ -237,4 +237,146 @@ export function detectRapidChanges(data, { maxGapHours = 2, rhJump = 15, absolut
     }
   }
   return events;
+}
+
+
+/**
+ * Diagnostic hygrométrique explicable.
+ * Les constats reposent sur les mesures disponibles, sans inférer le débit réel,
+ * la consommation électrique, une panne ou un lien de causalité.
+ */
+export function buildHygrometricDiagnosis(data, {
+  dryDelta: 1,
+  trendDelta: 0.8,
+  minSamples: 12,
+  maxGapHours: 2
+} = {}) {
+  const unique = new Map();
+  for (const r of Array.isArray(data) ? data : []) {
+    if (!Number.isFinite(r?.t) ||
+        !Number.isFinite(r.st) || !isPlausibleTemperature(r.st) ||
+        !Number.isFinite(r.sh) || !isPlausibleHumidity(r.sh) ||
+        !Number.isFinite(r.te) || !isPlausibleTemperature(r.te) ||
+        !Number.isFinite(r.he) || !isPlausibleHumidity(r.he)) continue;
+    const indoor = absoluteHumidity(r.st, r.sh);
+    const incoming = absoluteHumidity(r.te, r.he);
+    if (!Number.isFinite(indoor) || !Number.isFinite(incoming)) continue;
+    unique.set(r.t, {
+      t:r.t, st:r.st, sh:r.sh, te:r.te, he:r.he,
+      indoorHA:indoor, incomingHA:incoming, delta:indoor-incoming,
+      indoorDew:dewPoint(r.st,r.sh), incomingDew:dewPoint(r.te,r.he)
+    });
+  }
+  const rows=[...unique.values()].sort((a,b)=>a.t-b.t);
+  const dayKey=t=>{
+    const d=new Date(t);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  };
+  const days=new Set(rows.map(r=>dayKey(r.t)));
+  const periods=analyzeHygrometricPeriods(rows,{threshold:dryDelta,maxGapHours});
+  const observedHours=periods.observedDurationMs/3600000;
+  const dryShare=periods.observedDurationMs?periods.dryDurationMs/periods.observedDurationMs:null;
+  const humidShare=periods.observedDurationMs?periods.humidDurationMs/periods.observedDurationMs:null;
+  const daily=summarizeDailyTrends(rows);
+  const first=daily.days.filter(d=>d.sampleCount>=3)[0]||null;
+  const last=[...daily.days].reverse().find(d=>d.sampleCount>=3)||null;
+  const trendSpanDays=first&&last?(new Date(last.date+'T12:00:00').getTime()-new Date(first.date+'T12:00:00').getTime())/86400000:0;
+  const trendChange=first&&last&&trendSpanDays>=2?last.medianAbsoluteHumidity-first.medianAbsoluteHumidity:null;
+
+  const hourly=analyzeHourlyPatterns(rows,5);
+  const hourlyDetails=hourly.buckets.map((bucket,index)=>{
+    const samples=rows.filter(r=>Math.floor(new Date(r.t).getHours()/6)===index);
+    return {...bucket,dayCount:new Set(samples.map(r=>dayKey(r.t))).size};
+  });
+  const comparableHours=hourlyDetails.filter(b=>b.sampleCount>=5&&b.dayCount>=2);
+  const bestWindow=comparableHours.length>=2
+    ? [...comparableHours].sort((a,b)=>b.medianDelta-a.medianDelta)[0]
+    : null;
+
+  const confidence=rows.length>=60&&days.size>=5&&observedHours>=24?'élevée'
+    :rows.length>=24&&days.size>=3&&observedHours>=12?'modérée':'faible';
+  const sufficient=rows.length>=minSamples&&days.size>=2&&observedHours>=3;
+  const observations=[];
+
+  if(!sufficient){
+    observations.push({
+      code:'coverage-limited',level:'info',
+      title:'Historique encore trop limité',
+      detail:`${rows.length} relevé(s) simultanés valides sur ${days.size} jour(s), avec ${fmtHours(observedHours)} de périodes exploitables. Il faut davantage de mesures réparties sur plusieurs jours pour produire un diagnostic fiable.`,
+      recommendation:'Importer un historique plus long et vérifier que les températures et humidités du salon et de l’air entrant sont présentes.'
+    });
+  } else if(periods.medianDelta!=null&&periods.medianDelta>dryDelta&&dryShare>=0.6){
+    observations.push({
+      code:'air-drying-potential',level:'positive',
+      title:'Conditions souvent favorables à l’assèchement',
+      detail:`L’air entrant est plus sec que l’air du logement pendant ${Math.round(dryShare*100)} % des durées observées. L’écart médian salon − air entrant est de ${periods.medianDelta.toFixed(1)} g/m³.`,
+      recommendation:'Le renouvellement d’air dispose d’un potentiel hygrométrique favorable pendant ces périodes. Cela ne mesure pas l’effet réel sans débit d’air validé.'
+    });
+  } else if(periods.medianDelta!=null&&periods.medianDelta< -dryDelta&&humidShare>=0.6){
+    observations.push({
+      code:'air-moisture-potential',level:'caution',
+      title:'L’air entrant est souvent plus humide',
+      detail:`L’air entrant est plus humide que l’air intérieur pendant ${Math.round(humidShare*100)} % des durées observées. L’écart médian salon − air entrant est de ${periods.medianDelta.toFixed(1)} g/m³.`,
+      recommendation:'Une hausse de vitesse ne garantit pas un assèchement dans ces conditions. Comparer les périodes et suivre l’évolution intérieure avant toute modification manuelle.'
+    });
+  } else {
+    observations.push({
+      code:'mixed-air-conditions',level:'info',
+      title:'Conditions hygrométriques variables',
+      detail:`Aucune situation dominante nette : air entrant plus sec ${Math.round((dryShare||0)*100)} % du temps observé, plus humide ${Math.round((humidShare||0)*100)} %.`,
+      recommendation:'Privilégier l’analyse des périodes horaires et saisonnières plutôt qu’une conclusion basée sur un relevé isolé.'
+    });
+  }
+
+  if(trendChange!=null&&trendChange>=trendDelta){
+    observations.push({
+      code:'indoor-moisture-rising',level:'caution',
+      title:'Humidité absolue intérieure en hausse',
+      detail:`L’humidité absolue médiane du logement a augmenté de ${trendChange.toFixed(1)} g/m³ entre le ${first.date} et le ${last.date}.`,
+      recommendation:'Examiner les apports de vapeur d’eau (douches, cuisson, séchage du linge, occupation), les extractions et les conditions extérieures. Cette tendance ne suffit pas à identifier une cause.'
+    });
+  } else if(trendChange!=null&&trendChange<=-trendDelta){
+    observations.push({
+      code:'indoor-moisture-falling',level:'positive',
+      title:'Humidité absolue intérieure en baisse',
+      detail:`L’humidité absolue médiane du logement a diminué de ${Math.abs(trendChange).toFixed(1)} g/m³ entre le ${first.date} et le ${last.date}.`,
+      recommendation:'Poursuivre l’observation pour vérifier que cette baisse se maintient sur les prochains jours.'
+    });
+  }
+
+  if(bestWindow&&bestWindow.medianDelta>dryDelta){
+    observations.push({
+      code:'favorable-time-window',level:'positive',
+      title:'Période horaire plus favorable repérée',
+      detail:`Sur les tranches comparables, ${bestWindow.label} présente l’écart médian le plus favorable (${bestWindow.medianDelta.toFixed(1)} g/m³), sur ${bestWindow.sampleCount} relevés répartis sur ${bestWindow.dayCount} jours.`,
+      recommendation:'Vérifier si ce créneau se retrouve sur d’autres semaines et saisons avant d’en tirer une règle de réglage.'
+    });
+  }
+
+  return {
+    status:sufficient?'analysis-available':'insufficient-data',
+    confidence,
+    sampleCount:rows.length,
+    dayCount:days.size,
+    observedHours,
+    medianIndoorRH:median(rows.map(r=>r.sh)),
+    medianIndoorHA:median(rows.map(r=>r.indoorHA)),
+    medianIncomingHA:median(rows.map(r=>r.incomingHA)),
+    medianIndoorDewPoint:median(rows.map(r=>r.indoorDew)),
+    medianIncomingDewPoint:median(rows.map(r=>r.incomingDew)),
+    dryShare,humidShare,trendChange,bestWindow,
+    observations,
+    limits:[
+      'Les durées sont estimées entre deux relevés, sans extrapolation au-delà de 2 heures.',
+      'L’humidité absolue décrit la teneur en vapeur d’eau, pas le débit ni le renouvellement d’air réel.',
+      'Le point de rosée calculé n’est pas une mesure de température de paroi : aucun risque de condensation n’est déduit.',
+      'Les observations ne prouvent ni une panne, ni la cause d’une variation, ni une vitesse optimale.'
+    ]
+  };
+}
+
+function fmtHours(hours) {
+  if (!Number.isFinite(hours)) return '0 h';
+  if (hours < 1) return `${Math.round(hours*60)} min`;
+  return `${hours.toFixed(1)} h`;
 }
