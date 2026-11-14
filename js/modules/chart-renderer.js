@@ -1,6 +1,6 @@
 /** Rendu SVG des graphiques et infobulles tactiles. */
 import { absoluteHumidity } from './psychrometry.js';
-import { pad, dayStart } from './date-utils.js';
+import { pad, dayStart, shiftDay } from './date-utils.js';
 import { isPlausibleHumidity, isPlausibleTemperature } from './data-quality.js';
 const COLORS=['#286348','#c16b32','#356da5','#8056a8'];
 const viewStates=new Map();
@@ -21,7 +21,7 @@ function drawChart(id,title,series,selectedDate,$){
  const W=700,H=215,L=48,R=12,T=18,B=30;
  const daily=!!selectedDate;
  let x0,x1;
- if(daily){x0=dayStart(selectedDate);x1=x0+86400000}
+ if(daily){x0=dayStart(selectedDate);x1=dayStart(shiftDay(selectedDate,1))}
  else{x0=Math.min(...all.map(p=>p.t));x1=Math.max(...all.map(p=>p.t));if(x0===x1)x1=x0+3600000}
  const baseX0=x0,baseX1=x1,baseSpan=baseX1-baseX0;
  const view=viewStates.get(id)||{factor:1,center:.5};viewStates.set(id,view);
@@ -32,7 +32,7 @@ function drawChart(id,title,series,selectedDate,$){
  const X=t=>L+(t-x0)/(x1-x0)*(W-L-R),Y=v=>T+(1-(v-y0)/(y1-y0))*(H-T-B);
  let svg='';
  for(let i=0;i<=4;i++){const v=y0+(y1-y0)*i/4,y=Y(v);svg+=`<line class="gridline" x1="${L}" x2="${W-R}" y1="${y}" y2="${y}"/><text x="${L-7}" y="${y+3}" text-anchor="end">${v.toFixed(1)}</text>`}
- if(daily){for(let h=0;h<=24;h+=3){const x=X(x0+h*3600000);svg+=`<line class="gridline" x1="${x}" x2="${x}" y1="${T}" y2="${H-B}"/><text x="${x}" y="${H-10}" text-anchor="${h===0?'start':h===24?'end':'middle'}">${pad(h)}h</text>`}}
+ if(daily){for(let h=0;h<=24;h+=3){const tick=new Date(x0);tick.setHours(h,0,0,0);const x=X(tick.getTime());svg+=`<line class="gridline" x1="${x}" x2="${x}" y1="${T}" y2="${H-B}"/><text x="${x}" y="${H-10}" text-anchor="${h===0?'start':h===24?'end':'middle'}">${pad(h)}h</text>`}}
  else{const span=x1-x0,withHour=span<=3*86400000;for(let i=0;i<=4;i++){const t=x0+span*i/4,x=X(t);svg+=`<text x="${x}" y="${H-10}" text-anchor="${i===0?'start':i===4?'end':'middle'}">${fmtTick(t,withHour)}</text>`}}
  /* seuil de trou calculé série par série : le trait est interrompu quand des relevés manquent */
  const gaps=new Map();
