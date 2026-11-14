@@ -54,9 +54,9 @@ export function analyzeSpeedLevels(data, minSamples = 10, targetRH = 50) {
   const dayKeysBySpeed=new Map(groups.map(group=>[group.v,new Set(group.coveredDayKeys)]));
   for(const group of groups){
     const ownDays=dayKeysBySpeed.get(group.v);
-    const otherDays=new Set(sufficient.filter(other=>other.v!==group.v)
-      .flatMap(other=>[...dayKeysBySpeed.get(other.v)]));
-    group.sharedDays=[...ownDays].filter(day=>otherDays.has(day)).length;
+    group.sharedDays=Math.max(0,...sufficient.filter(other=>other.v!==group.v).map(other=>
+      [...ownDays].filter(day=>dayKeysBySpeed.get(other.v).has(day)).length
+    ));
     delete group.coveredDayKeys;
   }
   const status=rows.length===0?'no-speed-data':sufficient.length?'comparison-ready':'insufficient';
