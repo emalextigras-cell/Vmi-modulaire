@@ -138,3 +138,12 @@ Le téléchargement d'historique, lui, transporte des lignes textuelles séparé
 ### Référence descriptive du fonctionnement par mode VMI+
 
 L'interface construit désormais, à partir de l'historique affiché, un profil par valeur du champ `Mode`: effectifs, jours couverts, médianes et plages observées du débit confirmé, du régime moteur et des champs bruts PWM, Pression moteur et Cons DP. Le code `Vitesse` reste strictement séparé et n'est jamais utilisé comme substitut du mode. Cette référence décrit uniquement les données importées ; elle ne qualifie pas un état de normal ou anormal et ne détecte pas encore de panne. Une comparaison entre plusieurs périodes nécessitera plusieurs exports distincts et comparables. Deux tests vérifient la séparation Mode/Vitesse et l'absence de conversion des champs bruts.
+
+
+## Comparaison de l'évolution du fonctionnement
+- Une nouvelle lecture compare deux périodes calendaires successives de 7 jours, en conservant le même champ `Mode` (`vmiModeRaw`) et la même tranche horaire locale de 6 heures.
+- Chaque période doit contenir au moins 12 relevés répartis sur au moins 3 jours distincts pour le même Mode et la même tranche horaire.
+- Les médianes de débit (m³/h confirmé) et de régime moteur (tr/min confirmé) sont comparées. PWM et Pression moteur sont présentés uniquement comme valeurs brutes, avec unité non confirmée.
+- Les écarts absolus et relatifs sont descriptifs. Aucun seuil ne déclenche un diagnostic automatique de filtre encrassé ou de panne.
+- Les comparaisons ne neutralisent pas les changements de météo, d'occupation, de réglage, d'entretien ou d'installation. Elles servent à repérer une évolution à examiner, pas à en établir la cause.
+- Les données sans champ `Mode` exploitable, ou sans couverture suffisante sur les deux périodes, ne sont pas comparées. Les champs `Vitesse`, `vit` et `vmiSpeedRaw` ne servent jamais à identifier un niveau manuel.
