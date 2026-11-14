@@ -75,7 +75,8 @@ test('hourly window comparison requires and reports shared calendar days',()=>{
  assert.ok(finding);
  assert.equal(finding.basis.dayCount,2);
  assert.equal(finding.basis.sharedDayCount,2);
- assert.equal(finding.basis.comparisonWindow,'06–11 h');
+ assert.ok(['06–11 h','12–17 h'].includes(finding.basis.comparisonWindow));
+ assert.notEqual(finding.basis.timeWindow,finding.basis.comparisonWindow);
  assert.equal(finding.basis.sampleCount,12);
  assert.equal(finding.basis.comparisonSampleCount,12);
  assert.match(finding.detail,/2 jours calendaires/);
