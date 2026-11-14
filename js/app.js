@@ -579,9 +579,9 @@ function renderTemporalAnalysis(data){
 function renderIntelligentDiagnosis(data){
  const result=buildHygrometricDiagnosis(data);
  const box=$('diagnosisStatus'), evidence=$('diagnosisEvidence'), limits=$('diagnosisLimits');
- const confidence='Confiance '+result.confidence+' · '+result.sampleCount+' relevés simultanés valides · '+result.dayCount+' jour(s) · '+fmt(result.observedHours)+' h observées';
+ const confidence='Confiance '+result.confidence+' · '+result.sampleCount+' relevés simultanés valides · '+result.dayCount+' jour(s) · '+fmt(result.observedHours)+' h observées · intervalle médian '+(result.medianSampleIntervalMinutes==null?'–':fmt(result.medianSampleIntervalMinutes)+' min')+' · '+result.excludedGapCount+' trou(s) > '+result.maxGapHours+' h';
  box.className=result.status==='analysis-available'?'advice':'advice warn';
- box.textContent=confidence+'.';
+ box.textContent=confidence+'.'+(result.largestExcludedGapHours>0?' Plus grand trou exclu : '+fmt(result.largestExcludedGapHours)+' h.':'');
  if(!result.observations.length){
   evidence.textContent='Aucun constat ne peut être établi avec les mesures disponibles.';
  }else{
