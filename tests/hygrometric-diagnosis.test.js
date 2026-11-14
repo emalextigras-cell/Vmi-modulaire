@@ -57,3 +57,12 @@ test('diagnostic does not infer condensation risk or a best fan speed',()=>{
  assert.ok(result.limits.some(x=>x.includes('aucun risque de condensation')));
  assert.ok(!result.observations.some(x=>/condensation|vitesse optimale/i.test(x.title)));
 });
+
+test('diagnostic quantifies sampling intervals and excludes long data gaps',()=>{
+ const result=buildHygrometricDiagnosis(makeRows({days:3,perDay:10}));
+ assert.equal(result.medianSampleIntervalMinutes,30);
+ assert.equal(result.excludedGapCount,2);
+ assert.ok(result.largestExcludedGapHours>2);
+ assert.ok(result.coverageSpanHours>24);
+ assert.equal(result.maxGapHours,2);
+});
