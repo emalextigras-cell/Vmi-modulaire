@@ -121,18 +121,18 @@ test('ignore les codes Vitesse bruts : seuls les niveaux manuels explicitement a
 test('compare les niveaux manuels uniquement dans la même tranche et sur les mêmes jours', () => {
   const rows = [];
   for (const day of [10, 11]) {
-    for (const manualLevel of [1, 2]) {
+    for (const vmiModeRaw of [1, 2]) {
       for (let sample = 0; sample < (day === 10 ? 3 : 2); sample++) {
         rows.push({
           t: Date.UTC(2026, 10, day, 10, sample * 5),
-          manualLevel,
-          vit: manualLevel + 1,
+          vmiModeRaw,
+          vit: vmiModeRaw + 1,
           vmiSpeedRaw: 5,
           st: 19,
-          sh: 60 - manualLevel,
+          sh: 60 - vmiModeRaw,
           te: 12,
           he: 80,
-          rpm: 1300 + manualLevel * 100
+          rpm: 1300 + vmiModeRaw * 100
         });
       }
     }
@@ -146,11 +146,11 @@ test('compare les niveaux manuels uniquement dans la même tranche et sur les m�
 
 test('refuse la comparaison horaire lorsque les niveaux ne sont pas présents les mêmes jours', () => {
   const rows = [];
-  for (const [day, manualLevel] of [[10, 1], [11, 1], [12, 2], [13, 2]]) {
+  for (const [day, vmiModeRaw] of [[10, 1], [11, 1], [12, 2], [13, 2]]) {
     for (let sample = 0; sample < 3; sample++) {
       rows.push({
         t: Date.UTC(2026, 10, day, 10, sample * 5),
-        manualLevel, st: 19, sh: 60, te: 12, he: 80
+        vmiModeRaw, st: 19, sh: 60, te: 12, he: 80
       });
     }
   }
