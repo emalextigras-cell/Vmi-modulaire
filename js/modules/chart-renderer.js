@@ -58,14 +58,15 @@ function drawChart(id,title,series,selectedDate,$){
  el.querySelectorAll('[data-zoom]').forEach(button=>button.addEventListener('click',()=>{const action=button.dataset.zoom;if(action==='in'){view.factor=Math.min(20,view.factor*1.6);}else if(action==='out'){view.factor=Math.max(1,view.factor/1.6);if(view.factor===1)view.center=.5;}else if(action==='left'){view.center=Math.max(0,view.center-.18/view.factor);}else if(action==='right'){view.center=Math.min(1,view.center+.18/view.factor);}else{view.factor=1;view.center=.5;}drawChart(id,title,series,selectedDate,$);}));
  /* Recherche dichotomique : évite de parcourir tout l'historique à chaque mouvement du doigt. */
  const nearest=(points,t)=>{let lo=0,hi=points.length;while(lo<hi){const mid=(lo+hi)>>1;if(points[mid].t<t)lo=mid+1;else hi=mid;}let best=null;for(let k=Math.max(0,lo-1);k<Math.min(points.length,lo+2);k++){const p=points[k];if(Number.isFinite(p.v)){const dd=Math.abs(p.t-t);if(!best||dd<best.dd)best={dd,t:p.t,v:p.v};}}return best;};
+ const nearestPoints=series.map(s=>({series:s,points:s.points.filter(p=>Number.isFinite(p.v))}));
  /* Infobulle : pour chaque courbe, le relevé le plus proche du doigt */
  const svgEl=el.querySelector('svg'),tip=el.querySelector('.tip'),cursor=el.querySelector('#'+id+'Cur');
  const move=e=>{
   const rect=svgEl.getBoundingClientRect(),w=rect.width||W;
   const tVal=x0+((e.clientX-rect.left)*(W/w)-L)/(W-L-R)*(x1-x0);
   let txt=null,tShown=null;
-  for(const s of series){
-   const q=nearest(s.points,tVal);
+  for(const entry of nearestPoints){
+   const s=entry.series,q=nearest(entry.points,tVal);
    if(q&&q.dd<=Math.max(1800000,(x1-x0)/50)){if(txt===null){txt=fmtPoint(q.t,daily)+' · ';tShown=q.t}txt+=`${s.name} ${q.v.toFixed(1)}  `}
   }
   if(txt===null)return;
