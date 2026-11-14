@@ -133,7 +133,8 @@ export function compareOperatingPeriods(data, {
     return { status: 'no-mode-data', periodDays, minSamples, minDays, periods: [], comparisons: [] };
   }
 
-  const latest = new Date(Math.max(...rows.map(row => row.t)));
+  const latestTimestamp = rows.reduce((latest, row) => Math.max(latest, row.t), -Infinity);
+  const latest = new Date(latestTimestamp);
   const currentEnd = new Date(latest.getFullYear(), latest.getMonth(), latest.getDate() + 1);
   const currentStart = new Date(currentEnd);
   currentStart.setDate(currentStart.getDate() - periodDays);
@@ -204,6 +205,11 @@ export function compareOperatingPeriods(data, {
         deltas
       });
     }
+  }
+  for (const item of comparisons) {
+    item.comparable = item.comparable && metrics.some(metric =>
+      item.previous.values[metric.key].median != null && item.current.values[metric.key].median != null
+    );
   }
   const comparableCount = comparisons.filter(item => item.comparable).length;
   return {
