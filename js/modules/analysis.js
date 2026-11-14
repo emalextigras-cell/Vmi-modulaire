@@ -288,6 +288,13 @@ export function buildHygrometricDiagnosis(data, {
   const days=new Set(rows.map(r=>dayKey(r.t)));
   const periods=analyzeHygrometricPeriods(rows,{threshold:dryDelta,maxGapHours});
   const observedHours=periods.observedDurationMs/3600000;
+  const intervalMs=rows.slice(1).map((r,i)=>r.t-rows[i].t).filter(gap=>gap>0);
+  const maxGapMs=maxGapHours*3600000;
+  const acceptedIntervals=intervalMs.filter(gap=>gap<=maxGapMs);
+  const excludedIntervals=intervalMs.filter(gap=>gap>maxGapMs);
+  const medianSampleIntervalMinutes=median(acceptedIntervals)/60000;
+  const largestExcludedGapHours=excludedIntervals.length?Math.max(...excludedIntervals)/3600000:0;
+  const coverageSpanHours=rows.length>1?(rows.at(-1).t-rows[0].t)/3600000:0;
   const dryShare=periods.observedDurationMs?periods.dryDurationMs/periods.observedDurationMs:null;
   const humidShare=periods.observedDurationMs?periods.humidDurationMs/periods.observedDurationMs:null;
   const daily=summarizeDailyTrends(rows);
@@ -372,6 +379,11 @@ export function buildHygrometricDiagnosis(data, {
     sampleCount:rows.length,
     dayCount:days.size,
     observedHours,
+    coverageSpanHours,
+    medianSampleIntervalMinutes:Number.isFinite(medianSampleIntervalMinutes)?medianSampleIntervalMinutes:null,
+    excludedGapCount:excludedIntervals.length,
+    largestExcludedGapHours,
+    maxGapHours,
     medianIndoorRH:median(rows.map(r=>r.sh)),
     medianIndoorHA:median(rows.map(r=>r.indoorHA)),
     medianIncomingHA:median(rows.map(r=>r.incomingHA)),
