@@ -807,7 +807,22 @@ function renderEnergyReadiness(data){
    (volumeValues.length>1?' · valeurs rencontrées : '+volumeValues.map(fmt).join(', ')+' m³':' · valeur constante dans les relevés')+
    '. Cette donnée correspond au volume du logement déclaré dans la VMI+, pas à un volume d’air réellement renouvelé.</div>';
  }
- $('energyReadiness').innerHTML=volumeHtml+html+operatingHtml+modeHtml+rawHtml+'<div class="advice">'+result.message+' Les valeurs brutes sont conservées ; aucune conversion des champs non documentés en watts, kWh ou rendement n’est appliquée. Le débit confirmé reste affiché en m³/h.</div>';
+ const manufacturerPowerReference=[
+  {flow:50,pressure:5,power:4},
+  {flow:125,pressure:25,power:10},
+  {flow:200,pressure:64,power:25},
+  {flow:245,pressure:96,power:39},
+  {flow:350,pressure:195,power:99}
+ ];
+ let referenceHtml='<h4>Repères électriques constructeur — PUREVENT</h4><p class="muted">Valeurs publiées par VMI pour le ventilateur selon le débit et la pression. Mesures réalisées par TÜV SÜD.</p>';
+ referenceHtml+='<table><thead><tr><th>Débit (m³/h)</th><th>Pression (Pa)</th><th>Puissance (W)</th></tr></thead><tbody>';
+ for(const point of manufacturerPowerReference){
+  referenceHtml+='<tr><td>'+point.flow+'</td><td>'+point.pressure+'</td><td>'+point.power+'</td></tr>';
+ }
+ referenceHtml+='</tbody></table>';
+ referenceHtml+='<div class="advice">La notice indique également une puissance maximale de 169 W sans préchauffage et une puissance maximale de préchauffage de 1 800 W. Ces repères ne permettent pas de reconstituer la consommation réelle de ton historique : le CSV ne fournit pas de mesure électrique vérifiée, et l’état/temps de fonctionnement du préchauffage n’est pas confirmé par les champs disponibles. Ne pas assimiler « Cons Res » à des watts.</div>';
+ referenceHtml+='<p class="note">Source : <a href="https://www.vmi-technologies.com/wp-content/uploads/2024/11/FR-VMI%C2%AE-Purevent-Notice-dinstallation-et-de-maintenance-1.pdf" target="_blank" rel="noopener">notice officielle VMI PUREVENT, §2.2–2.3, pages 7–8</a>. Il s’agit d’une référence constructeur, pas d’une mesure de cette installation.</p>';
+ $('energyReadiness').innerHTML=volumeHtml+html+operatingHtml+modeHtml+rawHtml+referenceHtml+'<div class="advice">'+result.message+' Les valeurs brutes sont conservées ; aucune conversion des champs non documentés en watts, kWh ou rendement n’est appliquée. Le débit confirmé reste affiché en m³/h.</div>';
 }
 
 function renderRecommendation(data){
