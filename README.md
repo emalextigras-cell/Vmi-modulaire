@@ -90,6 +90,6 @@ Ce moteur est une première couche de diagnostic déterministe et explicable ; c
 
 ## Phase 10 — préparation de l'analyse énergétique
 
-L'import CSV conserve désormais séparément les champs énergétiques ou de fonctionnement supplémentaires de VMI+ : `Cons Res`, `Cons HydroR`, `Cons TMax`, `Kmoteur`, `Jmoteur`, `Kreseau`, `Jreseau`, `Pression Moteur`, `Offset Press`, `% fonct`, `% fonct.1` et `Dcint`. Ils sont affichés dans l'inventaire avec leurs valeurs min/max et leur effectif, sans leur attribuer de signification ni d'unité non documentée.
+L'import CSV conserve désormais séparément les champs énergétiques ou de fonctionnement supplémentaires de VMI+ : `Cons Res`, `Cons HydroR`, `Cons TMax`, `Kmoteur`, `Jmoteur`, `Kreseau`, `Jreseau`, `Pression Moteur`, `Offset Press`, `% fonct`, `% fonct.1` et `Dcint`. Ils sont affichés dans l'inventaire avec leurs valeurs min/max et leur effectif, sans leur attribuer de signification ni d'unité non documentée. Les deux colonnes exportées sous le même en-tête `% fonct` sont distinguées par leur occurrence dans l'en-tête, afin de ne pas confondre leurs valeurs.
 
 Le régime moteur reste exprimé en tr/min et le débit en m³/h selon les confirmations disponibles. Les valeurs PWM, Cons DP et les autres champs ci-dessus restent bruts. Aucun calcul de watts, kWh, coût, consommation ou rendement n'est effectué tant qu'une mesure électrique et sa définition ne sont pas vérifiées. Des tests dédiés vérifient la conservation des champs et l'absence d'interprétation énergétique abusive.
