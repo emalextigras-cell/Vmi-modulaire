@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildHygrometricDiagnosis } from '../js/modules/analysis.js';
+import { buildHygrometricDiagnosis, analyzeHygrometricPeriods } from '../js/modules/analysis.js';
+import { absoluteHumidity } from '../js/modules/psychrometry.js';
 
 function makeRows({days=3,perDay=10,indoorRH=65,incomingRH=40,indoorTemp=20,incomingTemp=10}={}) {
   const rows=[];
@@ -18,7 +19,7 @@ function makeRows({days=3,perDay=10,indoorRH=65,incomingRH=40,indoorTemp=20,inco
 test('diagnostic identifies a sustained favourable drying potential with moderate confidence',()=>{
  const result=buildHygrometricDiagnosis(makeRows());
  assert.equal(result.status,'analysis-available');
- assert.equal(result.confidence,'modérée');
+ assert.equal(result.coverageLevel,'modérée');
  assert.equal(result.sampleCount,30);
  assert.equal(result.dayCount,3);
  assert.ok(result.dryShare>0.9);
@@ -65,4 +66,17 @@ test('diagnostic quantifies sampling intervals and excludes long data gaps',()=>
  assert.ok(result.largestExcludedGapHours>2);
  assert.ok(result.coverageSpanHours>24);
  assert.equal(result.maxGapHours,2);
+});
+
+test('les durées sont découpées au franchissement des seuils hygrométriques',()=>{
+ const base=absoluteHumidity(20,50);
+ const rows=[3,-3].map((delta,index)=>({
+  t:index*3600000,st:20,sh:50+delta*50/base,te:20,he:50
+ }));
+ const result=analyzeHygrometricPeriods(rows,{threshold:1,maxGapHours:2});
+ assert.equal(result.observedDurationMs,3600000);
+ assert.ok(Math.abs(result.dryDurationMs-1200000)<1);
+ assert.ok(Math.abs(result.neutralDurationMs-1200000)<1);
+ assert.ok(Math.abs(result.humidDurationMs-1200000)<1);
+ assert.ok(Math.abs(result.dryDurationMs+result.neutralDurationMs+result.humidDurationMs-result.observedDurationMs)<1);
 });
