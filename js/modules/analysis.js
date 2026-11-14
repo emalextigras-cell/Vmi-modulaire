@@ -29,9 +29,15 @@ export function analyzeSpeedLevels(data, minSamples = 10, targetRH = 50) {
       return inside != null && incoming != null ? inside-incoming : null;
     }).filter(Number.isFinite);
     const times=samples.map(r=>r.t).filter(Number.isFinite);
+    const coveredDays=new Set(times.map(t=>{
+      const d=new Date(t);
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }));
     const rpms=samples.map(r=>r.rpm).filter(v=>Number.isFinite(v)&&v>0&&v<10000);
     return {
       v,n:samples.length,
+      daysCovered:coveredDays.size,
+      coveredDayKeys:[...coveredDays],
       rh:median(samples.map(r=>r.sh)),
       ha:median(samples.map(r=>absoluteHumidity(r.st,r.sh))),
       delta:median(deltas),
@@ -45,6 +51,13 @@ export function analyzeSpeedLevels(data, minSamples = 10, targetRH = 50) {
     };
   });
   const sufficient=groups.filter(g=>g.n>=minSamples);
+  for(const group of groups){
+    const ownDays=new Set(group.coveredDayKeys);
+    const otherDays=new Set(sufficient.filter(other=>other.v!==group.v)
+      .flatMap(other=>other.coveredDayKeys));
+    group.sharedDays=[...ownDays].filter(day=>otherDays.has(day)).length;
+    delete group.coveredDayKeys;
+  }
   const status=rows.length===0?'no-speed-data':sufficient.length?'comparison-ready':'insufficient';
   return {groups,status,bestSpeed:null,minSamples,targetRH,sampleCount:rows.length,
     comparableGroups:sufficient.length};
