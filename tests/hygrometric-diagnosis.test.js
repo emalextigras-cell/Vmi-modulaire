@@ -40,7 +40,7 @@ test('diagnostic warns when incoming air is consistently wetter in absolute humi
 test('diagnostic marks short histories as insufficient and does not invent conclusions',()=>{
  const result=buildHygrometricDiagnosis(makeRows({days:1,perDay:4}));
  assert.equal(result.status,'insufficient-data');
- assert.equal(result.confidence,'faible');
+ assert.equal(result.coverageLevel,'faible');
  assert.ok(result.observations.some(x=>x.code==='coverage-limited'));
 });
 
