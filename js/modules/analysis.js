@@ -122,7 +122,7 @@ export function summarizeEnergyReadiness(data) {
   const rows=Array.isArray(data)?data:[];
   const fields=[
     {key:'rpm',label:'Régime moteur',unit:'tr/min',verified:true},
-    {key:'debit',label:'Débit exporté',unit:'unité non confirmée',verified:false},
+    {key:'debit',label:'Débit exporté',unit:'m³/h (confirmé)',verified:true},
     {key:'vmiSpeedRaw',label:'Code vitesse VMI+',unit:'code brut',verified:false},
     {key:'vmiPwmRaw',label:'PWM VMI+',unit:'valeur brute',verified:false},
     {key:'consDpRaw',label:'Cons DP',unit:'signification à confirmer',verified:false}
@@ -442,6 +442,27 @@ export function buildHygrometricDiagnosis(data, {
  * Décrit les valeurs Debit brutes selon le code Vitesse brut exporté par VMI+.
  * Aucun code n'est converti en niveau manuel et aucune unité n'est attribuée au débit.
  */
+/** Regroupe le débit confirmé en m³/h par mode VMI+ distinct du code vitesse. */
+export function summarizeRawVmiMode(data) {
+  const groups = new Map();
+  for (const row of Array.isArray(data) ? data : []) {
+    if (!Number.isFinite(row?.vmiModeRaw)) continue;
+    const mode = row.vmiModeRaw;
+    if (!groups.has(mode)) groups.set(mode, []);
+    if (Number.isFinite(row.debit) && row.debit >= 0) {
+      const volume = Number.isFinite(row.volumeRaw) && row.volumeRaw > 0 ? row.volumeRaw : null;
+      groups.get(mode).push({ debit: row.debit, renewalRate: volume ? row.debit / volume : null });
+    }
+  }
+  return [...groups.entries()].sort((a,b)=>a[0]-b[0]).map(([mode, rows]) => ({
+    mode, sampleCount: rows.length,
+    medianDebit: median(rows.map(r=>r.debit)),
+    minDebit: rows.length ? Math.min(...rows.map(r=>r.debit)) : null,
+    maxDebit: rows.length ? Math.max(...rows.map(r=>r.debit)) : null,
+    medianRenewalRate: median(rows.map(r=>r.renewalRate).filter(Number.isFinite))
+  }));
+}
+
 export function summarizeRawVmiSpeed(data) {
   const groups = new Map();
   for (const row of Array.isArray(data) ? data : []) {
