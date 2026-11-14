@@ -59,6 +59,17 @@ export function getColumnMapping(headerRow) {
     const index = headers.findIndex(header => aliases.includes(header));
     if (index >= 0) mapping[key] = index;
   }
+  // Certains exports VMI+ répètent exactement l'en-tête "% fonct".
+  // Dans ce cas, distinguer les deux colonnes par leur occurrence réelle,
+  // plutôt que de dépendre uniquement de leur position de secours historique.
+  const firstOperatingPct = headers.indexOf('% fonct');
+  if (firstOperatingPct >= 0) {
+    mapping.operatingPct = firstOperatingPct;
+    const secondOperatingPct = headers.indexOf('% fonct', firstOperatingPct + 1);
+    if (secondOperatingPct >= 0 && !headers.includes('% fonct 1')) {
+      mapping.operatingPct2 = secondOperatingPct;
+    }
+  }
   return mapping;
 }
 
