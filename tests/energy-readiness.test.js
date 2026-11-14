@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getColumnMapping, recFrom } from '../js/modules/dataio.js';
-import { summarizeEnergyReadiness, summarizeOperatingReference, analyzeSpeedLevels, analyzeSpeedTimeContext } from '../js/modules/analysis.js';
+import { summarizeEnergyReadiness, summarizeOperatingReference, analyzeSpeedLevels, analyzeSpeedTimeContext, compareOperatingPeriods } from '../js/modules/analysis.js';
 
 test('recFrom conserve les champs énergétiques VMI+ sous forme brute', () => {
   const headers = [
@@ -168,4 +168,67 @@ test('conserve Mode séparément de Vitesse dans un export VMI+', () => {
   assert.equal(record.vmiModeRaw, 2);
   assert.equal(record.vmiSpeedRaw, 5);
   assert.equal(record.vit, null);
+});
+
+
+test('compare deux périodes successives à Mode et tranche horaire identiques', () => {
+  const rows = [];
+  for (let day = 1; day <= 14; day++) {
+    const currentPeriod = day >= 8;
+    for (const mode of [1, 2]) {
+      for (let sample = 0; sample < 3; sample++) {
+        rows.push({
+          t: new Date(2026, 10, day, 8, sample * 5).getTime(),
+          vmiModeRaw: mode,
+          vit: 99,
+          vmiSpeedRaw: 5,
+          debit: (mode === 1 ? 120 : 150) + (currentPeriod ? 12 : 0),
+          rpm: (mode === 1 ? 1200 : 1500) + (currentPeriod ? 100 : 0),
+          vmiPwmRaw: 300 + (currentPeriod ? 30 : 0),
+          motorPressureRaw: 20 + (currentPeriod ? 2 : 0)
+        });
+      }
+    }
+  }
+  const result = compareOperatingPeriods(rows, { periodDays: 7, minSamples: 12, minDays: 3 });
+  assert.equal(result.status, 'comparison-available');
+  assert.equal(result.periods[0].start, '2026-11-01');
+  assert.equal(result.periods[0].end, '2026-11-07');
+  assert.equal(result.periods[1].start, '2026-11-08');
+  assert.equal(result.periods[1].end, '2026-11-14');
+  const matched = result.comparisons.filter(item => item.bucket === 1 && item.comparable);
+  assert.deepEqual(matched.map(item => item.mode), [1, 2]);
+  assert.equal(matched[0].deltas.debit.absolute, 12);
+  assert.equal(matched[0].deltas.debit.relativePercent, 10);
+  assert.equal(matched[0].deltas.rpm.absolute, 100);
+  assert.equal(matched[0].deltas.vmiPwmRaw.unit, 'valeur brute');
+  assert.equal(matched[0].deltas.motorPressureRaw.unit, 'valeur brute, unité inconnue');
+});
+
+test('refuse une comparaison temporelle si une période manque de jours ou de relevés', () => {
+  const rows = [];
+  for (let day = 1; day <= 14; day++) {
+    if (day > 7) continue;
+    for (let sample = 0; sample < 4; sample++) {
+      rows.push({
+        t: new Date(2026, 10, day, 8, sample * 5).getTime(),
+        vmiModeRaw: 1, debit: 120, rpm: 1200
+      });
+    }
+  }
+  const result = compareOperatingPeriods(rows, { periodDays: 7, minSamples: 12, minDays: 3 });
+  assert.equal(result.status, 'insufficient-data');
+  assert.ok(result.comparisons.every(item => !item.comparable));
+});
+
+test('ne déduit aucun Mode depuis Vitesse ou les codes bruts VMI+', () => {
+  const rows = Array.from({ length: 30 }, (_, index) => ({
+    t: new Date(2026, 10, 1 + Math.floor(index / 2), 8, 0).getTime(),
+    vit: index % 3 + 1,
+    vmiSpeedRaw: index % 5,
+    debit: 120, rpm: 1200
+  }));
+  const result = compareOperatingPeriods(rows);
+  assert.equal(result.status, 'no-mode-data');
+  assert.deepEqual(result.comparisons, []);
 });
