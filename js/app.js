@@ -4,7 +4,7 @@ import { createBackupSnapshot, mergeBackupData } from './modules/backup.js';
 import { $, sleep, APP_VERSION } from './modules/core.js';
 import { createStore } from './modules/store.js';
 import { fromOldRow } from './modules/legacy-migration.js';
-import { median, analyzeSpeedLevels, analyzeHygrometricPeriods, summarizeDailyTrends, analyzeHourlyPatterns, detectRapidChanges, summarizeEnergyReadiness } from './modules/analysis.js';
+import { median, analyzeSpeedLevels, analyzeHygrometricPeriods, summarizeDailyTrends, analyzeHourlyPatterns, detectRapidChanges, summarizeEnergyReadiness, buildHygrometricDiagnosis } from './modules/analysis.js';
 import { renderCharts, resetChartViews } from './modules/charts.js';
 import { SVC_C, CH_C, SVC_T, CH_T, crc, frame, timeFrame, hex } from './modules/ble.js';
 import { armDownloadTimeout } from './modules/sync.js';
@@ -575,6 +575,23 @@ function renderTemporalAnalysis(data){
  }
 }
 
+
+function renderIntelligentDiagnosis(data){
+ const result=buildHygrometricDiagnosis(data);
+ const box=$('diagnosisStatus'), evidence=$('diagnosisEvidence'), limits=$('diagnosisLimits');
+ const confidence='Confiance '+result.confidence+' · '+result.sampleCount+' relevés simultanés valides · '+result.dayCount+' jour(s) · '+fmt(result.observedHours)+' h observées';
+ box.className=result.status==='analysis-available'?'advice':'advice warn';
+ box.textContent=confidence+'.';
+ if(!result.observations.length){
+  evidence.textContent='Aucun constat ne peut être établi avec les mesures disponibles.';
+ }else{
+  evidence.textContent=result.observations.map((item,index)=>
+   (index+1)+'. '+item.title+' — '+item.detail+' Action proposée : '+item.recommendation
+  ).join(' ');
+ }
+ limits.textContent='Limites : '+result.limits.join(' ');
+}
+
 /* Affichage de la comparaison calculée par le module d'analyse. */
 function analyzeSpeeds(data){
  const min=Number($('minSamples').value);
@@ -637,7 +654,7 @@ function render(){
   qualityBox.className='advice warn';
   qualityBox.textContent=`Contrôle qualité : ${quality.affectedRecords} relevé(s) contiennent des valeurs physiquement improbables (${details}). Ces valeurs sont masquées dans les graphiques concernés, mais conservées dans l’historique et les exports.`;
  }else{qualityBox.className='advice';qualityBox.textContent='Contrôle qualité : aucune valeur aberrante détectée sur les capteurs pour cette période. Les données manquantes ne sont pas comptées comme anomalies.';}
- renderCharts(data,selectedDate,$);renderRecommendation(data);renderHygrometricPeriods(data);renderTemporalAnalysis(data);analyzeSpeeds(data);renderEnergyReadiness(data);renderFreshness();
+ renderCharts(data,selectedDate,$);renderRecommendation(data);renderHygrometricPeriods(data);renderIntelligentDiagnosis(data);renderTemporalAnalysis(data);analyzeSpeeds(data);renderEnergyReadiness(data);renderFreshness();
 }
 $('targetRH').onchange=render;$('minSamples').onchange=render;
 
