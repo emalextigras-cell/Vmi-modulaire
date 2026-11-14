@@ -246,10 +246,10 @@ export function detectRapidChanges(data, { maxGapHours = 2, rhJump = 15, absolut
  * la consommation électrique, une panne ou un lien de causalité.
  */
 export function buildHygrometricDiagnosis(data, {
-  dryDelta: 1,
-  trendDelta: 0.8,
-  minSamples: 12,
-  maxGapHours: 2
+  dryDelta = 1,
+  trendDelta = 0.8,
+  minSamples = 12,
+  maxGapHours = 2
 } = {}) {
   const unique = new Map();
   for (const r of Array.isArray(data) ? data : []) {
