@@ -49,3 +49,36 @@ test('les mesures invalides et les horodatages identiques ne créent pas d’ano
  const events=detectRapidChanges([row(day(10),20,50),row(day(10),20,90),row(day(10,1),20,150)]);
  assert.equal(events.length,0);
 });
+
+import { analyzeSpeedLevels, summarizeEnergyReadiness } from '../js/modules/analysis.js';
+
+test('compare les niveaux manuels sans inventer un niveau à partir du code VMI+ brut',()=>{
+ const rows=[
+  {vit:1,t:1000,st:20,sh:55,te:10,he:45,rpm:1200},
+  {vit:1,t:2000,st:20,sh:54,te:10,he:45,rpm:1210},
+  {vit:2,t:3000,st:20,sh:52,te:10,he:45,rpm:1400},
+  {vmiSpeedRaw:3,st:20,sh:40}
+ ];
+ const result=analyzeSpeedLevels(rows,2,50);
+ assert.equal(result.status,'comparison-ready');
+ assert.equal(result.groups[0].n,2);
+ assert.equal(result.groups[0].rpm,1205);
+ assert.equal(result.groups[0].rpmSamples,2);
+ assert.equal(result.groups[0].dryingShare,1);
+ assert.equal(result.groups[0].spanHours,2000/3600000);
+ assert.equal(result.groups[1].n,1);
+ assert.equal(result.groups[2].n,0);
+ assert.equal(result.bestSpeed,null);
+});
+
+test('inventorie les champs énergétiques sans inventer d’unité ni de kWh',()=>{
+ const result=summarizeEnergyReadiness([
+  {rpm:1300,debit:121,vmiSpeedRaw:3,vmiPwmRaw:348,consDpRaw:112},
+  {rpm:1400,debit:120,vmiSpeedRaw:3,vmiPwmRaw:350,consDpRaw:110}
+ ]);
+ assert.equal(result.total,2);
+ assert.equal(result.fields.find(f=>f.key==='rpm').median,undefined);
+ assert.equal(result.fields.find(f=>f.key==='debit').min,120);
+ assert.equal(result.hasVerifiedElectricalEnergy,false);
+ assert.match(result.message,/watts ou kWh/);
+});
