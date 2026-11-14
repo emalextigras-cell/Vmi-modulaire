@@ -24,7 +24,6 @@ export const fromOldRow = row => ({
   rpm: row[7],
   fil: row[8],
   vit: null,
-  manualLevel: null,
   boost: null,
   hol: null
 });
