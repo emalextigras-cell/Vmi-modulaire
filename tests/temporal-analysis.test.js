@@ -6,7 +6,7 @@ const day = (n,h=12) => new Date(2026,10,n,h,0,0).getTime();
 const row = (t,st=20,sh=60,te=10,he=40) => ({t,st,sh,te,he});
 
 test('regroupe les relevés par jour civil local et calcule les médianes',()=>{
- const result=summarizeDailyTrends([row(day(10),20,50),row(day(10,13),22,60),row(day(11),21,70)]);
+ const result=summarizeDailyTrends([row(day(10),20,50),row(day(10,13),22,60),row(day(11),21,70),row(day(11,13),21,70),row(day(11,14),21,70)]);
  assert.equal(result.days.length,2);
  assert.equal(result.days[0].sampleCount,2);
  assert.equal(result.days[0].medianRH,55);
