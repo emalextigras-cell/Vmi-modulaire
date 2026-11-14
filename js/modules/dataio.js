@@ -82,9 +82,16 @@ export function parseCell(value, spreadsheet = globalThis.XLSX) {
       rk: `${pad(day)}/${pad(month)}/${year} ${pad(c.H)}:${pad(c.M)}:${pad(second)}` };
   }
   if (typeof value === 'string') {
-    const m = value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/);
-    if (m) return { t: new Date(+m[3], +m[2]-1, +m[1], +m[4], +m[5], +(m[6]||0)).getTime(),
-      rk: `${pad(+m[1])}/${pad(+m[2])}/${m[3]} ${pad(+m[4])}:${m[5]}:${pad(+(m[6]||0))}` };
+    // Format français strict : refuser les dates impossibles et les suffixes
+    // parasites au lieu de laisser Date() normaliser silencieusement la valeur.
+    const m = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    if (!m) return null;
+    const day=+m[1], month=+m[2], year=+m[3], hour=+m[4], minute=+m[5], second=+(m[6]||0);
+    if(month<1||month>12||day<1||hour>23||minute>59||second>59) return null;
+    const date=new Date(year,month-1,day,hour,minute,second);
+    if(date.getFullYear()!==year||date.getMonth()!==month-1||date.getDate()!==day) return null;
+    return { t: date.getTime(),
+      rk: `${pad(day)}/${pad(month)}/${year} ${pad(hour)}:${pad(minute)}:${pad(second)}` };
   }
   return null;
 }
