@@ -74,6 +74,6 @@ Les modules historiques `date-utils.js`, `psychrometry.js`, `bluetooth-protocol.
 
 Le moteur croise les mesures simultanées du salon et de l'air entrant : humidité absolue, point de rosée calculé, périodes où l'air entrant est plus sec ou plus humide, tendances journalières et profils horaires. Il restitue des constats accompagnés de leurs mesures justificatives, de pistes d'action et d'un niveau de confiance lié au volume, à la durée et à la répartition des données.
 
-Le diagnostic dédoublonne les horodatages, écarte les mesures hors limites et ne prolonge pas les intervalles de plus de deux heures. Il ne déduit pas le débit réel, la consommation électrique, une panne ou une vitesse optimale. Le point de rosée de l'air n'est pas une température de paroi et ne suffit pas à conclure à un risque de condensation.
+Le diagnostic dédoublonne les horodatages, écarte les mesures hors limites et ne prolonge pas les intervalles de plus de deux heures. Il affiche aussi l'intervalle médian entre relevés acceptés, le nombre de trous exclus et le plus grand trou, sans supposer une fréquence d'échantillonnage théorique. Il ne déduit pas le débit réel, la consommation électrique, une panne ou une vitesse optimale. Le point de rosée de l'air n'est pas une température de paroi et ne suffit pas à conclure à un risque de condensation.
 
 Ce moteur est une première couche de diagnostic déterministe et explicable ; ce n'est pas encore un modèle d'apprentissage automatique ni un pilotage automatique.
