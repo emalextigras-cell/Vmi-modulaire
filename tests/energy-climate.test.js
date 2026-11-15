@@ -56,3 +56,35 @@ test('ne transforme pas les données manquantes en énergie ou humidité nulles'
   assert.equal(result.matchedDayCount,0);
   assert.equal(result.days[0].estimatedKwh,null);
 });
+
+test('écarte un horodatage énergie-climat contradictoire au lieu de garder la dernière ligne',()=>{
+  const history=[
+    row(0),row(1),row(2),row(3),row(4),
+    row(2,125,{sh:95})
+  ];
+  const result=summarizeDailyEnergyClimateContext(history,{
+    maxGapHours:1,minFanHours:1,minClimateSamples:3,minDays:1
+  });
+  assert.equal(result.status,'available');
+  assert.equal(result.duplicateTimestampCount,1);
+  assert.equal(result.conflictingTimestampCount,1);
+  assert.equal(result.days[0].climateSampleCount,4);
+  assert.equal(result.days[0].fanHours,2);
+  assert.equal(result.days[0].estimatedKwh,0.02);
+});
+
+test('ignore les métadonnées annexes lors du contrôle des doublons énergie-climat',()=>{
+  const history=[row(0),row(1),row(2),row(3),row(4)];
+  const duplicate={...history[2],vmiModeRaw:1,rawPayload:'ancienne trame'};
+  const enriched={...history[2],vmiModeRaw:2,rawPayload:'trame différente'};
+  const result=summarizeDailyEnergyClimateContext(
+    [...history,duplicate,enriched],
+    {maxGapHours:1,minFanHours:3,minClimateSamples:3,minDays:1}
+  );
+  assert.equal(result.status,'available');
+  assert.equal(result.duplicateTimestampCount,1);
+  assert.equal(result.conflictingTimestampCount,0);
+  assert.equal(result.days[0].climateSampleCount,5);
+  assert.equal(result.days[0].fanHours,4);
+});
+
