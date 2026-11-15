@@ -19,10 +19,10 @@
 </header>
 
 <nav class="main-nav" aria-label="Navigation principale"><a href="#accueil">Accueil</a><a href="#analyses">Analyses</a><a href="#historique">Historique</a><a href="#reglages">Réglages</a></nav>
-<section class="card dashboard-intro" id="accueil"><h2>Vue d'ensemble</h2><p class="sub">Pas besoin de Bluetooth pour consulter les analyses : elles utilisent l'historique VMI+.</p><div class="dashboard-status"><div><b>Données disponibles</b><p id="dashboardDataStatus">Chargement de l'historique…</p></div><div><b>Analyse</b><p id="dashboardAnalysisStatus">Préparation du diagnostic…</p></div></div></section>
+<section class="card dashboard-intro" id="accueil"><h2>Vue d'ensemble</h2><p class="sub">Pas besoin de Bluetooth pour consulter les analyses : elles utilisent l'historique VMI+.</p><div class="dashboard-status"><div><b>Connexion VMI</b><p id="dashboardConnectionStatus">Recherche d’une VMI déjà autorisée…</p></div><div><b>Données disponibles</b><p id="dashboardDataStatus">Chargement de l'historique…</p></div><div><b>Analyse</b><p id="dashboardAnalysisStatus">Préparation du diagnostic…</p></div></div></section>
 <div id="errBanner" class="advice warn" style="display:none"></div>
 
-<details class="card compact" id="reglages"><summary>Connexion Bluetooth facultative</summary>
+<details class="card compact" id="reglages"><summary>Connexion Bluetooth</summary>
  <div class="row">
   <button id="conn">Se connecter</button><button id="disc" class="outline" disabled>Déconnecter</button>
   <span class="pill" id="bleState">Déconnecté</span>
