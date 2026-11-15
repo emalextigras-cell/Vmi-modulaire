@@ -923,7 +923,7 @@ function renderEnergyReadiness(data){
  }
  operatingHtml+='<div class="advice">'+operating.limits.join(' ')+'</div>';
  const modeGroups=summarizeRawVmiMode(data);
- let modeHtml='<h4>Débit et renouvellement théorique par mode VMI+</h4><p class="muted">Le champ « mode » est distinct du champ « Vitesse ». Les valeurs « Debit » de l’historique sont brutes : l’en-tête CSV ne précise pas leur unité. Le mode 3 dispose d’une référence distincte communiquée par l'utilisateur de 184 m³/h. Le taux calculé à partir de « Debit » et du volume est conditionnel à l’hypothèse que « Debit » soit en m³/h ; il ne mesure pas l’air effectivement distribué dans chaque pièce.</p>';
+ let modeHtml='<h4>Débit et renouvellement théorique par mode VMI+</h4><p class="muted">Le champ « mode » est distinct du champ « Vitesse ». Les valeurs « Debit » de l’historique sont brutes : l’en-tête CSV ne précise pas leur unité. Le mode 3 dispose d’une référence distincte communiquée par l’utilisateur de 184 m³/h. Le taux calculé à partir de « Debit » et du volume est conditionnel à l’hypothèse que « Debit » soit en m³/h ; il ne mesure pas l’air effectivement distribué dans chaque pièce.</p>';
  if(!modeGroups.length){modeHtml+='<div class="advice">Aucun mode VMI+ exploitable dans la période sélectionnée.</div>'}
  else{
   modeHtml+='<table><thead><tr><th>Mode VMI+</th><th>Relevés</th><th>Débit médian / référence</th><th>Min–max débit mesuré</th><th>Renouvellement théorique</th></tr></thead><tbody>';
