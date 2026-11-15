@@ -215,3 +215,8 @@ Cette évolution améliore la traçabilité du diagnostic ; elle ne change aucun
 Les preuves d'une tendance durable détaillent maintenant, pour chacune des deux fenêtres, la médiane d'humidité absolue de chaque journée retenue et le nombre de relevés qui la composent. L'utilisateur peut vérifier les trois valeurs journalières derrière chaque médiane de fenêtre et repérer immédiatement une journée atypique ou moins documentée.
 
 Les valeurs restent des médianes journalières descriptives. Aucun relevé n'est ajouté, pondéré artificiellement ou interprété comme une cause.
+
+
+## Phase 17 — expliquer les critères temporels du diagnostic
+
+Le panneau « Méthode et seuils utilisés » précise les critères nécessaires à une tendance durable : six jours exploitables minimum, deux fenêtres de trois jours, quatre jours calendaires maximum par fenêtre et quatorze jours maximum pour l'ensemble comparé. Ces critères sont affichés à côté du seuil hygrométrique afin que l'utilisateur comprenne pourquoi une évolution peut rester non concluante.
