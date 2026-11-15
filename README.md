@@ -1,4 +1,4 @@
-# VMI Purevent — version 13 modulaire
+# VMI Purevent — version 14 modulaire
 
 Copie de travail indépendante du dépôt source `emalextigras-cell/Vmi`. Le dépôt d'origine reste intact.
 
@@ -20,6 +20,24 @@ Copie de travail indépendante du dépôt source `emalextigras-cell/Vmi`. Le dé
 - `js/modules/chart-renderer.js` : graphiques SVG, gestion des courbes et infobulles tactiles.
 - `manifest.json` : configuration de l'application installable.
 - `sw.js` : service worker et cache des ressources.
+
+## Matériel installé — référence issue du devis
+
+Le devis d'installation fourni identifie le caisson comme **VMI Purevent Vision'R** (marque VMI, modèle indiqué « purevent »). Les caractéristiques explicitement inscrites au devis sont :
+
+- Débit maximal annoncé : **350 m³/h**.
+- Puissance maximale du moteur annoncée : **169 W**.
+- Puissance maximale de chauffage électrique : **1 800 W**.
+- Alimentation : **230 V – 50 Hz monophasé**.
+- Installation décrite : prise d'air en toiture et insufflation par deux bouches.
+
+Ces valeurs décrivent les caractéristiques annoncées au devis ; elles ne sont pas des mesures de fonctionnement de l'installation.
+
+### Précaution sur la courbe de puissance logicielle
+
+Le module energy-estimate.js utilise une courbe de puissance PUREVENT issue de la notice référencée dans l'interface (points de 50 à 350 m³/h, jusqu'à 99 W au point 350 m³/h / 195 Pa). Cette courbe est une **estimation de puissance du ventilateur par interpolation**, pas une mesure électrique. Le devis annonce par ailleurs 169 W de puissance moteur maximale. Le dépôt ne démontre pas que ces deux chiffres décrivent exactement le même périmètre ou les mêmes conditions d'essai : ils sont donc conservés comme références distinctes et ne doivent pas être assimilés.
+
+Le modèle Vision'R est documenté à partir du devis, mais les éléments disponibles ne permettent pas d'affirmer que chaque point de la courbe de la notice correspond aux conditions réelles de cette installation.
 
 ## Déploiement GitHub Pages
 
