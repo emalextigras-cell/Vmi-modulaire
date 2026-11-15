@@ -15,6 +15,7 @@ import { summarizeDataQuality, isPlausibleHumidity, isPlausibleTemperature } fro
 import { upsertEnergyReading, summarizeEnergyReadings, summarizeMonthlyEnergyReadings, summarizeEnergyClimateContext, ENERGY_METER_LABELS } from './modules/energy-meter.js';
 import { summarizeFanEnergyEstimate, summarizeFanEnergyByManualMode } from './modules/energy-estimate.js';
 import { summarizeDailyEnergyClimateContext } from './modules/energy-climate.js';
+import { summarizeWeeklyDiagnostic } from './modules/weekly-diagnostic.js';
 import { chooseAuthorizedDevice } from './modules/bluetooth-autoconnect.js';
 import { buildLiveFreshnessText } from './modules/live-freshness.js';
 import { formatDiagnosisConfidence } from './modules/diagnostic-confidence.js';
@@ -1011,6 +1012,51 @@ function renderDailyEnergyClimateContext(data){
  box.innerHTML=html;
 }
 
+
+function renderWeeklyDiagnostic(data){
+ const box=$('weeklyDiagnostic');
+ if(!box)return;
+ const result=summarizeWeeklyDiagnostic(data);
+ if(result.status==='no-data'){
+  box.className='advice';
+  box.textContent='Aucun historique horodaté disponible pour établir un bilan hebdomadaire.';
+  return;
+ }
+ const formatValue=(number,unit)=>number==null?'–':fmt(number)+' '+unit;
+ const periodLabel=period=>{
+  const start=new Date(period.start+'T12:00:00');
+  const end=new Date(period.end+'T12:00:00');
+  return start.toLocaleDateString('fr-FR')+' au '+end.toLocaleDateString('fr-FR');
+ };
+ if(result.status!=='available'){
+  box.className='advice';
+  box.innerHTML='<p>Comparaison hebdomadaire non disponible : il faut au moins '+result.minDaysPerWindow+' journées exploitables dans chacune des deux fenêtres de '+result.windowDays+' jours.</p>'+
+   '<ul>'+result.periods.map(period=>'<li><b>'+(period.id==='previous'?'Semaine précédente':'Semaine récente')+'</b> · '+periodLabel(period)+' : '+period.dayCount+' / '+result.minDaysPerWindow+' jours exploitables, '+period.sampleCount+' relevés complets.</li>').join('')+'</ul>'+
+   '<p class="note">Les périodes ne sont pas rapprochées lorsqu’une couverture minimale manque. Les trous de plusieurs jours ne sont pas comblés.</p>';
+  return;
+ }
+ let html='<p class="note">Comparaison des deux fenêtres calendaires de '+result.windowDays+' jours, ancrées sur la date du dernier relevé. Chaque journée a le même poids dans les médianes.</p>';
+ html+='<div class="table-wrap"><table><thead><tr><th>Période</th><th>Jours / relevés</th><th>HA intérieure</th><th>HA air entrant</th><th>Écart intérieur − entrant</th><th>HR intérieure</th><th>Température</th><th>Ventilateur estimé</th></tr></thead><tbody>';
+ for(const period of result.periods){
+  const energy=period.estimatedFanKwh==null?'–':fmt(period.estimatedFanKwh)+' kWh ('+period.energyCoveredDays+' j)';
+  html+='<tr><td>'+(period.id==='previous'?'Précédente':'Récente')+'<br><small>'+periodLabel(period)+'</small></td>'+
+   '<td>'+period.dayCount+' j · '+period.sampleCount+'</td>'+
+   '<td>'+formatValue(period.medianIndoorHA,'g/m³')+'</td>'+
+   '<td>'+formatValue(period.medianIncomingHA,'g/m³')+'</td>'+
+   '<td>'+formatValue(period.medianDeltaHA,'g/m³')+'</td>'+
+   '<td>'+formatValue(period.medianRH,'%')+'</td>'+
+   '<td>'+formatValue(period.medianTemperature,'°C')+'</td>'+
+   '<td>'+energy+'</td></tr>';
+ }
+ html+='</tbody></table></div>';
+ const change=result.comparison;
+ html+='<h4>Constats entre les deux périodes</h4><ul>'+result.findings.map(item=>'<li><b>'+item.title+'</b> : '+item.text+'</li>').join('')+'</ul>';
+ html+='<p class="note">Évolution des médianes : HA intérieure '+formatValue(change.indoorHA,'g/m³')+' · air entrant '+formatValue(change.incomingHA,'g/m³')+' · écart intérieur − entrant '+formatValue(change.deltaHA,'g/m³')+'.</p>';
+ html+='<details><summary>Critères et limites de lecture</summary><ul>'+result.limits.map(item=>'<li>'+item+'</li>').join('')+'</ul></details>';
+ box.className='advice';
+ box.innerHTML=html;
+}
+
 function renderEnergyMeterTracking(){
  const result=summarizeEnergyReadings(energyReadings);
  const climateSummary=summarizeEnergyClimateContext(energyReadings,hist);
@@ -1154,7 +1200,7 @@ function render(){
  qualityBox.textContent='Contrôle qualité de l’historique analysé : '+coverageText+missingText+invalidText+spikeText+' Les données manquantes réduisent la couverture ; elles ne sont pas considérées comme des anomalies.';
  renderCharts(data,selectedDate,$);
  renderRecommendation(analysisData);renderHygrometricPeriods(analysisData);renderIntelligentDiagnosis(analysisData);
- renderTemporalAnalysis(analysisData);analyzeSpeeds(analysisData);renderEnergyReadiness(analysisData);renderFanEnergyEstimate(analysisData);renderDailyEnergyClimateContext(analysisData);renderFreshness();
+ renderTemporalAnalysis(analysisData);analyzeSpeeds(analysisData);renderEnergyReadiness(analysisData);renderFanEnergyEstimate(analysisData);renderDailyEnergyClimateContext(analysisData);renderWeeklyDiagnostic(analysisData);renderFreshness();
 }
 $('targetRH').onchange=render;$('minSamples').onchange=render;
 
