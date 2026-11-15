@@ -45,3 +45,12 @@ test('les demandes simultanées partagent une seule tentative de connexion', asy
   assert.deepEqual(await Promise.all([first, second]), ['connected', 'connected']);
   assert.equal(calls, 1);
 });
+
+import { readFile } from 'node:fs/promises';
+
+test('la synchronisation automatique ne redémarre pas à chaque reconnexion', async () => {
+  const source = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
+  assert.match(source, /if\(reachedCut&&dev&&dev\.gatt&&dev\.gatt\.connected\)\{intentionalDisconnect=true;dev\.gatt\.disconnect\(\);\}/);
+  assert.equal((source.match(/autoDone=false/g) || []).length, 1);
+  assert.match(source, /shouldReconnectAfterDisconnect\(\{manualDisconnect,intentionalDisconnect:expected,hasDevice:!!dev\}\)/);
+});
