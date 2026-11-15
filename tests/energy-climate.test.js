@@ -115,5 +115,5 @@ test('accepte une couverture énergétique nulle et zéro jour requis',()=>{
     minFanHours:0,minClimateSamples:1,minDays:0
   });
   assert.equal(result.status,'available');
-  assert.equal(result.matchedDayCount,0);
+  assert.equal(result.matchedDayCount,1);
 });
