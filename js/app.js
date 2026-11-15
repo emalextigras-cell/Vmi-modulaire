@@ -740,6 +740,8 @@ function renderIntelligentDiagnosis(data){
      lastMedianAbsoluteHumidity:'Humidité absolue médiane à la fin',
      baselineMedianAbsoluteHumidity:'Médiane de la première fenêtre',
      recentMedianAbsoluteHumidity:'Médiane de la dernière fenêtre',
+     baselineMedianRelativeHumidity:'Humidité relative médiane — fenêtre initiale',recentMedianRelativeHumidity:'Humidité relative médiane — fenêtre récente',
+     baselineMedianTemperature:'Température intérieure médiane — fenêtre initiale',recentMedianTemperature:'Température intérieure médiane — fenêtre récente',
      baselineIncomingMedianAbsoluteHumidity:'Humidité absolue médiane de l’air entrant — fenêtre initiale',
      recentIncomingMedianAbsoluteHumidity:'Humidité absolue médiane de l’air entrant — fenêtre récente',
      baselineIndoorMinusIncomingMedian:'Écart salon − air entrant — fenêtre initiale',
@@ -755,6 +757,8 @@ function renderIntelligentDiagnosis(data){
     const percentKeys=new Set(['durationShare','requiredDurationShare','dryDurationShare','humidDurationShare','dominanceThreshold']);
     const hourKeys=new Set(['observedHours','requiredObservedHours']);
     const humidityKeys=new Set(['medianIndoorMinusIncomingHA','firstMedianAbsoluteHumidity','lastMedianAbsoluteHumidity','baselineMedianAbsoluteHumidity','recentMedianAbsoluteHumidity','baselineIncomingMedianAbsoluteHumidity','recentIncomingMedianAbsoluteHumidity','baselineIndoorMinusIncomingMedian','recentIndoorMinusIncomingMedian','change','medianDelta','threshold']);
+    const relativeHumidityKeys=new Set(['baselineMedianRelativeHumidity','recentMedianRelativeHumidity']);
+    const temperatureKeys=new Set(['baselineMedianTemperature','recentMedianTemperature']);
     Object.entries(item.basis).forEach(([key,value])=>{
      if(key==='unit'||value==null||!labels[key])return;
      const term=document.createElement('dt');
@@ -764,6 +768,8 @@ function renderIntelligentDiagnosis(data){
      if(typeof value==='number'){
       if(percentKeys.has(key))shown=(value*100).toLocaleString('fr-FR',{maximumFractionDigits:1})+' %';
       else if(hourKeys.has(key))shown=value.toLocaleString('fr-FR',{maximumFractionDigits:1})+' h';
+      else if(relativeHumidityKeys.has(key))shown=value.toLocaleString('fr-FR',{maximumFractionDigits:1})+' %';
+      else if(temperatureKeys.has(key))shown=value.toLocaleString('fr-FR',{maximumFractionDigits:1})+' °C';
       else if(humidityKeys.has(key))shown=value.toLocaleString('fr-FR',{maximumFractionDigits:2})+' g/m³';
       else shown=value.toLocaleString('fr-FR',{maximumFractionDigits:1});
      }else shown=String(value);

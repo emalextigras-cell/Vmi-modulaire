@@ -227,3 +227,10 @@ Le panneau « Méthode et seuils utilisés » précise les critères nécessaire
 Les preuves d'une tendance d'humidité absolue intérieure affichent aussi, sur les mêmes deux fenêtres, les médianes journalières agrégées de l'humidité absolue de l'air entrant et de l'écart salon − air entrant. Cela permet de replacer l'évolution intérieure dans le contexte hygrométrique extérieur mesuré par la sonde d'entrée.
 
 Ces indicateurs restent descriptifs : ils ne démontrent pas que l'air entrant cause l'évolution intérieure, ni que la VMI a produit un effet donné. Aucun ajustement automatique n'est effectué.
+
+
+## Phase 19 — contexte température et humidité relative des tendances
+
+Les preuves des tendances d'humidité absolue présentent également les médianes d'humidité relative et de température intérieure sur les deux fenêtres comparées. Cela permet de distinguer les grandeurs observées : une variation d'humidité relative peut accompagner une variation de température sans que l'humidité absolue évolue dans la même proportion.
+
+Ces valeurs sont affichées comme contexte descriptif ; aucune transformation en diagnostic de condensation, de paroi froide ou de cause n'est effectuée.
