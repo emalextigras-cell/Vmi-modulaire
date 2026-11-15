@@ -956,11 +956,19 @@ function renderFanEnergyEstimate(data){
  const box=$('fanEnergyEstimate');
  if(!box)return;
  const result=summarizeFanEnergyEstimate(data);
+ const duplicateNotice=(result.duplicateTimestampCount||result.conflictingTimestampCount)
+  ? 'Horodatages : '+result.duplicateTimestampCount+' groupe(s) avec doublons, dont '+result.conflictingTimestampCount+' contradictoire(s) écarté(s). Les doublons identiques sont comptés une seule fois.'
+  : 'Aucun doublon d’horodatage détecté.';
  box.className='advice';
  if(result.status!=='estimated'){
-  box.textContent=result.sampleCount<2
+  box.textContent=(result.sampleCount<2
    ?'Il faut au moins deux relevés historiques avec un débit VMI+ exploitable pour établir une estimation.'
-   :'Aucun intervalle exploitable : vérifie que le débit est compris entre 50 et 350 m³/h et que deux relevés successifs sont espacés de 2 h maximum.';
+   :'Aucun intervalle exploitable : vérifie que le débit est compris entre 50 et 350 m³/h et que deux relevés successifs sont espacés de 2 h maximum.')+' '+duplicateNotice;
+  const modeBox=$('fanEnergyByMode');
+  if(modeBox){
+   const byMode=summarizeFanEnergyByManualMode(data);
+   modeBox.textContent=(modeBox.textContent||'')+' Horodatages de la comparaison par mode : '+byMode.duplicateTimestampCount+' groupe(s) avec doublons, dont '+byMode.conflictingTimestampCount+' contradictoire(s) écarté(s).';
+  }
   return;
  }
  const coverage=result.coveragePercent;
@@ -970,21 +978,25 @@ function renderFanEnergyEstimate(data){
   '<div class="metric"><b>'+fmt(result.averagePowerW)+' W</b><span>Puissance moyenne estimée</span></div>'+
   '<div class="metric"><b>'+fmt(coverage)+' %</b><span>Couverture ('+coverageLabel+')</span></div></div>'+
   '<p class="note">Période : '+fmtShort(result.firstAt)+' → '+fmtShort(result.lastAt)+' · '+fmt(result.coveredHours)+' h intégrées sur '+fmt(result.observedHours)+' h · '+result.acceptedIntervalCount+' intervalle(s) retenu(s).</p>'+
+  '<p class="note">'+duplicateNotice+'</p>'+
   '<p class="note">Il s’agit d’une estimation du ventilateur, pas d’une mesure au compteur. La pression réelle du réseau, l’état du filtre et les conditions d’installation peuvent modifier la puissance absorbée.</p>'+
   '<p class="note"><strong>Préchauffage et total VMI : non estimables avec les champs actuellement validés.</strong> Le champ « Cons Res » n’est pas converti en watts ou en kWh.</p>'+
   '<details><summary>Méthode et limites</summary><ul>'+result.limits.map(item=>'<li>'+item+'</li>').join('')+'</ul><p class="note">Référence : notice officielle PUREVENT, valeurs de puissance mesurées par TÜV SÜD à 50, 125, 200, 245 et 350 m³/h.</p></details>';
   const modeBox=$('fanEnergyByMode');
   if(modeBox){
    const byMode=summarizeFanEnergyByManualMode(data);
+   const modeNotice=(byMode.duplicateTimestampCount||byMode.conflictingTimestampCount)
+    ? 'Horodatages : '+byMode.duplicateTimestampCount+' groupe(s) avec doublons, dont '+byMode.conflictingTimestampCount+' contradictoire(s) écarté(s). Les doublons identiques sont comptés une seule fois.'
+    : 'Aucun doublon d’horodatage détecté.';
    if(!byMode.hasManualModeData){
-    modeBox.textContent='Pas de champ « Mode » manuel identifié dans cet historique. Les codes bruts VMI+ ne sont pas utilisés pour inventer les niveaux 1/2/3.';
+    modeBox.textContent='Pas de champ « Mode » manuel identifié dans cet historique. Les codes bruts VMI+ ne sont pas utilisés pour inventer les niveaux 1/2/3. '+modeNotice;
    }else{
     let table='<div class="table-wrap"><table><thead><tr><th>Mode manuel</th><th>Énergie estimée</th><th>Puissance moyenne quotidienne médiane</th><th>Heures intégrées</th><th>Jours</th><th>Couverture</th><th>Conditions moyennes</th></tr></thead><tbody>';
     for(const group of byMode.groups){
      table+='<tr><td>'+group.mode+'</td><td>'+(group.estimatedKwh==null?'–':fmt(group.estimatedKwh)+' kWh')+'</td><td>'+(group.medianDailyAveragePowerW==null?'–':fmt(group.medianDailyAveragePowerW)+' W')+'</td><td>'+fmt(group.coveredHours)+' h</td><td>'+group.dayCount+'</td><td>'+fmt(group.coveragePercent)+' %</td><td>'+((group.climate.deltaAbsHumidity==null)?'Non disponible':'Intérieur '+fmt(group.climate.indoorTemp)+' °C · extérieur '+fmt(group.climate.outdoorTemp)+' °C · écart humidité absolue '+fmt(group.climate.deltaAbsHumidity)+' g/m³')+'</td></tr>';
     }
     table+='</tbody></table></div>';
-    modeBox.innerHTML=table+'<p class="note">Les changements de mode, les trous de plus de '+byMode.maxGapHours+' h et les débits hors plage sont exclus. '+byMode.transitionIntervalCount+' intervalle(s) traversant un changement de mode ignoré(s).</p><p class="note">La puissance moyenne est la médiane des moyennes journalières afin que les journées aient le même poids. Une comparaison nécessite au moins '+byMode.minDays+' jours par mode ; les lignes avec moins de jours restent descriptives.</p>';
+    modeBox.innerHTML=table+'<p class="note">'+modeNotice+'</p><p class="note">Les changements de mode, les trous de plus de '+byMode.maxGapHours+' h et les débits hors plage sont exclus. '+byMode.transitionIntervalCount+' intervalle(s) traversant un changement de mode ignoré(s).</p><p class="note">La puissance moyenne est la médiane des moyennes journalières afin que les journées aient le même poids. Une comparaison nécessite au moins '+byMode.minDays+' jours par mode ; les lignes avec moins de jours restent descriptives.</p>';
    }
   }
 }
