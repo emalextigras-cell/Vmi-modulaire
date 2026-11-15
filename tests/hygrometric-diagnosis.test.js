@@ -33,7 +33,7 @@ function makeHourlyRows(groups) {
 test('diagnostic exposes its thresholds and the measured basis of each finding',()=>{
  const result=buildHygrometricDiagnosis(makeRows());
  assert.deepEqual(result.methodology,{
-  version:'hygrometric-diagnostic-v4',
+  version:'hygrometric-diagnostic-v5',
   dryDeltaThreshold:1,
   trendDeltaThreshold:0.8,
   minimumSamples:12,
@@ -44,7 +44,12 @@ test('diagnostic exposes its thresholds and the measured basis of each finding',
   hourlyBucketHours:6,
   hourlyMinimumSamples:5,
   hourlyMinimumDistinctDays:2,
-  hourlyMinimumSharedDays:2
+  hourlyMinimumSharedDays:2,
+  minimumDailySamplesForConfidence:3,
+  moderateCoveragePercent:20,
+  highCoveragePercent:50,
+  moderateAcceptedShare:0.7,
+  highAcceptedShare:0.9
  });
  const finding=result.observations.find(x=>x.code==='air-drying-potential');
  assert.ok(finding);
@@ -132,6 +137,9 @@ test('diagnostic identifies a sustained favourable drying potential with moderat
  assert.equal(result.coverageLevel,'modérée');
  assert.equal(result.sampleCount,30);
  assert.equal(result.dayCount,3);
+ assert.equal(result.confidenceBasis.daysWithAtLeastThreeSamples,3);
+ assert.equal(result.confidenceBasis.acceptedSampleShare,1);
+ assert.ok(Math.abs(result.confidenceBasis.observedCoveragePercent-(13.5/52.5*100))<0.1);
  assert.ok(result.dryShare>0.9);
  assert.ok(result.observations.some(x=>x.code==='air-drying-potential'));
  assert.ok(result.medianIndoorDewPoint>0);
@@ -248,4 +256,33 @@ test('diagnostic states the configured maximum gap instead of a fixed duration',
  assert.equal(result.methodology.maximumGapHours,1.5);
  assert.ok(result.limits.some(text=>text.includes('1.5 heure(s)')));
  assert.ok(!result.limits.some(text=>text.includes('2 heures')));
+});
+
+
+test('niveau de couverture faible si trop de lignes sont rejetées',()=>{
+ const valid=makeRows({days:3,perDay:10});
+ const rejected=Array.from({length:20},(_,i)=>({t:Date.now()+i,st:20,sh:150,te:10,he:40}));
+ const result=buildHygrometricDiagnosis([...valid,...rejected]);
+ assert.equal(result.status,'analysis-available');
+ assert.equal(result.coverageLevel,'faible');
+ assert.ok(result.confidenceBasis.acceptedSampleShare<0.7);
+});
+
+test('couverture élevée exige une couverture temporelle dense',()=>{
+ const start=new Date(2026,10,10,0,0,0).getTime();
+ const rows=Array.from({length:241},(_,i)=>({
+  t:start+i*30*60*1000,st:20,sh:60,te:10,he:40
+ }));
+ const result=buildHygrometricDiagnosis(rows);
+ assert.equal(result.status,'analysis-available');
+ assert.equal(result.coverageLevel,'élevée');
+ assert.ok(result.confidenceBasis.observedCoveragePercent>=99);
+});
+
+test('une couverture temporelle partielle limite le niveau même avec beaucoup de relevés',()=>{
+ const rows=makeRows({days:5,perDay:15});
+ const result=buildHygrometricDiagnosis(rows);
+ assert.equal(result.status,'analysis-available');
+ assert.equal(result.coverageLevel,'modérée');
+ assert.ok(result.confidenceBasis.observedCoveragePercent<50);
 });
