@@ -64,7 +64,7 @@ function setStatus(s,isConnected=false){$('st').textContent=s;$('bleState').text
 
 /* La lecture IndexedDB ancienne reste ici ; la conversion des lignes est isolée.
    Un état "unavailable" interdit de marquer la migration terminée : l'ancienne base
-   n'a alors pas été vérifiée et pourrait encore contenir l'historique à récupérer. */
+   n'a alors pas été vérifiée et pourrait encore contenir l’historique à récupérer. */
 async function readOldDatabase(){
  if(typeof indexedDB==='undefined'||typeof indexedDB.databases!=='function')return {status:'unavailable'};
  let list;
@@ -384,7 +384,7 @@ function ingest(recs,label){
  render();
 }
 
-/* Téléchargement de l'historique : on s'arrête au premier relevé déjà connu, puis on coupe la connexion
+/* Téléchargement de l’historique : on s'arrête au premier relevé déjà connu, puis on coupe la connexion
    pour interrompre le flux de la VMI (elle ne sait pas s'arrêter seule). */
 const sigOf=r=>r.rk+'|'+r.d;
 function parseDownloadLine(line){
@@ -488,7 +488,7 @@ function downloadText(content,name,type,bom=true){
  a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
-/* ---------- Export, sauvegarde et fraîcheur de l'historique ---------- */
+/* ---------- Export, sauvegarde et fraîcheur de l’historique ---------- */
 const fmtLocal=t=>{const d=new Date(t);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`};
 const fmtShort=t=>{const d=new Date(t);return `${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`};
 const decFr=v=>(v==null||!Number.isFinite(v))?'':String(Math.round(v*100)/100).replace('.',',');
@@ -634,7 +634,7 @@ function selectDataRange(records){
  if(daysSetting&&data.length){const end=data[data.length-1].t;return data.filter(r=>r.t>=end-daysSetting*86400000)}
  return data;
 }
-/* Le direct reste une vue facultative ; toutes les analyses utilisent l'historique importé/téléchargé. */
+/* Le direct reste une vue facultative ; toutes les analyses utilisent l’historique importé/téléchargé. */
 function selectedData(){return selectDataRange(source==='live'?live:hist)}
 function selectedHistoricalData(){return selectDataRange(hist)}
 function formatDuration(ms){
@@ -923,7 +923,7 @@ function renderEnergyReadiness(data){
  }
  operatingHtml+='<div class="advice">'+operating.limits.join(' ')+'</div>';
  const modeGroups=summarizeRawVmiMode(data);
- let modeHtml='<h4>Débit et renouvellement théorique par mode VMI+</h4><p class="muted">Le champ « mode » est distinct du champ « Vitesse ». Les valeurs « Debit » de l'historique sont brutes : l'en-tête CSV ne précise pas leur unité. Le mode 3 dispose d’une référence distincte communiquée par l'utilisateur de 184 m³/h. Le taux calculé à partir de « Debit » et du volume est conditionnel à l'hypothèse que « Debit » soit en m³/h ; il ne mesure pas l’air effectivement distribué dans chaque pièce.</p>';
+ let modeHtml='<h4>Débit et renouvellement théorique par mode VMI+</h4><p class="muted">Le champ « mode » est distinct du champ « Vitesse ». Les valeurs « Debit » de l’historique sont brutes : l’en-tête CSV ne précise pas leur unité. Le mode 3 dispose d’une référence distincte communiquée par l'utilisateur de 184 m³/h. Le taux calculé à partir de « Debit » et du volume est conditionnel à l’hypothèse que « Debit » soit en m³/h ; il ne mesure pas l’air effectivement distribué dans chaque pièce.</p>';
  if(!modeGroups.length){modeHtml+='<div class="advice">Aucun mode VMI+ exploitable dans la période sélectionnée.</div>'}
  else{
   modeHtml+='<table><thead><tr><th>Mode VMI+</th><th>Relevés</th><th>Débit médian / référence</th><th>Min–max débit mesuré</th><th>Renouvellement théorique</th></tr></thead><tbody>';
