@@ -53,7 +53,7 @@ test('synthétise les analyses existantes sans inventer de consommation mesurée
   assert.ok(result.limits.some(line => /Aucune commande/.test(line)));
   assert.ok(result.recommendations.some(item => /Examiner les comparaisons de vitesses/.test(item.title)));
   assert.ok(result.recommendations.some(item => item.title === 'Bilan simple de la période'));
-  assert.ok(result.recommendations.find(item => item.title === 'Bilan simple de la période').text.includes('Les niveaux 1/2 donnent des résultats proches') || result.recommendations.find(item => item.title === 'Bilan simple de la période').text.includes('présente une humidité absolue intérieure')); 
+  assert.match(result.recommendations.find(item => item.title === 'Bilan simple de la période').text, /Pas encore assez de recul pour départager les vitesses/); 
   assert.ok(!result.recommendations.some(item => /consommation réelle/i.test(item.title)));
 });
 
