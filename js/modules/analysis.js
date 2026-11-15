@@ -700,7 +700,6 @@ export function buildHygrometricDiagnosis(data, {
       const left=eligibleHours[i],right=eligibleHours[j];
       const sharedDayKeys=left.dayKeys.filter(day=>right.dayKeys.includes(day));
       if(sharedDayKeys.length<2)continue;
-      const sharedDays=new Set(sharedDayKeys);
       const pairedStats=[left,right].map(bucket=>{
         const daily=sharedDayKeys.map(day=>{
           const daySamples=rows.filter(r=>
@@ -718,8 +717,7 @@ export function buildHygrometricDiagnosis(data, {
           // Chaque date pèse autant, même si le nombre de relevés diffère fortement.
           medianDelta:median(daily.map(item=>item.medianDelta)),
           sampleCount:daily.reduce((total,item)=>total+item.sampleCount,0),
-          dayCount:sharedDayKeys.length,
-          dailyMedianValues:daily
+          dayCount:sharedDayKeys.length
         };
       });
       if(pairedStats.some(item=>item.sampleCount<5||item.medianDelta==null))continue;
