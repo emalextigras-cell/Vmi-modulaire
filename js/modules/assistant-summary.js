@@ -5,6 +5,7 @@
  */
 import {
   buildHygrometricDiagnosis,
+  median,
   analyzeHygrometricPeriods,
   summarizeDailyTrends,
   analyzeHourlyPatterns,
@@ -444,10 +445,13 @@ export function buildVmiAssistantSummary(data, options = {}) {
         ? 'Le niveau ' + robustSpeedPair.key.split('/')[1] + ' présente une humidité absolue intérieure plus basse que le niveau ' + robustSpeedPair.key.split('/')[0] + ' sur les créneaux comparés.'
         : 'Le niveau ' + robustSpeedPair.key.split('/')[0] + ' présente une humidité absolue intérieure plus basse que le niveau ' + robustSpeedPair.key.split('/')[1] + ' sur les créneaux comparés.'
     : 'Pas encore assez de recul pour départager les vitesses : il faut au moins cinq jours communs sur deux créneaux horaires.';
+  const simpleObservedDuration = periods.observedDurationMs;
+  const simpleDryShare = simpleObservedDuration ? periods.dryDurationMs / simpleObservedDuration : null;
+  const simpleHumidShare = simpleObservedDuration ? periods.humidDurationMs / simpleObservedDuration : null;
   const outdoorText = Number.isFinite(periods.medianDelta)
-    ? periods.medianDelta > 1 && dryShare >= 0.6
+    ? periods.medianDelta > 1 && simpleDryShare >= 0.6
       ? 'L’air entrant a souvent été plus sec que l’air intérieur : les conditions étaient plutôt favorables à l’assèchement.'
-      : periods.medianDelta < -1 && humidShare >= 0.6
+      : periods.medianDelta < -1 && simpleHumidShare >= 0.6
         ? 'L’air entrant a souvent été plus humide que l’air intérieur : la ventilation ne pouvait pas forcément assécher l’air.'
         : 'Les conditions hygrométriques extérieures ont été variables ou proches de l’intérieur.'
     : 'Les mesures extérieures sont insuffisantes pour expliquer les variations.';
