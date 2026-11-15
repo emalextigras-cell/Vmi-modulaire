@@ -50,8 +50,8 @@ test('inventorie les champs énergétiques sans attribuer de watts ou kWh', () =
     assert.equal(field.count, 1);
     assert.equal(field.verified, key === 'consTmaxRaw');
   }
-  assert.equal(result.fields.find(item => item.key === 'debit').verified, false);
-  assert.equal(result.fields.find(item => item.key === 'debit').unit, 'valeur brute (unité à confirmer)');
+  assert.equal(result.fields.find(item => item.key === 'debit').verified, true);
+  assert.equal(result.fields.find(item => item.key === 'debit').unit, 'm³/h');
   assert.equal(result.fields.find(item => item.key === 'rpm').verified, true);
   assert.equal(result.fields.find(item => item.key === 'consTmaxRaw').unit, 'consigne en °C (sens confirmé)');
 });
