@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 test('une ancienne base non vérifiable ne valide pas la migration', async () => {
   const source = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
   assert.match(source, /if\(typeof indexedDB==='undefined'\|\|typeof indexedDB\.databases!=='function'\)return \{status:'unavailable'\}/);
-  assert.match(source, /if\(old\.status==='unavailable'\)[\s\S]*?migrationCompleted=false/);
+  assert.match(source, /if\(old\.status==='unavailable'\)\{[\s\S]*?\}else\{/);
   assert.match(source, /if\(migrationPending&&migrationCompleted\)[\s\S]*?\['migrated',true\]/);
 });
 
