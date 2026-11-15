@@ -181,11 +181,9 @@ test('ancre les fenêtres sur le dernier horodatage reçu même si ce relevé es
   const days=[
     ...Array.from({length:14},(_,day)=>makeDay(day,50,40,{count:3})).flat()
   ];
-  const latestConflict={
-    ...makeDay(14,50,40,{count:3})[0],
-    sh:95
-  };
-  const result=summarizeWeeklyDiagnostic([...days,latestConflict]);
+  const latestRow=makeDay(14,50,40,{count:3})[0];
+  const latestConflict={...latestRow,sh:95};
+  const result=summarizeWeeklyDiagnostic([...days,latestRow,latestConflict]);
   assert.equal(result.status,'available');
   assert.equal(result.duplicateTimestampCount,1);
   assert.equal(result.conflictingTimestampCount,1);
