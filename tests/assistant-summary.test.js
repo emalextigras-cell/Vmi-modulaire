@@ -51,7 +51,9 @@ test('synthétise les analyses existantes sans inventer de consommation mesurée
   assert.ok(energy.details.some(line => /Aucun index électrique externe enregistré/.test(line)));
   assert.ok(energy.details.some(line => /préchauffage et la consommation totale ne sont pas estimés/.test(line)));
   assert.ok(result.limits.some(line => /Aucune commande/.test(line)));
-  assert.ok(result.recommendations.some(item => /Examiner les comparaisons de vitesses/.test(item.title))); 
+  assert.ok(result.recommendations.some(item => /Examiner les comparaisons de vitesses/.test(item.title)));
+  assert.ok(result.recommendations.some(item => item.title === 'Bilan simple de la période'));
+  assert.match(result.recommendations.find(item => item.title === 'Bilan simple de la période').text, /Pas encore assez de recul pour départager les vitesses/); 
   assert.ok(!result.recommendations.some(item => /consommation réelle/i.test(item.title)));
 });
 
@@ -97,4 +99,14 @@ test('ne propose pas de comparer les vitesses sans comparaison horaire exploitab
   const oneDay = rows.slice(0, 24);
   const result = buildVmiAssistantSummary(oneDay);
   assert.ok(!result.recommendations.some(item => /comparaisons de vitesses/i.test(item.title)));
+});
+
+
+test('le bilan simple refuse de départager les vitesses avec moins de cinq jours communs', () => {
+  const rows = makeHistory().slice(0, 4 * 24);
+  const result = buildVmiAssistantSummary(rows);
+  const balance = result.recommendations.find(item => item.title === 'Bilan simple de la période');
+  assert.ok(balance);
+  assert.match(balance.text, /Pas encore assez de recul pour départager les vitesses/);
+  assert.ok(!result.recommendations.some(item => /Examiner les comparaisons de vitesses/.test(item.title)));
 });

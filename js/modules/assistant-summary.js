@@ -5,6 +5,7 @@
  */
 import {
   buildHygrometricDiagnosis,
+  median,
   analyzeHygrometricPeriods,
   summarizeDailyTrends,
   analyzeHourlyPatterns,
@@ -92,7 +93,7 @@ export function buildVmiAssistantSummary(data, options = {}) {
   const hourly = analyzeHourlyPatterns(rows, 3);
   const rapid = detectRapidChanges(rows);
   const speeds = analyzeSpeedLevels(rows, minSamples, targetRH);
-  const speedTime = analyzeSpeedTimeContext(rows, { minSamples: 5, minDays: 2 });
+  const speedTime = analyzeSpeedTimeContext(rows, { minSamples: 10, minDays: 5 });
   const seasonal = analyzeSeasonalVentilation(rows);
   const fan = summarizeFanEnergyEstimate(rows);
   const fanByMode = summarizeFanEnergyByManualMode(rows);
@@ -205,8 +206,27 @@ export function buildVmiAssistantSummary(data, options = {}) {
     '. Jours communs avec un autre niveau : ' + group.sharedDays + '.'
   );
   const readyPairs = speedTime.comparisons.filter(item => item.ready);
+  // Pour parler d'un effet possible d'une vitesse, on exige au moins deux créneaux
+  // comparables et cinq jours communs par créneau. La comparaison reste descriptive.
+  const pairedSpeedResults = readyPairs.map(item => ({
+    ...item,
+    indoorHADifference: median(item.first.daily.map((day, index) =>
+      (item.second.daily[index].medianIndoorHA ?? NaN) -
+      (day.medianIndoorHA ?? NaN)
+    ))
+  }));
+  const speedPairGroups = new Map();
+  for (const item of pairedSpeedResults) {
+    const key = item.speeds.join('/');
+    if (!speedPairGroups.has(key)) speedPairGroups.set(key, []);
+    speedPairGroups.get(key).push(item);
+  }
+  const robustSpeedPair = [...speedPairGroups.entries()]
+    .filter(([, items]) => items.length >= 2)
+    .map(([key, items]) => ({ key, items, difference: median(items.map(item => item.indoorHADifference)) }))
+    .sort((a, b) => b.items.length - a.items.length)[0] || null;
   speedDetails.push(readyPairs.length
-    ? readyPairs.length + ' comparaison(s) horaire(s) valides entre niveaux manuels, sur mêmes tranches de six heures et mêmes dates. Exemple : ' +
+    ? readyPairs.length + ' comparaison(s) horaire(s) valides entre niveaux manuels, avec au moins 10 relevés par niveau et 5 jours communs. Exemple : ' +
       readyPairs.slice(0, 4).map(item =>
         item.label + ', niveaux ' + item.speeds.join('/') + ', ' +
         item.sharedDayCount + ' jour(s) commun(s), différence d’écart HA ' +
@@ -407,6 +427,40 @@ export function buildVmiAssistantSummary(data, options = {}) {
   ));
 
   const recommendations = [];
+  const humidityTrend = Number.isFinite(daily.changeAbsoluteHumidity)
+    ? daily.changeAbsoluteHumidity < -0.3 ? 'improving'
+      : daily.changeAbsoluteHumidity > 0.3 ? 'worsening' : 'stable'
+    : 'insufficient';
+  const humidityText = humidityTrend === 'improving'
+    ? 'L’humidité absolue intérieure baisse entre les deux dernières journées exploitables.'
+    : humidityTrend === 'worsening'
+      ? 'L’humidité absolue intérieure augmente entre les deux dernières journées exploitables.'
+      : humidityTrend === 'stable'
+        ? 'L’humidité absolue intérieure est globalement stable entre les deux dernières journées exploitables.'
+        : 'Pas assez de journées exploitables pour juger l’évolution de l’humidité intérieure.';
+  const speedText = robustSpeedPair
+    ? Math.abs(robustSpeedPair.difference) <= 0.3
+      ? 'Les niveaux ' + robustSpeedPair.key + ' donnent des résultats proches sur les créneaux comparés.'
+      : robustSpeedPair.difference < 0
+        ? 'Le niveau ' + robustSpeedPair.key.split('/')[1] + ' présente une humidité absolue intérieure plus basse que le niveau ' + robustSpeedPair.key.split('/')[0] + ' sur les créneaux comparés.'
+        : 'Le niveau ' + robustSpeedPair.key.split('/')[0] + ' présente une humidité absolue intérieure plus basse que le niveau ' + robustSpeedPair.key.split('/')[1] + ' sur les créneaux comparés.'
+    : 'Pas encore assez de recul pour départager les vitesses : il faut au moins cinq jours communs sur deux créneaux horaires.';
+  const simpleObservedDuration = periods.observedDurationMs;
+  const simpleDryShare = simpleObservedDuration ? periods.dryDurationMs / simpleObservedDuration : null;
+  const simpleHumidShare = simpleObservedDuration ? periods.humidDurationMs / simpleObservedDuration : null;
+  const outdoorText = Number.isFinite(periods.medianDelta)
+    ? periods.medianDelta > 1 && simpleDryShare >= 0.6
+      ? 'L’air entrant a souvent été plus sec que l’air intérieur : les conditions étaient plutôt favorables à l’assèchement.'
+      : periods.medianDelta < -1 && simpleHumidShare >= 0.6
+        ? 'L’air entrant a souvent été plus humide que l’air intérieur : la ventilation ne pouvait pas forcément assécher l’air.'
+        : 'Les conditions hygrométriques extérieures ont été variables ou proches de l’intérieur.'
+    : 'Les mesures extérieures sont insuffisantes pour expliquer les variations.';
+  recommendations.push(recommendation(
+    'information',
+    'Bilan simple de la période',
+    humidityText + ' ' + speedText + ' ' + outdoorText,
+    'Ce bilan décrit les relevés disponibles. Il ne prouve pas que la vitesse est la cause d’une évolution : météo, occupation et apports d’humidité peuvent aussi intervenir.'
+  ));
   if (diagnosis.status !== 'analysis-available' || level === 'faible') {
     recommendations.push(recommendation(
       'prioritaire', 'Consolider l’historique',
