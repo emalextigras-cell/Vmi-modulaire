@@ -15,7 +15,7 @@
   <h1>VMI Purevent</h1>
   <p class="sub">Comprendre simplement le fonctionnement de ta VMI</p>
  </div>
- <div class="row"><span class="pill" id="ver">v13</span><button class="outline" id="themeBtn" title="Changer le thème">Thème</button></div>
+ <div class="row"><span class="pill" id="ver">v14</span><button class="outline" id="themeBtn" title="Changer le thème">Thème</button></div>
 </header>
 
 <nav class="main-nav" aria-label="Navigation principale"><a href="#accueil">Accueil</a><a href="#analyses">Analyses</a><a href="#historique">Historique</a><a href="#reglages">Réglages</a></nav>
@@ -78,6 +78,11 @@
   <p id="coverageDescription">La couverture sera calculée à partir des horodatages de l’historique.</p>
   <details><summary>Comment est calculé ce pourcentage ?</summary><p id="coverageMethod">Il compare les intervalles exploitables à la durée entre le premier et le dernier relevé. Les interruptions supérieures à la durée maximale autorisée sont exclues. Ce n’est pas une mesure continue.</p></details>
  </div>
+ <section class="card" id="energyEstimateCard">
+  <h3>Consommation électrique estimée</h3>
+  <p class="note">Estimation du ventilateur PUREVENT à partir du débit historique et des points de puissance de la notice constructeur. Ce n’est pas une mesure au compteur.</p>
+  <div id="fanEnergyEstimate" class="advice">Importe ou télécharge un historique VMI+ pour calculer une première estimation.</div>
+ </section>
  <div class="grid cols3">
   <div class="metric"><b id="deltaHA">–</b><span>Écart absolu salon − air entrant g/m³</span></div>
   <div class="metric"><b id="deltaT">–</b><span>Écart température salon − air entrant °C</span></div>
@@ -114,7 +119,7 @@
  <h3>Comparaison observée selon la vitesse</h3>
  <div id="speedAnalysis" class="status">Pas encore assez de données.</div>
  <div id="energyReadiness" class="status">Inventaire des champs bruts de fonctionnement exportés par VMI+.</div>
- <h3>Suivi électrique mesuré</h3>
+ <div hidden aria-hidden="true"> <h3>Suivi électrique mesuré</h3>
  <p class="note">Saisis les index en kWh lus sur un compteur externe. Il faut au moins deux relevés du même compteur pour calculer l’énergie consommée et la puissance moyenne sur l’intervalle. Les données VMI+ ne sont pas utilisées pour inventer une consommation.</p>
  <form id="energyMeterForm">
   <div class="row">
@@ -145,6 +150,8 @@
  <p class="note">Les libellés d’origine sont conservés. Les champs « Cons ... », les compteurs et les valeurs de pression ne sont pas assimilés à des consommations ou à des mesures physiques tant que leur signification et leur unité ne sont pas établies.</p>
  <p class="note">Les comparaisons sont descriptives : elles ne désignent pas une vitesse optimale et ne calculent pas de rendement sans mesure électrique et débit documentés.</p>
  <p class="note">Les recommandations sont indicatives. Pour conclure sur l'efficacité d'une vitesse, il faut comparer des périodes suffisamment longues et comparables (occupation, météo, cuisson, douches, fenêtres ouvertes). Sans mesure de débit et de consommation électrique, l'application ne peut pas calculer un optimum énergétique réel.</p>
+ </div>
+ <p class="note">Les anciens index de compteurs déjà enregistrés restent conservés dans les sauvegardes, mais ne sont plus nécessaires à l’estimation du ventilateur.</p>
 </details>
 
 <section class="card" id="historique">
@@ -195,7 +202,7 @@
  <div class="row"><button class="outline" id="diagBtn">Diagnostic</button><button class="outline" id="diagCopy">Copier</button></div>
  <pre id="diagOut"></pre>
 </details>
-<footer>VMI Purevent · version 13 · L’heure de la VMI est synchronisée à la connexion et avant chaque téléchargement, comme le fait VMI+ ; les commandes de réglage ne sont envoyées qu’après une action manuelle. Les calculs sont indicatifs et dépendent de la fiabilité des capteurs.</footer>
+<footer>VMI Purevent · version 14 · L’heure de la VMI est synchronisée à la connexion et avant chaque téléchargement, comme le fait VMI+ ; les commandes de réglage ne sont envoyées qu’après une action manuelle. Les calculs sont indicatifs et dépendent de la fiabilité des capteurs.</footer>
 </main>
 
 <script type="module" src="js/app.js"></script>
