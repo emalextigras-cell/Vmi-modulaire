@@ -54,7 +54,7 @@ Fermer VMI+ avant de se connecter : la VMI n'accepte qu'une seule connexion simu
 - Les indicateurs hygrométriques sont indicatifs. La valeur « Debit » exportée par VMI+ est conservée comme valeur brute. L'en-tête CSV ne précise pas son unité ; son interprétation en m³/h reste une hypothèse à confirmer.
 - Les comparaisons de niveaux manuels utilisent exclusivement le champ d'annotation `Mode` (`vmiModeRaw`) (1/2/3). Le champ historique `vit` et le code `Vitesse` VMI+ restent des données brutes et ne sont jamais assimilés à un niveau manuel. Les exports CSV VMI+ ne fournissent pas, à eux seuls, cette annotation.
 - Le régime moteur est présenté en tr/min lorsqu'il est disponible. Les valeurs Débit, PWM et Cons DP restent brutes tant que leur signification/unité n'est pas confirmée.
-- Sans mesure électrique fiable en W ou kWh et sans débit validé, l'application ne calcule ni consommation, ni rendement, ni optimum énergétique.
+- L'application ne calcule aucune consommation électrique mesurée, aucun rendement ni optimum énergétique réel. L'estimation du ventilateur reste indicative et conditionnelle à l'hypothèse que `Debit` soit en m³/h, unité non confirmée.
 
 ## Tests locaux
 
