@@ -46,7 +46,7 @@ function makeUnevenHourlyRows(groups) {
 test('diagnostic exposes its thresholds and the measured basis of each finding',()=>{
  const result=buildHygrometricDiagnosis(makeRows());
  assert.deepEqual(result.methodology,{
-  version:'hygrometric-diagnostic-v5',
+  version:'hygrometric-diagnostic-v6',
   dryDeltaThreshold:1,
   trendDeltaThreshold:0.8,
   minimumSamples:12,
