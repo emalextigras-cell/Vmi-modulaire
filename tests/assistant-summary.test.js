@@ -61,7 +61,7 @@ test('ne confond pas le code brut Vitesse avec les modes manuels 1/2/3', () => {
 
   assert.match(speedSection.summary, /Aucune annotation de vitesse manuelle/);
   assert.ok(airflowSection.details.some(line => /codes « Vitesse » bruts/.test(line)));
-  assert.ok(result.recommendations.some(item => /annotation Mode manuel/.test(item.reason)));
+  assert.ok(result.recommendations.some(item => /annotation Mode manuel/.test(item.text)));
 });
 
 test('distingue les index externes mesurés de l’estimation du ventilateur', () => {
