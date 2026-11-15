@@ -39,6 +39,16 @@ test('la coupure volontaire est journalisée après le drapeau et avant disconne
   assert.ok(finish.includes('sync:cut-reached-but-transport-already-disconnected'));
 });
 
+test('une fin de synchronisation volontaire relance le direct sans relancer l’historique', () => {
+  const handler = source.slice(source.indexOf('function onDisconnect()'), source.indexOf('async function connectCharacteristics('));
+  assert.match(handler, /if\(wasIntentional\)\{[\s\S]*?sync:live-reconnect-scheduled[\s\S]*?setTimeout\(reconnect,3000\)[\s\S]*?return;/);
+  assert.ok(handler.indexOf('sync:live-reconnect-scheduled') < handler.indexOf('setTimeout(reconnect,3000)'));
+  assert.ok(handler.includes('if(!manualDisconnect&&dev)'));
+  const connect = source.slice(source.indexOf('async function connectDevice('), source.indexOf('async function connectBLE('));
+  assert.match(connect, /setTimeout\(autoHistory,3000\)/);
+  assert.doesNotMatch(connect, /autoDone=false/);
+});
+
 test('chaque tentative de reconnexion journalise son résultat sans changer sa stratégie', () => {
   const reconnect = source.slice(source.indexOf('async function reconnect()'), source.indexOf("$('conn').onclick"));
   assert.match(reconnect, /reconnect:attempt/);
