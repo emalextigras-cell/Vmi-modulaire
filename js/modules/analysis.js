@@ -895,6 +895,11 @@ export function buildHygrometricDiagnosis(data, {
   } else {
     const baselineAirContext=firstTrendWindow.map(day=>dailyAirContextStats.get(day.date));
     const recentAirContext=lastTrendWindow.map(day=>dailyAirContextStats.get(day.date));
+    const baselineIncomingMedian=median(baselineAirContext.map(value=>value?.incoming));
+    const recentIncomingMedian=median(recentAirContext.map(value=>value?.incoming));
+    const baselineIndoorMinusIncoming=median(baselineAirContext.map(value=>value?.indoorMinusIncoming));
+    const recentIndoorMinusIncoming=median(recentAirContext.map(value=>value?.indoorMinusIncoming));
+    const trendContextSentence=`Contexte mesuré sur les mêmes fenêtres : humidité absolue de l’air entrant ${baselineIncomingMedian.toFixed(2)} → ${recentIncomingMedian.toFixed(2)} g/m³ ; écart salon − air entrant ${baselineIndoorMinusIncoming.toFixed(2)} → ${recentIndoorMinusIncoming.toFixed(2)} g/m³. Ces évolutions concomitantes ne démontrent aucun lien causal.`;
     const trendBasis={firstDate:first.date,lastDate:last.date,baselineWindowStartDate:firstTrendWindow[0].date,baselineWindowEndDate:firstTrendWindow.at(-1).date,recentWindowStartDate:lastTrendWindow[0].date,recentWindowEndDate:lastTrendWindow.at(-1).date,baselineWindowSpanDays:trendWindowSpanDays[0],recentWindowSpanDays:trendWindowSpanDays[1],totalComparisonSpanDays:totalTrendSpanDays,baselineDailyValues:firstTrendWindow.map(day=>`${day.date} : ${day.medianAbsoluteHumidity.toFixed(2)} g/m³ (${day.sampleCount} relevés)`).join(' · '),recentDailyValues:lastTrendWindow.map(day=>`${day.date} : ${day.medianAbsoluteHumidity.toFixed(2)} g/m³ (${day.sampleCount} relevés)`).join(' · '),baselineMedianAbsoluteHumidity:baselineTrendMedian,recentMedianAbsoluteHumidity:recentTrendMedian,baselineMedianRelativeHumidity:median(firstTrendWindow.map(day=>day.medianRH)),recentMedianRelativeHumidity:median(lastTrendWindow.map(day=>day.medianRH)),baselineMedianTemperature:median(firstTrendWindow.map(day=>day.medianTemperature)),recentMedianTemperature:median(lastTrendWindow.map(day=>day.medianTemperature)),baselineIncomingMedianAbsoluteHumidity:median(baselineAirContext.map(value=>value?.incoming)),recentIncomingMedianAbsoluteHumidity:median(recentAirContext.map(value=>value?.incoming)),incomingAbsoluteHumidityChange:median(recentAirContext.map(value=>value?.incoming))-median(baselineAirContext.map(value=>value?.incoming)),baselineIndoorMinusIncomingMedian:median(baselineAirContext.map(value=>value?.indoorMinusIncoming)),recentIndoorMinusIncomingMedian:median(recentAirContext.map(value=>value?.indoorMinusIncoming)),indoorMinusIncomingChange:median(recentAirContext.map(value=>value?.indoorMinusIncoming))-median(baselineAirContext.map(value=>value?.indoorMinusIncoming)),change:trendChange,threshold:trendDelta,eligibleDays:eligibleTrendDays.length,daysPerWindow:trendWindowDays,risingDays:trendDirectionalDays.rising,fallingDays:trendDirectionalDays.falling,minimumDirectionalDays:2,unit:'g/m³'};
     if(trendChange>=trendDelta&&trendDirectionalDays.rising>=2){
       observations.push({
@@ -902,7 +907,7 @@ export function buildHygrometricDiagnosis(data, {
         basis:trendBasis,
         title:'Tendance durable à la hausse de l’humidité absolue',
         detail:`La médiane des ${trendWindowDays} derniers jours échantillonnés dépasse de ${trendChange.toFixed(1)} g/m³ celle des ${trendWindowDays} premiers jours. Le signal est retrouvé sur ${trendDirectionalDays.rising} des ${trendWindowDays} derniers jours.`,
-        recommendation:'Examiner les apports de vapeur d’eau, les extractions et les conditions extérieures. Cette évolution ne suffit pas à identifier une cause.'
+        recommendation:'Examiner les apports de vapeur d’eau, les extractions et les conditions extérieures. Cette évolution ne suffit pas à identifier une cause. '+trendContextSentence
       });
     } else if(trendChange<=-trendDelta&&trendDirectionalDays.falling>=2){
       observations.push({
@@ -910,7 +915,7 @@ export function buildHygrometricDiagnosis(data, {
         basis:trendBasis,
         title:'Tendance durable à la baisse de l’humidité absolue',
         detail:`La médiane des ${trendWindowDays} derniers jours échantillonnés est inférieure de ${Math.abs(trendChange).toFixed(1)} g/m³ à celle des ${trendWindowDays} premiers jours. Le signal est retrouvé sur ${trendDirectionalDays.falling} des ${trendWindowDays} derniers jours.`,
-        recommendation:'Poursuivre l’observation pour vérifier que cette baisse se maintient sur les prochains jours.'
+        recommendation:'Poursuivre l’observation pour vérifier que cette baisse se maintient sur les prochains jours. '+trendContextSentence
       });
     } else {
       observations.push({
