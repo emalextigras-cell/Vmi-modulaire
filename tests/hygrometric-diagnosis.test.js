@@ -419,3 +419,32 @@ test('a durable falling trend requires persistence across at least two recent da
  assert.ok(finding);
  assert.equal(finding.basis.fallingDays,3);
 });
+
+
+test('trend is not confirmed when eligible days are too far apart in the calendar',()=>{
+ const rows=[];
+ [1,2,3,20,21,22].forEach((day,index)=>{
+  for(let i=0;i<4;i++) rows.push({
+   t:new Date(2026,10,day,8,i*30,0).getTime(),
+   st:20,sh:index<3?45:75,te:10,he:40
+  });
+ });
+ const result=buildHygrometricDiagnosis(rows);
+ const finding=result.observations.find(item=>item.code==='trend-calendar-span-limited');
+ assert.ok(finding);
+ assert.equal(finding.basis.totalSpanDays,21);
+ assert.ok(!result.observations.some(item=>item.code==='indoor-moisture-rising'));
+});
+
+test('trend remains eligible when both windows and their comparison fit calendar limits',()=>{
+ const rows=[];
+ [1,2,3,5,6,7].forEach((day,index)=>{
+  for(let i=0;i<4;i++) rows.push({
+   t:new Date(2026,10,day,8,i*30,0).getTime(),
+   st:20,sh:index<3?45:75,te:10,he:40
+  });
+ });
+ const result=buildHygrometricDiagnosis(rows);
+ assert.ok(result.observations.some(item=>item.code==='indoor-moisture-rising'));
+ assert.ok(!result.observations.some(item=>item.code==='trend-calendar-span-limited'));
+});
