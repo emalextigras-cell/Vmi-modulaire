@@ -81,7 +81,8 @@ async function init(){
  const storedEnergyReadings=await dbGet('energyReadings');
  energyReadings=Array.isArray(storedEnergyReadings)?storedEnergyReadings:[];
  const migrated=await dbGet('migrated');
- if(!migrated&&!hist.length&&!live.length){
+ const migrationPending=!migrated&&!hist.length&&!live.length;
+ if(migrationPending){
   const old=await readOldDatabase();
   if(old){
    if(Array.isArray(old.hist))hist=old.hist.map(fromOldRow);
@@ -89,14 +90,18 @@ async function init(){
   }
   if(!hist.length){try{const x=JSON.parse(localStorage.getItem('vmi_hist')||'[]');if(Array.isArray(x))hist=x.map(fromOldRow)}catch(e){}}
   if(!live.length){try{const x=JSON.parse(localStorage.getItem('vmi_live')||'[]');if(Array.isArray(x))live=x}catch(e){}}
-  await dbSet('migrated',true);
  }
  /* Les relevés datés d'avant 2025 ont une date fausse (horloge de la VMI) et ne peuvent pas être corrigés
     sans leur compteur de jours : on les retire, un nouvel import ou téléchargement les rétablit avec la bonne date. */
  const bad=hist.filter(r=>!(r&&r.t>=MIN_VALID)).length;
  if(bad){hist=hist.filter(r=>r&&r.t>=MIN_VALID);$('importInfo').textContent=`${bad} anciens relevés à date invalide ont été retirés. Réimporte ton export VMI+ ou récupère l’historique : ils reviendront avec la bonne date.`}
  hist.sort((a,b)=>a.t-b.t);
- await dbSet('hist',hist);if(live.length)await dbSet('live',live);
+ if(migrationPending){
+  // Les données migrées et le marqueur sont validés ensemble : un échec permet une nouvelle tentative au prochain démarrage.
+  await dbSetMany([['hist',hist],['live',live],['migrated',true]]);
+ }else{
+  await dbSet('hist',hist);if(live.length)await dbSet('live',live);
+ }
  $('liveCount').textContent=live.length;render();
 }
 function pruneHist(){
