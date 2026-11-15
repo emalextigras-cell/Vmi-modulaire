@@ -185,3 +185,12 @@ Aucun kWh n'est déduit de `Cons Res`, `Cons HydroR`, du PWM, du débit ou des c
 Les intervalles mesurés sont regroupés par mois civil uniquement lorsque les deux index encadrant l'intervalle appartiennent au même mois. Un intervalle traversant une limite de mois reste inclus dans le total global, mais il est exclu des totaux mensuels et signalé séparément. Aucune répartition au prorata ni estimation de consommation journalière ou mensuelle n'est effectuée.
 
 Les totaux mensuels correspondent donc aux intervalles réellement mesurés dans le mois ; ils ne garantissent pas une couverture complète du mois. Les compteurs ventilation, préchauffage et total restent séparés.
+
+
+## Phase 13 — distinguer variation ponctuelle et tendance hygrométrique durable
+
+Le diagnostic ne qualifie plus une simple différence entre le premier et le dernier jour comme une tendance. Il compare la médiane d'humidité absolue intérieure des trois premiers jours suffisamment échantillonnés à celle des trois derniers jours suffisamment échantillonnés, sur deux fenêtres non chevauchantes. Chaque journée a le même poids et doit contenir au moins trois relevés valides.
+
+Une hausse ou une baisse durable n'est signalée que si l'écart atteint le seuil configuré (0,8 g/m³ par défaut) et si au moins deux des trois jours de la fenêtre récente vont dans le même sens par rapport à la médiane initiale. Avec moins de six jours exploitables, le diagnostic indique que la tendance reste à confirmer. Une variation isolée est explicitement distinguée d'une tendance persistante.
+
+Cette analyse décrit l'évolution de l'humidité absolue intérieure ; elle n'identifie pas la cause, ne démontre pas l'efficacité de la VMI et ne déclenche aucune commande. Elle ne modifie ni les seuils de pilotage, ni les données, ni le protocole Bluetooth.
