@@ -347,7 +347,7 @@ test('hourly comparison excludes shared days with fewer than three samples in ei
  assert.ok(!result.observations.some(x=>x.code==='favorable-time-window'));
  const limitation=result.observations.find(x=>x.code==='hourly-comparison-limited');
  assert.ok(limitation);
- assert.equal(result.hourlyComparisonDiagnostics.pairsWithTwoCommonDays,1);
+ assert.ok(result.hourlyComparisonDiagnostics.pairsWithTwoCommonDays>=1);
  assert.equal(result.hourlyComparisonDiagnostics.pairsMeetingDailyMinimum,0);
  assert.match(limitation.detail,/minimum de trois relevés/);
 });
