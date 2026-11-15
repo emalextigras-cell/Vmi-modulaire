@@ -941,14 +941,14 @@ function renderEnergyMeterTracking(){
    html+='<p class="note">Aucun intervalle électrique mesuré à rapprocher des conditions intérieures et extérieures.</p>';
   }else{
    html+='<p class="note">Moyennes pondérées dans le temps, calculées uniquement sur les portions d’historique réellement couvertes. Les intervalles insuffisamment couverts restent signalés et ne sont pas interprétés.</p>';
-   html+='<table><thead><tr><th>Période</th><th>Énergie</th><th>Puissance moy.</th><th>Temp. ext.</th><th>Temp. int.</th><th>HR int.</th><th>HA int.</th><th>HA air entrant</th><th>Écart HA</th><th>Couverture</th></tr></thead><tbody>';
+   html+='<table><thead><tr><th>Période</th><th>Énergie / puissance moyenne</th><th>Conditions moyennes observées</th><th>Couverture</th></tr></thead><tbody>';
    for(const interval of climateMeter.intervals){
     const c=interval.context;
     const value=(v,suffix='')=>v==null?'–':fmt(v)+suffix;
-    const climateCells=c.ready
-      ? '<td>'+value(c.outdoorTemp,' °C')+'</td><td>'+value(c.indoorTemp,' °C')+'</td><td>'+value(c.indoorRH,' %')+'</td><td>'+value(c.indoorAbsHumidity,' g/m³')+'</td><td>'+value(c.incomingAbsHumidity,' g/m³')+'</td><td>'+value(c.deltaAbsHumidity,' g/m³')+'</td>'
-      : '<td colspan="6">Conditions non interprétées : couverture insuffisante</td>';
-    html+='<tr><td>'+fmtShort(interval.from)+' → '+fmtShort(interval.to)+'</td><td>'+value(interval.deltaKwh,' kWh')+'</td><td>'+value(interval.averagePowerW,' W')+'</td>'+climateCells+'<td>'+value(c.coveragePercent,' %')+' ('+value(c.coverageHours,' h')+')</td></tr>';
+    const conditions=c.ready
+      ? 'Extérieur : '+value(c.outdoorTemp,' °C')+' · intérieur : '+value(c.indoorTemp,' °C')+'<br>Humidité relative intérieure : '+value(c.indoorRH,' %')+'<br>Humidité absolue : intérieur '+value(c.indoorAbsHumidity,' g/m³')+' · air entrant '+value(c.incomingAbsHumidity,' g/m³')+'<br>Écart intérieur − entrant : '+value(c.deltaAbsHumidity,' g/m³')
+      : 'Conditions non interprétées : couverture insuffisante';
+    html+='<tr><td>'+fmtShort(interval.from)+' → '+fmtShort(interval.to)+'</td><td>'+value(interval.deltaKwh,' kWh')+'<br>'+value(interval.averagePowerW,' W')+'</td><td>'+conditions+'</td><td>'+value(c.coveragePercent,' %')+'<br>'+value(c.coverageHours,' h')+'</td></tr>';
    }
    html+='</tbody></table>';
   }
