@@ -909,9 +909,9 @@ function renderFanEnergyEstimate(data){
    if(!byMode.hasManualModeData){
     modeBox.textContent='Pas de champ « Mode » manuel identifié dans cet historique. Les codes bruts VMI+ ne sont pas utilisés pour inventer les niveaux 1/2/3.';
    }else{
-    let table='<div class="table-wrap"><table><thead><tr><th>Mode manuel</th><th>Énergie estimée</th><th>Puissance moyenne quotidienne médiane</th><th>Heures intégrées</th><th>Jours</th><th>Couverture</th></tr></thead><tbody>';
+    let table='<div class="table-wrap"><table><thead><tr><th>Mode manuel</th><th>Énergie estimée</th><th>Puissance moyenne quotidienne médiane</th><th>Heures intégrées</th><th>Jours</th><th>Couverture</th><th>Conditions moyennes</th></tr></thead><tbody>';
     for(const group of byMode.groups){
-     table+='<tr><td>'+group.mode+'</td><td>'+(group.estimatedKwh==null?'–':fmt(group.estimatedKwh)+' kWh')+'</td><td>'+(group.medianDailyAveragePowerW==null?'–':fmt(group.medianDailyAveragePowerW)+' W')+'</td><td>'+fmt(group.coveredHours)+' h</td><td>'+group.dayCount+'</td><td>'+fmt(group.coveragePercent)+' %</td></tr>';
+     table+='<tr><td>'+group.mode+'</td><td>'+(group.estimatedKwh==null?'–':fmt(group.estimatedKwh)+' kWh')+'</td><td>'+(group.medianDailyAveragePowerW==null?'–':fmt(group.medianDailyAveragePowerW)+' W')+'</td><td>'+fmt(group.coveredHours)+' h</td><td>'+group.dayCount+'</td><td>'+fmt(group.coveragePercent)+' %</td><td>'+((group.climate.deltaAbsHumidity==null)?'Non disponible':'Intérieur '+fmt(group.climate.indoorTemp)+' °C · extérieur '+fmt(group.climate.outdoorTemp)+' °C · écart humidité absolue '+fmt(group.climate.deltaAbsHumidity)+' g/m³')+'</td></tr>';
     }
     table+='</tbody></table></div>';
     modeBox.innerHTML=table+'<p class="note">Les changements de mode, les trous de plus de '+byMode.maxGapHours+' h et les débits hors plage sont exclus. '+byMode.transitionIntervalCount+' intervalle(s) traversant un changement de mode ignoré(s).</p><p class="note">La puissance moyenne est la médiane des moyennes journalières afin que les journées aient le même poids. Une comparaison nécessite au moins '+byMode.minDays+' jours par mode ; les lignes avec moins de jours restent descriptives.</p>';
