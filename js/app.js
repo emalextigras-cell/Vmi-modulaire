@@ -19,6 +19,7 @@ import { summarizeWeeklyDiagnostic } from './modules/weekly-diagnostic.js';
 import { chooseAuthorizedDevice } from './modules/bluetooth-autoconnect.js';
 import { buildLiveFreshnessText } from './modules/live-freshness.js';
 import { formatDiagnosisConfidence } from './modules/diagnostic-confidence.js';
+import { analyzeSeasonalVentilation } from './modules/seasonal-advice.js';
 
 
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
@@ -1207,6 +1208,28 @@ function localDateTimeValue(timestamp=Date.now()){
  return date.getFullYear()+'-'+pad(date.getMonth()+1)+'-'+pad(date.getDate())+'T'+pad(date.getHours())+':'+pad(date.getMinutes());
 }
 
+function renderSeasonalAdvice(data){
+ const box=$('seasonalAdvice');
+ if(!box)return;
+ const result=analyzeSeasonalVentilation(data);
+ box.className='advice';
+ if(result.status!=='available'){
+  box.textContent=result.advice;
+  return;
+ }
+ const seasonLabel=result.currentSeason||'non déterminée';
+ let html='<p><strong>Saison actuelle de l’historique : '+seasonLabel+'</strong>';
+ if(result.latestAt)html+=' · dernier relevé : '+fmtShort(result.latestAt);
+ html+='</p><p>'+result.advice+'</p>';
+ html+='<div class="table-wrap"><table><thead><tr><th>Saison calendrier</th><th>Relevés / jours</th><th>Écart extérieur − intérieur</th><th>Jours avec conditions favorables</th><th>Codes Saison CSV (bruts)</th></tr></thead><tbody>';
+ for(const item of result.seasons){
+  const codes=Object.entries(item.codeCounts).map(([code,count])=>code+' ('+count+')').join(', ')||'non renseigné';
+  const margin=item.medianOutdoorMinusIndoor==null?'–':(item.medianOutdoorMinusIndoor>0?'+':'')+fmt(item.medianOutdoorMinusIndoor)+' °C';
+  html+='<tr><td>'+item.season+'</td><td>'+item.sampleCount+' / '+item.dayCount+'</td><td>'+margin+'</td><td>'+item.opportunityDayCount+'</td><td>'+codes+'</td></tr>';
+ }
+ html+='</tbody></table></div><details><summary>Comment interpréter ces conseils ?</summary><ul>'+result.limits.map(item=>'<li>'+item+'</li>').join('')+'</ul></details>';
+ box.innerHTML=html;
+}
 function renderRecommendation(data){
  const box=$('recommendation');
  const valid=data.filter(r=>Number.isFinite(r.st)&&isPlausibleTemperature(r.st)&&Number.isFinite(r.sh)&&isPlausibleHumidity(r.sh)&&Number.isFinite(r.te)&&isPlausibleTemperature(r.te)&&Number.isFinite(r.he)&&isPlausibleHumidity(r.he));
@@ -1260,7 +1283,7 @@ function render(){
  qualityBox.className=quality.hasAnomalies||quality.transientSpikes.count?'advice warn':'advice';
  qualityBox.textContent='Contrôle qualité de l’historique analysé : '+coverageText+missingText+invalidText+spikeText+' Les données manquantes réduisent la couverture ; elles ne sont pas considérées comme des anomalies.';
  renderCharts(data,selectedDate,$);
- renderRecommendation(analysisData);renderHygrometricPeriods(analysisData);renderIntelligentDiagnosis(analysisData);
+ renderRecommendation(analysisData);renderSeasonalAdvice(analysisData);renderHygrometricPeriods(analysisData);renderIntelligentDiagnosis(analysisData);
  renderTemporalAnalysis(analysisData);analyzeSpeeds(analysisData);renderEnergyReadiness(analysisData);renderFanEnergyEstimate(analysisData);renderDailyEnergyClimateContext(analysisData);renderWeeklyDiagnostic(analysisData);renderFreshness();
 }
 $('targetRH').onchange=render;$('minSamples').onchange=render;
