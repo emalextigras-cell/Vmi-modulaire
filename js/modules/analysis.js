@@ -659,6 +659,13 @@ export function buildHygrometricDiagnosis(data, {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   };
   const days=new Set(rows.map(r=>dayKey(r.t)));
+  const dailySampleCounts=new Map();
+  for(const row of rows){
+    const key=dayKey(row.t);
+    dailySampleCounts.set(key,(dailySampleCounts.get(key)||0)+1);
+  }
+  const daysWithAtLeastThreeSamples=[...dailySampleCounts.values()].filter(count=>count>=3).length;
+  const acceptedSampleShare=inputRows.length?rows.length/inputRows.length:0;
   const periods=analyzeHygrometricPeriods(rows,{threshold:dryDelta,maxGapHours});
   const observedHours=periods.observedDurationMs/3600000;
   const intervalMs=rows.slice(1).map((r,i)=>r.t-rows[i].t).filter(gap=>gap>0);
@@ -729,8 +736,13 @@ export function buildHygrometricDiagnosis(data, {
       )[0]
     :null;
 
-  const coverageLevel=rows.length>=60&&days.size>=5&&observedHours>=24?'élevée'
-    :rows.length>=24&&days.size>=3&&observedHours>=12?'modérée':'faible';
+  // Le niveau décrit la robustesse de l'échantillonnage, pas l'état physique de la VMI.
+  // Il tient compte de la couverture temporelle et de la part de lignes réellement retenues.
+  const coverageRatio=observedCoveragePercent==null?0:observedCoveragePercent/100;
+  const coverageLevel=rows.length>=60&&days.size>=5&&daysWithAtLeastThreeSamples>=5&&
+    observedHours>=24&&coverageRatio>=0.5&&acceptedSampleShare>=0.9?'élevée'
+    :rows.length>=24&&days.size>=3&&daysWithAtLeastThreeSamples>=3&&
+      observedHours>=12&&coverageRatio>=0.2&&acceptedSampleShare>=0.7?'modérée':'faible';
   const sufficient=rows.length>=minSamples&&days.size>=2&&observedHours>=3;
   const observations=[];
 
@@ -797,7 +809,7 @@ export function buildHygrometricDiagnosis(data, {
   }
 
   return {
-    methodology:{version:'hygrometric-diagnostic-v4',dryDeltaThreshold:dryDelta,trendDeltaThreshold:trendDelta,minimumSamples:minSamples,minimumDistinctDays:2,minimumObservedHours:3,dominantDurationShare:0.6,maximumGapHours:maxGapHours,hourlyBucketHours:6,hourlyMinimumSamples:5,hourlyMinimumDistinctDays:2,hourlyMinimumSharedDays:2},
+    methodology:{version:'hygrometric-diagnostic-v5',dryDeltaThreshold:dryDelta,trendDeltaThreshold:trendDelta,minimumSamples:minSamples,minimumDistinctDays:2,minimumObservedHours:3,dominantDurationShare:0.6,maximumGapHours:maxGapHours,hourlyBucketHours:6,hourlyMinimumSamples:5,hourlyMinimumDistinctDays:2,hourlyMinimumSharedDays:2,minimumDailySamplesForConfidence:3,moderateCoveragePercent:20,highCoveragePercent:50,moderateAcceptedShare:0.7,highAcceptedShare:0.9},
     status:sufficient?'analysis-available':'insufficient-data',
     inputQuality:{
       inputSampleCount:inputRows.length,
@@ -809,6 +821,12 @@ export function buildHygrometricDiagnosis(data, {
       excludedSampleCount:inputRows.length-rows.length
     },
     coverageLevel,
+    confidenceBasis:{
+      observedCoveragePercent,
+      acceptedSampleShare,
+      daysWithAtLeastThreeSamples,
+      minimumDailySamples:3
+    },
     sampleCount:rows.length,
     dayCount:days.size,
     observedHours,
