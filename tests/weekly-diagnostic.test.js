@@ -93,17 +93,19 @@ test('accepte exactement le minimum de trois relevés complets par journée',()=
   assert.equal(result.periods[1].sampleCount,21);
 });
 
-test('trie les relevés et ne compte qu’une seule observation par horodatage',()=>{
+test('trie les relevés et écarte l’horodatage contradictoire',()=>{
   const days=[
-    ...Array.from({length:7},(_,day)=>makeDay(day,50,40,{count:3})).flat(),
-    ...Array.from({length:7},(_,day)=>makeDay(day+7,50,40,{count:3})).flat()
+    ...Array.from({length:7},(_,day)=>makeDay(day,50,40,{count:4})).flat(),
+    ...Array.from({length:7},(_,day)=>makeDay(day+7,50,40,{count:4})).flat()
   ];
   const duplicate={...days[0],sh:95};
   const shuffled=[...days].reverse();
   shuffled.splice(2,0,duplicate);
   const result=summarizeWeeklyDiagnostic(shuffled);
   assert.equal(result.status,'available');
-  assert.equal(result.periods[0].sampleCount,21);
+  assert.equal(result.duplicateTimestampCount,1);
+  assert.equal(result.conflictingTimestampCount,1);
+  assert.equal(result.periods[0].sampleCount,27);
   assert.equal(result.periods[0].dayCount,7);
 });
 
