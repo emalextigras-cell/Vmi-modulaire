@@ -99,7 +99,10 @@ export function analyzeSeasonalVentilation(data, { minSamples = 6, minDays = 2, 
       ? 'Des périodes diurnes où l’air extérieur était au moins ' + temperatureMargin + ' °C plus chaud que le logement ont été observées. La surventilation peut alors apporter de l’air plus chaud ; vérifie les températures avant activation manuelle.'
       : 'En hiver, la surventilation diurne n’est pertinente que si l’air extérieur est plus chaud que le logement. Les relevés disponibles ne montrent pas encore assez de périodes favorables pour confirmer un créneau.';
   } else {
+    const humidityDelta = current?.medianHumidityDelta;
     advice = 'En intersaison, évite une règle horaire fixe : compare les températures intérieure et extérieure et l’humidité absolue de l’air entrant avant de modifier la ventilation.';
+    if (humidityDelta != null && humidityDelta > 1) advice += ' Sur les jours analysés, l’air intérieur était plus humide que l’air entrant de ' + humidityDelta.toFixed(1) + ' g/m³ en médiane : l’air entrant présentait un potentiel d’assèchement.';
+    else if (humidityDelta != null && humidityDelta < -1) advice += ' Sur les jours analysés, l’air entrant était plus humide que l’air intérieur de ' + Math.abs(humidityDelta).toFixed(1) + ' g/m³ en médiane : augmenter la ventilation ne garantit pas d’assécher le logement.';
   }
 
   return {
