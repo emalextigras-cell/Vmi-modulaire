@@ -450,3 +450,24 @@ test('trend remains eligible when both windows and their comparison fit calendar
  assert.ok(result.observations.some(item=>item.code==='indoor-moisture-rising'));
  assert.ok(!result.observations.some(item=>item.code==='trend-calendar-span-limited'));
 });
+
+
+test('durable trend evidence identifies both calendar windows and their medians',()=>{
+ const rows=[];
+ [1,2,3,5,6,7].forEach((day,index)=>{
+  for(let i=0;i<4;i++) rows.push({
+   t:new Date(2026,10,day,8,i*30,0).getTime(),
+   st:20,sh:index<3?45:75,te:10,he:40
+  });
+ });
+ const result=buildHygrometricDiagnosis(rows);
+ const finding=result.observations.find(item=>item.code==='indoor-moisture-rising');
+ assert.ok(finding);
+ assert.equal(finding.basis.baselineWindowStartDate,'2026-11-01');
+ assert.equal(finding.basis.baselineWindowEndDate,'2026-11-03');
+ assert.equal(finding.basis.recentWindowStartDate,'2026-11-05');
+ assert.equal(finding.basis.recentWindowEndDate,'2026-11-07');
+ assert.equal(finding.basis.totalComparisonSpanDays,6);
+ assert.ok(Number.isFinite(finding.basis.baselineMedianAbsoluteHumidity));
+ assert.ok(Number.isFinite(finding.basis.recentMedianAbsoluteHumidity));
+});
