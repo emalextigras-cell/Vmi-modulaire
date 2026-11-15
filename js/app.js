@@ -4,7 +4,7 @@ import { createBackupSnapshot, mergeBackupData } from './modules/backup.js';
 import { $, sleep, APP_VERSION } from './modules/core.js';
 import { createStore } from './modules/store.js';
 import { fromOldRow } from './modules/legacy-migration.js';
-import { median, analyzeSpeedLevels, analyzeSpeedTimeContext, analyzeHygrometricPeriods, summarizeDailyTrends, analyzeHourlyPatterns, detectRapidChanges, summarizeEnergyReadiness, summarizeRawVmiSpeed, summarizeRawVmiMode, summarizeOperatingReference, compareOperatingPeriods, buildHygrometricDiagnosis } from './modules/analysis.js';
+import { median, analyzeSpeedLevels, analyzeSpeedTimeContext, analyzeHygrometricPeriods, summarizeDailyTrends, analyzeHourlyPatterns, detectRapidChanges, summarizeEnergyReadiness, summarizeRawVmiSpeed, summarizeRawVmiMode, summarizeOperatingReference, compareOperatingPeriods, buildHygrometricDiagnosis, summarizeTemperatureLimit } from './modules/analysis.js';
 import { renderCharts, resetChartViews } from './modules/charts.js';
 import { SVC_C, CH_C, SVC_T, CH_T, frame, timeFrame, hex } from './modules/ble.js';
 import { armDownloadTimeout } from './modules/sync.js';
@@ -758,7 +758,7 @@ function analyzeSpeeds(data){
 }
 function renderEnergyReadiness(data){
  const result=summarizeEnergyReadiness(data);
- const labels={rpm:'Régime moteur',debit:'Débit VMI+ (m³/h confirmé)',vmiSpeedRaw:'Code vitesse VMI+ brut',vmiPwmRaw:'PWM brut',consDpRaw:'Cons DP brut'};
+ const labels={rpm:'Régime moteur',debit:'Débit VMI+ (m³/h confirmé)',vmiSpeedRaw:'Code vitesse VMI+ brut',vmiPwmRaw:'PWM brut',consDpRaw:'Cons DP brut',consTmaxRaw:'Seuil température extérieure (Cons TMax)'};
  let html='<table><thead><tr><th>Champ exporté</th><th>Mesures</th><th>Zéros</th><th>Manquants</th><th>Minimum</th><th>Maximum</th><th>Valeurs distinctes</th></tr></thead><tbody>';
  for(const f of result.fields){
   const distinct=f.distinct.length>8?f.distinct.slice(0,8).map(fmt).join(', ')+'…':f.distinct.map(fmt).join(', ')||'–';
@@ -807,6 +807,29 @@ function renderEnergyReadiness(data){
    (volumeValues.length>1?' · valeurs rencontrées : '+volumeValues.map(fmt).join(', ')+' m³':' · valeur constante dans les relevés')+
    '. Cette donnée correspond au volume du logement déclaré dans la VMI+, pas à un volume d’air réellement renouvelé.</div>';
  }
+ const temperatureLimit = summarizeTemperatureLimit(data);
+ let temperatureLimitHtml='<h4>Régulation selon la température extérieure</h4>';
+ if(!temperatureLimit.thresholds.length){
+  temperatureLimitHtml+='<div class="advice">Aucune paire de données exploitable entre le seuil Cons TMax et la température extérieure Tempext. Le réglage est conservé, mais aucune comparaison n’est possible.</div>';
+ }else{
+  for(const item of temperatureLimit.thresholds){
+   temperatureLimitHtml+='<div class="advice"><strong>Seuil configuré : '+fmt(item.threshold)+' °C</strong> · '+item.sampleCount+' relevés avec température extérieure · '+item.aboveThresholdCount+' au-dessus du seuil · '+item.atOrBelowThresholdCount+' au seuil ou en dessous.</div>';
+   if(item.modes.length){
+    temperatureLimitHtml+='<table><thead><tr><th>Mode manuel</th><th>Au-dessus du seuil</th><th>Au seuil ou en dessous</th></tr></thead><tbody>';
+    for(const group of item.modes){
+     const cell=segment=>segment.sampleCount+' relevé(s) au total · '+segment.dayCount+' jour(s)';
+     const paired=segment=>group.comparable
+      ?' · comparaison sur '+segment.dayCount+' jours communs ('+segment.sampleCount+' relevés) : débit '+(segment.medianDebit==null?'–':fmt(segment.medianDebit)+' m³/h')+' · régime '+(segment.medianRPM==null?'–':fmt(segment.medianRPM)+' tr/min')
+      :' · comparaison non disponible (effectif ou dates communes insuffisants)';
+     temperatureLimitHtml+='<tr><td>'+group.mode+'</td><td>'+cell(group.above)+paired(group.pairedAbove)+'</td><td>'+cell(group.atOrBelow)+paired(group.pairedAtOrBelow)+'</td></tr>';
+    }
+    temperatureLimitHtml+='</tbody></table>';
+   }else{
+    temperatureLimitHtml+='<div class="muted">Aucun Mode manuel 1, 2 ou 3 renseigné pour ces relevés.</div>';
+   }
+  }
+ }
+ temperatureLimitHtml+='<div class="advice">Lecture prudente : les relevés au-dessus du seuil correspondent à des conditions où la réduction de ventilation peut s’appliquer. Une différence de débit ne démontre pas à elle seule que la régulation en est la cause. Les comparaisons sont séparées par mode et restent descriptives.</div>';
  const manufacturerPowerReference=[
   {flow:50,pressure:5,power:4},
   {flow:125,pressure:25,power:10},
@@ -822,7 +845,7 @@ function renderEnergyReadiness(data){
  referenceHtml+='</tbody></table>';
  referenceHtml+='<div class="advice">La notice indique également une puissance maximale de 169 W sans préchauffage et une puissance maximale de préchauffage de 1 800 W. Ces repères ne permettent pas de reconstituer la consommation réelle de ton historique : le CSV ne fournit pas de mesure électrique vérifiée, et l’état/temps de fonctionnement du préchauffage n’est pas confirmé par les champs disponibles. Ne pas assimiler « Cons Res » à des watts.</div>';
  referenceHtml+='<p class="note">Source : <a href="https://www.vmi-technologies.com/wp-content/uploads/2024/11/FR-VMI%C2%AE-Purevent-Notice-dinstallation-et-de-maintenance-1.pdf" target="_blank" rel="noopener">notice officielle VMI PUREVENT, §2.2–2.3, pages 7–8</a>. Il s’agit d’une référence constructeur, pas d’une mesure de cette installation.</p>';
- $('energyReadiness').innerHTML=volumeHtml+html+operatingHtml+modeHtml+rawHtml+referenceHtml+'<div class="advice">'+result.message+' Les valeurs brutes sont conservées ; aucune conversion des champs non documentés en watts, kWh ou rendement n’est appliquée. Le débit confirmé reste affiché en m³/h.</div>';
+ $('energyReadiness').innerHTML=volumeHtml+html+temperatureLimitHtml+operatingHtml+modeHtml+rawHtml+referenceHtml+'<div class="advice">'+result.message+' Les valeurs brutes sont conservées ; aucune conversion des champs non documentés en watts, kWh ou rendement n’est appliquée. Le débit confirmé reste affiché en m³/h.</div>';
 }
 
 function renderRecommendation(data){

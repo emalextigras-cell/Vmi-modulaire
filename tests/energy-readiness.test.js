@@ -1,23 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { getColumnMapping, recFrom } from '../js/modules/dataio.js';
-import { summarizeEnergyReadiness, summarizeOperatingReference, analyzeSpeedLevels, analyzeSpeedTimeContext, compareOperatingPeriods } from '../js/modules/analysis.js';
+import { summarizeEnergyReadiness, summarizeOperatingReference, analyzeSpeedLevels, analyzeSpeedTimeContext, compareOperatingPeriods, summarizeTemperatureLimit } from '../js/modules/analysis.js';
 
 test('recFrom conserve les champs énergétiques VMI+ sous forme brute', () => {
   const headers = [
     'Date','Cons Res','Cons HydroR','Cons TMax','Kmoteur','Jmoteur',
     'Kreseau','Jreseau','Pression Moteur','Debit','Cons Dp',
-    'Tachy (rpm)','PWM (1/1000)','Offset Press','% fonct','% fonct.1','Dcint'
+    'Tachy (rpm)','PWM (1/1000)','Offset Press','% fonct','% fonct.1','Dcint','Tempext'
   ];
   const values = [
     '10/11/2026 16:45:35','4','0','25','4225','47',
-    '1268','99','11,2','121','112','1376','348','0','2','0','0'
+    '1268','99','11,2','121','112','1376','348','0','2','0','0','26,4'
   ];
   const record = recFrom(values, null, getColumnMapping(headers));
   assert.ok(record);
   assert.equal(record.consResRaw, 4);
   assert.equal(record.consHydroRRaw, 0);
   assert.equal(record.consTmaxRaw, 25);
+  assert.equal(record.tExt, 26.4);
   assert.equal(record.kmoteurRaw, 4225);
   assert.equal(record.jmoteurRaw, 47);
   assert.equal(record.kreseauRaw, 1268);
@@ -47,10 +48,11 @@ test('inventorie les champs énergétiques sans attribuer de watts ou kWh', () =
     const field = result.fields.find(item => item.key === key);
     assert.ok(field, 'champ manquant: ' + key);
     assert.equal(field.count, 1);
-    assert.equal(field.verified, false);
+    assert.equal(field.verified, key === 'consTmaxRaw');
   }
   assert.equal(result.fields.find(item => item.key === 'debit').verified, true);
   assert.equal(result.fields.find(item => item.key === 'rpm').verified, true);
+  assert.equal(result.fields.find(item => item.key === 'consTmaxRaw').unit, 'consigne en °C (sens confirmé)');
 });
 
 test('distingue les deux colonnes VMI+ portant le même en-tête % fonct', () => {
@@ -231,4 +233,43 @@ test('ne déduit aucun Mode depuis Vitesse ou les codes bruts VMI+', () => {
   const result = compareOperatingPeriods(rows);
   assert.equal(result.status, 'no-mode-data');
   assert.deepEqual(result.comparisons, []);
+});
+
+
+test('interprète Cons TMax comme seuil extérieur et compare seulement à Mode identique', () => {
+  const rows = [];
+  for (let i = 0; i < 6; i++) {
+    const day = Date.UTC(2026, 6, 1 + i);
+    rows.push({ t: day + 14 * 3600000, consTmaxRaw: 25, tExt: 26 + i / 10, vmiModeRaw: 1, debit: 50, rpm: 660 });
+    rows.push({ t: day + 15 * 3600000, consTmaxRaw: 25, tExt: 22 + i / 10, vmiModeRaw: 1, debit: 120, rpm: 1360 });
+    rows.push({ t: day + 16 * 3600000, consTmaxRaw: 25, tExt: 22 + i / 10, vmiModeRaw: 2, debit: 150, rpm: 1650 });
+  }
+  const result = summarizeTemperatureLimit(rows);
+  assert.equal(result.status, 'available');
+  assert.equal(result.thresholds[0].threshold, 25);
+  assert.equal(result.thresholds[0].aboveThresholdCount, 6);
+  const mode1 = result.thresholds[0].modes.find(group => group.mode === 1);
+  assert.equal(mode1.comparable, true);
+  assert.equal(mode1.sharedDayCount, 6);
+  assert.equal(mode1.pairedAbove.medianDebit, 50);
+  assert.equal(mode1.pairedAtOrBelow.medianDebit, 120);
+  const mode2 = result.thresholds[0].modes.find(group => group.mode === 2);
+  assert.equal(mode2.comparable, false);
+});
+
+test('ne conclut rien si la température extérieure manque', () => {
+  const result = summarizeTemperatureLimit([
+    { consTmaxRaw: 25, tExt: null, vmiModeRaw: 1, debit: 100 }
+  ]);
+  assert.equal(result.status, 'no-comparable-data');
+  assert.equal(result.missingOutdoorTemperatureCount, 1);
+});
+
+test('sépare les périodes où le réglage Cons TMax change', () => {
+  const result = summarizeTemperatureLimit([
+    { consTmaxRaw: 24, tExt: 25, vmiModeRaw: 1, debit: 50 },
+    { consTmaxRaw: 26, tExt: 25, vmiModeRaw: 1, debit: 100 }
+  ]);
+  assert.deepEqual(result.thresholds.map(item => item.threshold), [24, 26]);
+  assert.deepEqual(result.thresholds.map(item => item.aboveThresholdCount), [1, 0]);
 });
