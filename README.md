@@ -220,3 +220,10 @@ Les valeurs restent des médianes journalières descriptives. Aucun relevé n'es
 ## Phase 17 — expliquer les critères temporels du diagnostic
 
 Le panneau « Méthode et seuils utilisés » précise les critères nécessaires à une tendance durable : six jours exploitables minimum, deux fenêtres de trois jours, quatre jours calendaires maximum par fenêtre et quatorze jours maximum pour l'ensemble comparé. Ces critères sont affichés à côté du seuil hygrométrique afin que l'utilisateur comprenne pourquoi une évolution peut rester non concluante.
+
+
+## Phase 18 — contexte de l'air entrant pour les tendances intérieures
+
+Les preuves d'une tendance d'humidité absolue intérieure affichent aussi, sur les mêmes deux fenêtres, les médianes journalières agrégées de l'humidité absolue de l'air entrant et de l'écart salon − air entrant. Cela permet de replacer l'évolution intérieure dans le contexte hygrométrique extérieur mesuré par la sonde d'entrée.
+
+Ces indicateurs restent descriptifs : ils ne démontrent pas que l'air entrant cause l'évolution intérieure, ni que la VMI a produit un effet donné. Aucun ajustement automatique n'est effectué.
