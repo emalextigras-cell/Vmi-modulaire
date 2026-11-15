@@ -1,4 +1,25 @@
 /** Fonctions pures de nettoyage et de conservation de l'historique local. */
+import { MIN_VALID } from './date-utils.js';
+
+/**
+ * La date brute rk fait foi : certains anciens relevés ont reçu une date t
+ * artificielle lors d'une correction d'horloge. Les années brutes antérieures
+ * à 2025 ne doivent jamais entrer dans l'historique exploité.
+ */
+export function isRawDateEligible(record, minValid = MIN_VALID) {
+  if (!record || !Number.isFinite(record.t)) return false;
+  if (typeof record.rk === 'string' && record.rk.trim()) {
+    const match = record.rk.trim().match(/^\\d{1,2}\\/\\d{1,2}\\/(\\d{4})\\s/);
+    if (match) return Number(match[1]) >= 2025;
+  }
+  // Un relevé déjà corrigé sans sa date d'origine n'est pas vérifiable.
+  if (record.fixed === true) return false;
+  return record.t >= minValid;
+}
+
+export function filterRawDateHistory(records, minValid = MIN_VALID) {
+  return (Array.isArray(records) ? records : []).filter(record => isRawDateEligible(record, minValid));
+}
 export function pruneHistory(records, maxRecords) {
   const valid = (Array.isArray(records) ? records : []).filter(record =>
     record && (record.st != null || record.sh != null || record.tExt != null || record.te != null ||
