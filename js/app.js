@@ -14,6 +14,7 @@ import { absoluteHumidity, psychro, validTemp } from './modules/psychrometry.js'
 import { summarizeDataQuality, isPlausibleHumidity, isPlausibleTemperature } from './modules/data-quality.js';
 import { upsertEnergyReading, summarizeEnergyReadings, summarizeMonthlyEnergyReadings, summarizeEnergyClimateContext, ENERGY_METER_LABELS } from './modules/energy-meter.js';
 import { summarizeFanEnergyEstimate, summarizeFanEnergyByManualMode } from './modules/energy-estimate.js';
+import { summarizeDailyEnergyClimateContext } from './modules/energy-climate.js';
 import { chooseAuthorizedDevice } from './modules/bluetooth-autoconnect.js';
 import { buildLiveFreshnessText } from './modules/live-freshness.js';
 import { formatDiagnosisConfidence } from './modules/diagnostic-confidence.js';
@@ -986,6 +987,30 @@ function renderFanEnergyEstimate(data){
    }
   }
 }
+function renderDailyEnergyClimateContext(data){
+ const box=$('dailyEnergyClimateContext');
+ if(!box)return;
+ const result=summarizeDailyEnergyClimateContext(data);
+ if(result.status!=='available'){
+  box.className='advice';
+  box.textContent='Rapprochement encore insuffisant : '+result.matchedDayCount+' jour(s) disposent à la fois d’au moins '+result.minFanHours+' h de puissance ventilateur estimée et de '+result.minClimateSamples+' relevés hygrométriques valides. Il en faut '+result.minDays+' pour afficher une comparaison journalière.';
+  return;
+ }
+ const rows=result.matchedDays.slice(-7);
+ let html='<p class="note">'+result.matchedDayCount+' jour(s) apparié(s) · seuils : '+result.minFanHours+' h d’estimation ventilateur et '+result.minClimateSamples+' relevés hygrométriques par jour. Derniers jours disponibles :</p>';
+ html+='<div class="table-wrap"><table><thead><tr><th>Jour</th><th>Ventilateur estimé</th><th>Puissance moyenne estimée</th><th>HA intérieure médiane</th><th>HA air entrant médiane</th><th>Écart intérieur − entrant</th></tr></thead><tbody>';
+ for(const item of rows){
+  const dateParts=item.date.split('-').map(Number);
+  const label=new Date(dateParts[0],dateParts[1]-1,dateParts[2]).toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'2-digit'});
+  const value=(number,unit)=>number==null?'–':fmt(number)+' '+unit;
+  html+='<tr><td>'+label+'</td><td>'+value(item.estimatedKwh,'kWh')+'<br><small>'+fmt(item.fanHours)+' h intégrées</small></td><td>'+value(item.averagePowerW,'W')+'</td><td>'+value(item.medianIndoorAbsHumidity,'g/m³')+'</td><td>'+value(item.medianIncomingAbsHumidity,'g/m³')+'</td><td>'+value(item.medianDeltaAbsHumidity,'g/m³')+'</td></tr>';
+ }
+ html+='</tbody></table></div><p class="note">Lecture : ce tableau met côte à côte des observations des mêmes journées. Il ne démontre pas qu’une puissance plus élevée assèche davantage le logement et ne calcule pas de rendement. L’énergie est estimée à partir du débit et de la courbe constructeur, pas mesurée au compteur.</p>';
+ html+='<details><summary>Critères et limites</summary><ul>'+result.limits.map(item=>'<li>'+item+'</li>').join('')+'</ul></details>';
+ box.className='advice';
+ box.innerHTML=html;
+}
+
 function renderEnergyMeterTracking(){
  const result=summarizeEnergyReadings(energyReadings);
  const climateSummary=summarizeEnergyClimateContext(energyReadings,hist);
@@ -1129,7 +1154,7 @@ function render(){
  qualityBox.textContent='Contrôle qualité de l’historique analysé : '+coverageText+missingText+invalidText+spikeText+' Les données manquantes réduisent la couverture ; elles ne sont pas considérées comme des anomalies.';
  renderCharts(data,selectedDate,$);
  renderRecommendation(analysisData);renderHygrometricPeriods(analysisData);renderIntelligentDiagnosis(analysisData);
- renderTemporalAnalysis(analysisData);analyzeSpeeds(analysisData);renderEnergyReadiness(analysisData);renderFanEnergyEstimate(analysisData);renderFreshness();
+ renderTemporalAnalysis(analysisData);analyzeSpeeds(analysisData);renderEnergyReadiness(analysisData);renderFanEnergyEstimate(analysisData);renderDailyEnergyClimateContext(analysisData);renderFreshness();
 }
 $('targetRH').onchange=render;$('minSamples').onchange=render;
 
