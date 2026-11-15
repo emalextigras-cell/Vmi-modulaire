@@ -1044,7 +1044,7 @@ function render(){
  qualityBox.textContent='Contrôle qualité de l’historique analysé : '+coverageText+missingText+invalidText+' Les données manquantes réduisent la couverture ; elles ne sont pas considérées comme des anomalies.';
  renderCharts(data,selectedDate,$);
  renderRecommendation(analysisData);renderHygrometricPeriods(analysisData);renderIntelligentDiagnosis(analysisData);
- renderTemporalAnalysis(analysisData);analyzeSpeeds(analysisData);renderEnergyReadiness(analysisData);renderFreshness();
+ renderTemporalAnalysis(analysisData);analyzeSpeeds(analysisData);renderEnergyReadiness(analysisData);renderFanEnergyEstimate(analysisData);renderFreshness();
 }
 $('targetRH').onchange=render;$('minSamples').onchange=render;
 
