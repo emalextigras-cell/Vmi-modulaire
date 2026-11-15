@@ -13,6 +13,7 @@ import { fixClock } from './modules/clock-correction.js';
 import { absoluteHumidity, psychro, validTemp } from './modules/psychrometry.js';
 import { summarizeDataQuality, isPlausibleHumidity, isPlausibleTemperature } from './modules/data-quality.js';
 import { upsertEnergyReading, summarizeEnergyReadings, summarizeMonthlyEnergyReadings, summarizeEnergyClimateContext, ENERGY_METER_LABELS } from './modules/energy-meter.js';
+import { summarizeFanEnergyEstimate } from './modules/energy-estimate.js';
 
 
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
@@ -881,6 +882,28 @@ function renderEnergyReadiness(data){
  renderEnergyMeterTracking();
 }
 
+function renderFanEnergyEstimate(data){
+ const box=$('fanEnergyEstimate');
+ if(!box)return;
+ const result=summarizeFanEnergyEstimate(data);
+ box.className='advice';
+ if(result.status!=='estimated'){
+  box.textContent=result.sampleCount<2
+   ?'Il faut au moins deux relevés historiques avec un débit VMI+ exploitable pour établir une estimation.'
+   :'Aucun intervalle exploitable : vérifie que le débit est compris entre 50 et 350 m³/h et que deux relevés successifs sont espacés de 2 h maximum.';
+  return;
+ }
+ const coverage=result.coveragePercent;
+ const coverageLabel=coverage>=80?'couverture correcte':coverage>=50?'couverture partielle':'couverture faible';
+ box.innerHTML='<div class="grid cols3">'+
+  '<div class="metric"><b>'+fmt(result.estimatedKwh)+' kWh</b><span>Énergie estimée du ventilateur</span></div>'+
+  '<div class="metric"><b>'+fmt(result.averagePowerW)+' W</b><span>Puissance moyenne estimée</span></div>'+
+  '<div class="metric"><b>'+fmt(coverage)+' %</b><span>Couverture ('+coverageLabel+')</span></div></div>'+
+  '<p class="note">Période : '+fmtShort(result.firstAt)+' → '+fmtShort(result.lastAt)+' · '+fmt(result.coveredHours)+' h intégrées sur '+fmt(result.observedHours)+' h · '+result.acceptedIntervalCount+' intervalle(s) retenu(s).</p>'+
+  '<p class="note">Il s’agit d’une estimation du ventilateur, pas d’une mesure au compteur. La pression réelle du réseau, l’état du filtre et les conditions d’installation peuvent modifier la puissance absorbée.</p>'+
+  '<p class="note"><strong>Préchauffage et total VMI : non estimables avec les champs actuellement validés.</strong> Le champ « Cons Res » n’est pas converti en watts ou en kWh.</p>'+
+  '<details><summary>Méthode et limites</summary><ul>'+result.limits.map(item=>'<li>'+item+'</li>').join('')+'</ul><p class="note">Référence : notice officielle PUREVENT, valeurs de puissance mesurées par TÜV SÜD à 50, 125, 200, 245 et 350 m³/h.</p></details>';
+}
 function renderEnergyMeterTracking(){
  const result=summarizeEnergyReadings(energyReadings);
  const climateSummary=summarizeEnergyClimateContext(energyReadings,hist);
