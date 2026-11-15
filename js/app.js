@@ -500,8 +500,9 @@ $('energyMeterForm').addEventListener('submit',async event=>{
  const note=$('energyMeterNote').value;
  const id=meterType+':'+timestamp;
  try{
-  energyReadings=upsertEnergyReading(energyReadings,{id,meterType,t:timestamp,kwh,note});
-  await dbSet('energyReadings',energyReadings);
+  const nextReadings=upsertEnergyReading(energyReadings,{id,meterType,t:timestamp,kwh,note});
+  await dbSetMany([['energyReadings',nextReadings]]);
+  energyReadings=nextReadings;
   $('energyMeterFormInfo').textContent='Index enregistré. Si un index existait déjà pour ce compteur à cette date, il a été remplacé.';
   $('energyMeterKwh').value='';
   $('energyMeterNote').value='';
@@ -516,8 +517,9 @@ $('energyMeterHistory').addEventListener('click',async event=>{
  const button=event.target.closest('[data-energy-delete]');
  if(!button)return;
  const id=button.getAttribute('data-energy-delete');
- energyReadings=energyReadings.filter(reading=>reading.id!==id);
- await dbSet('energyReadings',energyReadings);
+ const nextReadings=energyReadings.filter(reading=>reading.id!==id);
+ await dbSetMany([['energyReadings',nextReadings]]);
+ energyReadings=nextReadings;
  renderEnergyMeterTracking();
 });
 $('restoreFile').onchange=async e=>{
