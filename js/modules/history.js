@@ -12,9 +12,11 @@ export function isRawDateEligible(record, minValid = MIN_VALID) {
     const match = record.rk.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s/);
     if (match) return Number(match[3]) >= 2025;
   }
-  // Un relevé déjà corrigé sans sa date d'origine n'est pas vérifiable.
+  // Sans date brute, conserver les anciens horodatages non corrigés :
+  // fixClock doit encore pouvoir les recaler à partir du compteur de jours.
+  // En revanche, une date déjà corrigée sans origine vérifiable est écartée.
   if (record.fixed === true) return false;
-  return record.t >= minValid;
+  return true;
 }
 
 export function filterRawDateHistory(records, minValid = MIN_VALID) {
