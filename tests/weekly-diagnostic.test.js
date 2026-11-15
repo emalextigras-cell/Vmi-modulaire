@@ -62,3 +62,47 @@ test('les relevés anciens hors des deux fenêtres ne sont pas mélangés aux se
   assert.equal(result.periods[0].start,'2026-01-01');
   assert.equal(result.periods[1].end,'2026-01-14');
 });
+
+test('chaque journée a le même poids même si le nombre de relevés varie fortement',()=>{
+  const buildDay=(index,rh,count,stepMinutes)=>Array.from({length:count},(_,sample)=>({
+    t:firstDay+index*24*HOUR+sample*stepMinutes*60000,
+    debit:125,st:20,sh:rh,te:10,he:40
+  }));
+  const previous=[
+    ...Array.from({length:6},(_,day)=>buildDay(day,40,3,60)).flat(),
+    ...buildDay(6,90,100,10)
+  ];
+  const recent=Array.from({length:7},(_,day)=>buildDay(day+7,40,3,60)).flat();
+  const result=summarizeWeeklyDiagnostic([...previous,...recent]);
+  assert.equal(result.status,'available');
+  assert.equal(result.periods[0].medianRH,40);
+  assert.equal(result.periods[1].medianRH,40);
+  assert.equal(result.comparison.relativeHumidity,0);
+});
+
+test('accepte exactement le minimum de trois relevés complets par journée',()=>{
+  const history=[
+    ...Array.from({length:7},(_,day)=>makeDay(day,50,40,{count:3})).flat(),
+    ...Array.from({length:7},(_,day)=>makeDay(day+7,52,40,{count:3})).flat()
+  ];
+  const result=summarizeWeeklyDiagnostic(history);
+  assert.equal(result.status,'available');
+  assert.equal(result.periods[0].dayCount,7);
+  assert.equal(result.periods[1].dayCount,7);
+  assert.equal(result.periods[0].sampleCount,21);
+  assert.equal(result.periods[1].sampleCount,21);
+});
+
+test('trie les relevés et ne compte qu’une seule observation par horodatage',()=>{
+  const days=[
+    ...Array.from({length:7},(_,day)=>makeDay(day,50,40,{count:3})).flat(),
+    ...Array.from({length:7},(_,day)=>makeDay(day+7,50,40,{count:3})).flat()
+  ];
+  const duplicate={...days[0],sh:95};
+  const shuffled=[...days].reverse();
+  shuffled.splice(2,0,duplicate);
+  const result=summarizeWeeklyDiagnostic(shuffled);
+  assert.equal(result.status,'available');
+  assert.equal(result.periods[0].sampleCount,21);
+  assert.equal(result.periods[0].dayCount,7);
+});
