@@ -162,3 +162,21 @@ test('ignore les métadonnées non utilisées pour les doublons de comparaison p
   assert.equal(result.conflictingTimestampCount,0);
   assert.equal(result.groups[0].intervalCount,1);
 });
+
+
+test('valide maxGapHours pour l’estimation du ventilateur', () => {
+  for (const value of [0, -1, NaN, Infinity, -Infinity, Number.MAX_VALUE]) {
+    assert.throws(() => summarizeFanEnergyEstimate([], { maxGapHours: value }), RangeError);
+    assert.throws(() => summarizeFanEnergyByManualMode([], { maxGapHours: value }), RangeError);
+  }
+  assert.equal(summarizeFanEnergyEstimate([], { maxGapHours: 0.5 }).maxGapHours, 0.5);
+  assert.equal(summarizeFanEnergyEstimate([], null).maxGapHours, 2);
+});
+
+test('valide minDays comme entier sûr positif ou nul', () => {
+  for (const value of [-1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.throws(() => summarizeFanEnergyByManualMode([], { minDays: value }), RangeError);
+  }
+  assert.equal(summarizeFanEnergyByManualMode([], { minDays: 0 }).minDays, 0);
+  assert.equal(summarizeFanEnergyByManualMode([], null).minDays, 2);
+});

@@ -7,6 +7,16 @@ import { absoluteHumidity } from './psychrometry.js';
  * La pression réelle de l'installation n'étant pas mesurée, ce résultat n'est
  * ni une mesure électrique ni une garantie de la puissance réellement absorbée.
  */
+const assertValidEnergyOptions = (maxGapHours, minDays = null) => {
+  const maxGapMs = maxGapHours * 3600000;
+  if (!Number.isFinite(maxGapHours) || maxGapHours <= 0 || !Number.isFinite(maxGapMs) || maxGapMs <= 0) {
+    throw new RangeError('maxGapHours doit être un nombre fini strictement positif exploitable en millisecondes.');
+  }
+  if (minDays !== null && (!Number.isSafeInteger(minDays) || minDays < 0)) {
+    throw new RangeError('minDays doit être un entier sûr positif ou nul.');
+  }
+};
+
 const deduplicateByRelevantValues = (rows, fingerprint) => {
   const groups=[];
   for(const row of rows){
@@ -55,7 +65,9 @@ export function estimateFanPowerFromFlow(flow) {
  * Les intervalles > maxGapHours et les débits hors domaine constructeur
  * sont exclus, sans interpolation à travers les trous.
  */
-export function summarizeFanEnergyEstimate(history, { maxGapHours = 2 } = {}) {
+export function summarizeFanEnergyEstimate(history, options = {}) {
+  const { maxGapHours = 2 } = options ?? {};
+  assertValidEnergyOptions(maxGapHours);
   const rows = (Array.isArray(history) ? history : [])
     .filter(row => Number.isFinite(row?.t))
     .sort((a, b) => a.t - b.t);
@@ -116,7 +128,9 @@ function medianEstimate(values) {
  * La puissance moyenne affichée est la médiane des moyennes journalières,
  * pour éviter qu'une journée très échantillonnée pèse davantage.
  */
-export function summarizeFanEnergyByManualMode(history, { maxGapHours = 2, minDays = 2 } = {}) {
+export function summarizeFanEnergyByManualMode(history, options = {}) {
+  const { maxGapHours = 2, minDays = 2 } = options ?? {};
+  assertValidEnergyOptions(maxGapHours, minDays);
   const rows = (Array.isArray(history) ? history : [])
     .filter(row => Number.isFinite(row?.t))
     .sort((a, b) => a.t - b.t);
