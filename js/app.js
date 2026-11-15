@@ -267,42 +267,21 @@ function startPolling(){
  snapTimer=setInterval(takeSnapshot,300000);
 }
 function cleanupConnection(){clearInterval(pollTimer);clearInterval(snapTimer);chC=null;chT=null}
-function logGattState(stage,detail=''){
- const transport=!!(dev&&dev.gatt&&dev.gatt.connected);
- const state=`transport=${transport} · chC=${!!chC} · chT=${!!chT} · download=${download.on} · intentional=${intentionalDisconnect} · manual=${manualDisconnect} · autoDone=${autoDone} · polling=${polling}`;
- log(`[GATT] ${stage} | ${state}${detail?' | '+String(detail):''}`);
-}
 function onDisconnect(){
- logGattState('event:gattserverdisconnected');
  const wasIntentional=intentionalDisconnect;
  intentionalDisconnect=false;
  cleanupConnection();
- if(wasIntentional){
-  setStatus('Synchronisation terminée. Reconnexion pour les mesures en direct…');
-  logGattState('sync:live-reconnect-scheduled','dans 3 s ; autoDone conservé');
-  clearTimeout(reconnectTimer);
-  reconnectTimer=setTimeout(reconnect,3000);
-  return;
- }
+ if(wasIntentional){setStatus('Synchronisation terminée. Bluetooth déconnecté.');return}
  setStatus('Déconnecté.');
  if(!manualDisconnect&&dev){setStatus('Connexion perdue, tentative de reconnexion…');clearTimeout(reconnectTimer);reconnectTimer=setTimeout(reconnect,4000)}
 }
 async function connectCharacteristics(server){
- logGattState('discovery:start');
- let serviceC;
- try{serviceC=await server.getPrimaryService(SVC_C);logGattState('discovery:service-command:ok')}
- catch(e){logGattState('discovery:service-command:failed',e.message);throw e}
- try{chC=await serviceC.getCharacteristic(CH_C);logGattState('discovery:characteristic-command:ok')}
- catch(e){logGattState('discovery:characteristic-command:failed',e.message);throw e}
- let serviceT;
- try{serviceT=await server.getPrimaryService(SVC_T);logGattState('discovery:service-telemetry:ok')}
- catch(e){logGattState('discovery:service-telemetry:failed',e.message);throw e}
- try{chT=await serviceT.getCharacteristic(CH_T);logGattState('discovery:characteristic-telemetry:ok')}
- catch(e){logGattState('discovery:characteristic-telemetry:failed',e.message);throw e}
- try{await chT.startNotifications();chT.removeEventListener('characteristicvaluechanged',onNotification);chT.addEventListener('characteristicvaluechanged',onNotification);logGattState('notifications:telemetry:started')}
- catch(e){logGattState('notifications:telemetry:failed',e.message);throw e}
- try{await chC.startNotifications();chC.removeEventListener('characteristicvaluechanged',onNotification);chC.addEventListener('characteristicvaluechanged',onNotification);logGattState('notifications:command:started')}
- catch(e){logGattState('notifications:command:failed',e.message);log('Notifications canal commande non disponibles : '+e.message)}
+ const serviceC=await server.getPrimaryService(SVC_C);
+ chC=await serviceC.getCharacteristic(CH_C);
+ const serviceT=await server.getPrimaryService(SVC_T);
+ chT=await serviceT.getCharacteristic(CH_T);
+ await chT.startNotifications();chT.removeEventListener('characteristicvaluechanged',onNotification);chT.addEventListener('characteristicvaluechanged',onNotification);
+ try{await chC.startNotifications();chC.removeEventListener('characteristicvaluechanged',onNotification);chC.addEventListener('characteristicvaluechanged',onNotification)}catch(e){log('Notifications canal commande non disponibles : '+e.message)}
 }
 function preferredBluetoothDeviceId(){
  try{return localStorage.getItem('vmi_bluetooth_device_id')||''}catch(e){return ''}
@@ -313,14 +292,11 @@ function rememberBluetoothDevice(device){
 async function connectDevice(device){
  if(!device||!device.gatt)throw new Error('Appareil Bluetooth invalide.');
  dev=device;manualDisconnect=false;
- logGattState('connectDevice:start');
  dev.removeEventListener('gattserverdisconnected',onDisconnect);
  dev.addEventListener('gattserverdisconnected',onDisconnect);
  setStatus('Connexion à '+(dev.name||'la VMI')+'…');
  const server=await dev.gatt.connect();
- logGattState('connectDevice:transport-connected');
  await connectCharacteristics(server);
- logGattState('connectDevice:ready');
  setStatus('Connecté à '+(dev.name||'la VMI')+'. Synchronisation des données…',true);
  startPolling();
  // Une reconnexion ne doit pas relancer la synchronisation automatique déjà effectuée.
@@ -358,9 +334,8 @@ async function autoConnectAuthorizedDevice(){
 }
 async function reconnect(){
  if(manualDisconnect||!dev)return;
- logGattState('reconnect:attempt');
- try{await connectDevice(dev);logGattState('reconnect:success')}
- catch(e){logGattState('reconnect:failed',e.message);log('Reconnexion échouée : '+e.message);clearTimeout(reconnectTimer);reconnectTimer=setTimeout(reconnect,7000)}
+ try{await connectDevice(dev)}
+ catch(e){log('Reconnexion échouée : '+e.message);clearTimeout(reconnectTimer);reconnectTimer=setTimeout(reconnect,7000)}
 }
 $('conn').onclick=connectBLE;
 $('disc').onclick=()=>{manualDisconnect=true;clearTimeout(reconnectTimer);cleanupConnection();if(dev&&dev.gatt&&dev.gatt.connected)dev.gatt.disconnect();setStatus('Déconnexion demandée.')};
@@ -431,10 +406,7 @@ function finishDownload(reachedCut,timeout=false){
   // La VMI ne sait pas arrêter seule le flux historique : cette coupure est volontaire.
   // onDisconnect doit la distinguer d'une vraie perte de liaison.
   intentionalDisconnect=true;
-  logGattState('sync:request-intentional-disconnect');
   dev.gatt.disconnect();
- }else if(reachedCut){
-  logGattState('sync:cut-reached-but-transport-already-disconnected');
  }
 }
 async function startDownload(auto=false){
