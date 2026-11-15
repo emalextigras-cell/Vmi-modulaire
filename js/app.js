@@ -920,11 +920,12 @@ function renderEnergyMeterTracking(){
  }
  html+='<details><summary>Limites et méthode</summary><ul>'+result.limits.map(item=>'<li>'+item+'</li>').join('')+'</ul></details>';
  const rows=[...energyReadings].filter(item=>item&&Number.isFinite(item.t)).sort((a,b)=>b.t-a.t);
- html+='<h4>Index enregistrés</h4><table><thead><tr><th>Date</th><th>Compteur</th><th>Index</th><th></th></tr></thead><tbody>';
+ html+='<h4>Index enregistrés</h4><table><thead><tr><th>Date</th><th>Compteur</th><th>Index</th><th>Note</th><th></th></tr></thead><tbody>';
  for(const reading of rows){
   const label=ENERGY_METER_LABELS[reading.meterType]||reading.meterType;
   const id=String(reading.id).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
-  html+='<tr><td>'+fmtShort(reading.t)+'</td><td>'+label+'</td><td>'+fmt(reading.kwh)+' kWh</td><td><button type="button" class="outline" data-energy-delete="'+id+'">Supprimer</button></td></tr>';
+  const note=String(reading.note||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  html+='<tr><td>'+fmtShort(reading.t)+'</td><td>'+label+'</td><td>'+fmt(reading.kwh)+' kWh</td><td>'+note+'</td><td><button type="button" class="outline" data-energy-delete="'+id+'">Supprimer</button></td></tr>';
  }
  html+='</tbody></table>';
  history.innerHTML=html;
