@@ -46,10 +46,21 @@ test('retourne une estimation vide avec un seul relevé', () => {
   assert.equal(result.estimatedWh, null);
 });
 
-test('remplace les doublons d’horodatage par le dernier relevé', () => {
+test('écarte un horodatage contradictoire au lieu de garder arbitrairement le dernier débit', () => {
   const result = summarizeFanEnergyEstimate([row(0, 50), row(0, 125), row(1, 125)]);
-  assert.equal(result.sampleCount, 2);
-  assert.equal(result.estimatedWh, 10);
+  assert.equal(result.sampleCount, 1);
+  assert.equal(result.duplicateTimestampCount, 1);
+  assert.equal(result.conflictingTimestampCount, 1);
+  assert.equal(result.estimatedWh, null);
+});
+
+test('compte une seule fois les doublons identiques dans l’estimation ventilateur', () => {
+  const first=row(0,125);
+  const result=summarizeFanEnergyEstimate([first,{...first,rawPayload:'metadata'},row(1,125)]);
+  assert.equal(result.sampleCount,2);
+  assert.equal(result.duplicateTimestampCount,1);
+  assert.equal(result.conflictingTimestampCount,0);
+  assert.equal(result.estimatedWh,0.01);
 });
 
 import { summarizeFanEnergyByManualMode } from '../js/modules/energy-estimate.js';
@@ -125,4 +136,29 @@ test('associe aux modes les conditions hygrométriques réellement couvertes', (
   assert.ok(Number.isFinite(mode1.climate.deltaAbsHumidity));
   assert.equal(mode1.climateCoverageHours.deltaAbsHumidity, 1);
   assert.equal(result.groups[1].climate.deltaAbsHumidity, null);
+});
+
+
+test('écarte un horodatage contradictoire dans la comparaison par mode manuel',()=>{
+  const rows=[
+    {...row(0,125),vmiModeRaw:1,st:20,sh:60,te:10,he:80},
+    {...row(0,125),vmiModeRaw:2,st:20,sh:60,te:10,he:80},
+    {...row(1,125),vmiModeRaw:2,st:20,sh:60,te:10,he:80}
+  ];
+  const result=summarizeFanEnergyByManualMode(rows);
+  assert.equal(result.duplicateTimestampCount,1);
+  assert.equal(result.conflictingTimestampCount,1);
+  assert.equal(result.hasManualModeData,true);
+  assert.equal(result.groups[0].intervalCount,0);
+  assert.equal(result.groups[1].intervalCount,0);
+});
+
+test('ignore les métadonnées non utilisées pour les doublons de comparaison par mode',()=>{
+  const first={...row(0,125),vmiModeRaw:1,st:20,sh:60,te:10,he:80};
+  const second={...first,rawPayload:'différent'};
+  const next={...row(1,125),vmiModeRaw:1,st:20,sh:60,te:10,he:80};
+  const result=summarizeFanEnergyByManualMode([first,second,next]);
+  assert.equal(result.duplicateTimestampCount,1);
+  assert.equal(result.conflictingTimestampCount,0);
+  assert.equal(result.groups[0].intervalCount,1);
 });
