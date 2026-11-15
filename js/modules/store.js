@@ -1,4 +1,5 @@
 /** Persistance locale IndexedDB. Le schéma et les clés restent identiques à la v13. */
+import { filterRawDateHistory } from './history.js';
 export function createStore({ databaseName, storeName, onError = () => {} }) {
   function openDB() {
     return new Promise((resolve, reject) => {
@@ -7,7 +8,7 @@ export function createStore({ databaseName, storeName, onError = () => {} }) {
         const db = req.result;
         if (!db.objectStoreNames.contains(storeName)) db.createObjectStore(storeName);
       };
-      req.onsuccess = () => resolve(req.result);
+      req.onsuccess = () => resolve(key === 'hist' ? filterRawDateHistory(req.result) : req.result);
       req.onerror = () => reject(req.error);
     });
   }
