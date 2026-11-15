@@ -1221,11 +1221,12 @@ function renderSeasonalAdvice(data){
  let html='<p><strong>Saison actuelle de l’historique : '+seasonLabel+'</strong>';
  if(result.latestAt)html+=' · dernier relevé : '+fmtShort(result.latestAt);
  html+='</p><p>'+result.advice+'</p>';
- html+='<div class="table-wrap"><table><thead><tr><th>Saison calendrier</th><th>Relevés / jours</th><th>Écart extérieur − intérieur</th><th>Jours avec conditions favorables</th><th>Codes Saison CSV (bruts)</th></tr></thead><tbody>';
+ html+='<div class="table-wrap"><table><thead><tr><th>Saison calendrier</th><th>Relevés / jours</th><th>Écart extérieur − intérieur</th><th>Écart HA intérieur − entrant</th><th>Jours avec conditions favorables</th><th>Codes Saison CSV (bruts)</th></tr></thead><tbody>';
  for(const item of result.seasons){
   const codes=Object.entries(item.codeCounts).map(([code,count])=>code+' ('+count+')').join(', ')||'non renseigné';
   const margin=item.medianOutdoorMinusIndoor==null?'–':(item.medianOutdoorMinusIndoor>0?'+':'')+fmt(item.medianOutdoorMinusIndoor)+' °C';
-  html+='<tr><td>'+item.season+'</td><td>'+item.sampleCount+' / '+item.dayCount+'</td><td>'+margin+'</td><td>'+item.opportunityDayCount+'</td><td>'+codes+'</td></tr>';
+  const humidity=item.medianHumidityDelta==null?'–':(item.medianHumidityDelta>0?'+':'')+fmt(item.medianHumidityDelta)+' g/m³';
+  html+='<tr><td>'+item.season+'</td><td>'+item.sampleCount+' / '+item.dayCount+'</td><td>'+margin+'</td><td>'+humidity+'</td><td>'+item.opportunityDayCount+'</td><td>'+codes+'</td></tr>';
  }
  html+='</tbody></table></div><details><summary>Comment interpréter ces conseils ?</summary><ul>'+result.limits.map(item=>'<li>'+item+'</li>').join('')+'</ul></details>';
  box.innerHTML=html;
