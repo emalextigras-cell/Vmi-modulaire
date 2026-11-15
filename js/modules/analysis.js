@@ -881,7 +881,7 @@ export function buildHygrometricDiagnosis(data, {
       recommendation:'Importer des relevés sur des journées plus rapprochées avant de conclure à une tendance durable.'
     });
   } else {
-    const trendBasis={firstDate:first.date,lastDate:last.date,baselineMedianAbsoluteHumidity:baselineTrendMedian,recentMedianAbsoluteHumidity:recentTrendMedian,change:trendChange,threshold:trendDelta,eligibleDays:eligibleTrendDays.length,daysPerWindow:trendWindowDays,risingDays:trendDirectionalDays.rising,fallingDays:trendDirectionalDays.falling,minimumDirectionalDays:2,unit:'g/m³'};
+    const trendBasis={firstDate:first.date,lastDate:last.date,baselineWindowStartDate:firstTrendWindow[0].date,baselineWindowEndDate:firstTrendWindow.at(-1).date,recentWindowStartDate:lastTrendWindow[0].date,recentWindowEndDate:lastTrendWindow.at(-1).date,baselineWindowSpanDays:trendWindowSpanDays[0],recentWindowSpanDays:trendWindowSpanDays[1],totalComparisonSpanDays:totalTrendSpanDays,baselineMedianAbsoluteHumidity:baselineTrendMedian,recentMedianAbsoluteHumidity:recentTrendMedian,change:trendChange,threshold:trendDelta,eligibleDays:eligibleTrendDays.length,daysPerWindow:trendWindowDays,risingDays:trendDirectionalDays.rising,fallingDays:trendDirectionalDays.falling,minimumDirectionalDays:2,unit:'g/m³'};
     if(trendChange>=trendDelta&&trendDirectionalDays.rising>=2){
       observations.push({
         code:'indoor-moisture-rising',level:'caution',
