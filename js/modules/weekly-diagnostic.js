@@ -2,7 +2,21 @@ import { absoluteHumidity } from './psychrometry.js';
 import { isPlausibleHumidity, isPlausibleTemperature } from './data-quality.js';
 import { summarizeDailyEnergyClimateContext } from './energy-climate.js';
 
-const DAY = 86400000;
+const assertPositiveInteger = (name,value) => {
+  if(!Number.isInteger(value)||value<1) {
+    throw new RangeError(name+' doit être un entier supérieur ou égal à 1.');
+  }
+};
+const assertPositiveFinite = (name,value) => {
+  if(!Number.isFinite(value)||value<=0) {
+    throw new RangeError(name+' doit être un nombre fini strictement positif.');
+  }
+};
+const assertNonNegativeFinite = (name,value) => {
+  if(!Number.isFinite(value)||value<0) {
+    throw new RangeError(name+' doit être un nombre fini positif ou nul.');
+  }
+};
 const median = values => {
   const sorted = values.filter(Number.isFinite).sort((a,b)=>a-b);
   if (!sorted.length) return null;
@@ -29,6 +43,18 @@ export function summarizeWeeklyDiagnostic(history,{
   maxGapHours=2,
   changeThreshold=0.8
 }={}) {
+  assertPositiveInteger('windowDays',windowDays);
+  assertPositiveInteger('minSamplesPerDay',minSamplesPerDay);
+  assertPositiveInteger('minDaysPerWindow',minDaysPerWindow);
+  assertPositiveInteger('minEnergyDays',minEnergyDays);
+  assertPositiveFinite('maxGapHours',maxGapHours);
+  assertNonNegativeFinite('changeThreshold',changeThreshold);
+  if(minDaysPerWindow>windowDays) {
+    throw new RangeError('minDaysPerWindow ne peut pas dépasser windowDays.');
+  }
+  if(minEnergyDays>windowDays) {
+    throw new RangeError('minEnergyDays ne peut pas dépasser windowDays.');
+  }
   const rows=(Array.isArray(history)?history:[])
     .filter(row=>Number.isFinite(row?.t))
     .sort((a,b)=>a.t-b.t);
@@ -81,10 +107,9 @@ export function summarizeWeeklyDiagnostic(history,{
   const energy=summarizeDailyEnergyClimateContext(unique,{
     maxGapHours,minFanHours:3,minClimateSamples:minSamplesPerDay,minDays:0
   });
-  const energyByDate=new Map(energy.matchedDays.map(day=>[day.date,day]));
   const summarizePeriod=period=>{
     const selected=daily.filter(day=>day.date>=period.start&&day.date<=period.end);
-    const energyDays=period.dates?period.dates:energy.matchedDays.filter(day=>day.date>=period.start&&day.date<=period.end);
+    const energyDays=energy.matchedDays.filter(day=>day.date>=period.start&&day.date<=period.end);
     const energyCoveredDays=energyDays.length;
     return {
       ...period,
