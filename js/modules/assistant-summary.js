@@ -27,6 +27,7 @@ import { summarizeDailyEnergyClimateContext } from './energy-climate.js';
 import { summarizeWeeklyDiagnostic } from './weekly-diagnostic.js';
 import {
   summarizeEnergyReadings,
+  summarizeMonthlyEnergyReadings,
   summarizeEnergyClimateContext
 } from './energy-meter.js';
 import { formatDiagnosisConfidence } from './diagnostic-confidence.js';
@@ -64,6 +65,7 @@ export function buildVmiAssistantSummary(data, options = {}) {
   const minSamples = Number.isSafeInteger(options.minSamples) && options.minSamples > 0
     ? options.minSamples : 10;
   const meterReadings = Array.isArray(options.energyReadings) ? options.energyReadings : [];
+  const meterHistory = Array.isArray(options.meterHistory) ? options.meterHistory : rows;
 
   if (!rows.length) {
     return {
@@ -102,7 +104,8 @@ export function buildVmiAssistantSummary(data, options = {}) {
   const rawSpeeds = summarizeRawVmiSpeed(rows);
   const temperatureLimit = summarizeTemperatureLimit(rows);
   const measuredEnergy = summarizeEnergyReadings(meterReadings);
-  const measuredEnergyClimate = summarizeEnergyClimateContext(meterReadings, rows);
+  const measuredEnergyClimate = summarizeEnergyClimateContext(meterReadings, meterHistory);
+  const monthlyMeasuredEnergy = summarizeMonthlyEnergyReadings(meterReadings);
 
   const accepted = diagnosis.sampleCount || 0;
   const level = diagnosis.coverageLevel || 'indéterminée';
@@ -123,6 +126,7 @@ export function buildVmiAssistantSummary(data, options = {}) {
       percent(quality.hygrometricCoveragePercent) + '.',
     quality.affectedRecords + ' relevé(s) contiennent au moins une valeur physiquement improbable ; ces valeurs restent dans l’historique mais sont écartées des calculs concernés.',
     quality.transientSpikes.count + ' pic(s) isolé(s) répondent aux critères de surveillance. Un pic est à vérifier, pas une preuve de panne.',
+    ...quality.fieldCoverage.map(field => field.label + ' : ' + field.validCount + ' valeur(s) valide(s), ' + field.missingCount + ' manquante(s), ' + field.invalidCount + ' aberrante(s) (' + percent(field.coveragePercent) + ' de couverture).'),
     confidence
   ];
   if (diagnosis.excludedGapCount) {
@@ -250,12 +254,36 @@ export function buildVmiAssistantSummary(data, options = {}) {
       ', régime médian ' + (rpm?.median == null ? 'non disponible' : fmt(rpm.median) + ' tr/min') + '.';
   });
   modeDetails.push(...operatingModes);
+  for (const group of operating.groups) {
+    modeDetails.push('Détails des champs par mode ' + group.mode + ' : ' + group.fields.map(field =>
+      field.label + ' — médiane ' + fmt(field.median) + ' ' + field.unit +
+      ', plage ' + fmt(field.min) + ' à ' + fmt(field.max) + ' (' + field.count + ' valeurs).'
+    ).join(' ; '));
+  }
+  modeDetails.push(...readiness.fields.map(field =>
+    field.label + ' : ' + field.count + ' valeur(s), ' + field.missingCount +
+    ' manquante(s), plage ' + fmt(field.min) + ' à ' + fmt(field.max) + ' ; ' + field.unit +
+    (field.verified ? ' (signification/unité confirmée).' : ' (champ brut non interprété).')
+  ));
   if (temperatureLimit.thresholds.length) {
     modeDetails.push('Consigne extérieure Cons TMax : ' + temperatureLimit.thresholds.map(item =>
       fmt(item.threshold) + ' °C (' + item.sampleCount + ' relevés, ' +
       item.aboveThresholdCount + ' au-dessus et ' + item.atOrBelowThresholdCount +
       ' au seuil ou en dessous). Les écarts observés ne prouvent pas que la consigne en est la cause.'
     ).join(' ; ') + '.');
+    for (const item of temperatureLimit.thresholds) {
+      for (const group of item.modes) {
+        modeDetails.push('Cons TMax ' + fmt(item.threshold) + ' °C, mode manuel ' + group.mode +
+          ' : ' + group.above.sampleCount + ' relevés au-dessus, ' + group.atOrBelow.sampleCount +
+          ' au seuil ou en dessous ; ' + (group.comparable
+            ? 'comparaison sur ' + group.sharedDayCount + ' jours communs : débit médian ' +
+              fmt(group.pairedAbove.medianDebit) + ' m³/h au-dessus contre ' +
+              fmt(group.pairedAtOrBelow.medianDebit) + ' m³/h au seuil ou en dessous, régime ' +
+              fmt(group.pairedAbove.medianRPM) + ' contre ' + fmt(group.pairedAtOrBelow.medianRPM) + ' tr/min.'
+            : 'comparaison appariée non disponible : effectif ou nombre de jours communs insuffisant.')
+        );
+      }
+    }
   } else {
     modeDetails.push('Pas de comparaison exploitable entre Cons TMax et température extérieure.');
   }
@@ -277,6 +305,7 @@ export function buildVmiAssistantSummary(data, options = {}) {
       ', ' + item.opportunityDayCount + ' jour(s) avec conditions thermiques potentiellement favorables, écart hygrométrique médian ' +
       signed(item.medianHumidityDelta, 'g/m³') + '.'
     ),
+    ...seasonal.seasons.map(item => item.season + ' — codes Saison CSV bruts : ' + (Object.entries(item.codeCounts).map(([code, count]) => code + ' (' + count + ')').join(', ') || 'aucun code renseigné') + '.'),
     'Les codes numériques Saison du CSV sont conservés comme valeurs brutes ; ils ne sont pas renommés été/hiver/intersaison.'
   ];
   sections.push(section(
@@ -311,12 +340,25 @@ export function buildVmiAssistantSummary(data, options = {}) {
       dailyEnergy.minClimateSamples + ' mesures hygrométriques. Ces valeurs concomitantes ne prouvent aucune causalité.'
     : 'Le rapprochement journalier énergie estimée / hygrométrie n’a pas encore le nombre de jours requis (' +
       dailyEnergy.matchedDayCount + ' jour(s) apparié(s)).');
+  energyDetails.push(...dailyEnergy.matchedDays.slice(-5).map(day =>
+    day.date + ' : ventilateur ' + fmt(day.estimatedKwh, 3) + ' kWh estimés sur ' +
+    fmt(day.fanHours) + ' h ; humidité absolue intérieure ' + fmt(day.medianIndoorAbsHumidity) +
+    ' g/m³, air entrant ' + fmt(day.medianIncomingAbsHumidity) + ' g/m³, écart ' +
+    signed(day.medianDeltaAbsHumidity, 'g/m³') + '.'
+  ));
   if (weekly.status === 'available') {
     energyDetails.push('Bilan des deux fenêtres de ' + weekly.windowDays +
       ' jours : humidité absolue intérieure ' +
       signed(weekly.comparison.indoorHA, 'g/m³') + ', air entrant ' +
       signed(weekly.comparison.incomingHA, 'g/m³') +
       ', écart intérieur − entrant ' + signed(weekly.comparison.deltaHA, 'g/m³') + '.');
+    energyDetails.push(...weekly.periods.map(period =>
+      (period.id === 'previous' ? 'Fenêtre précédente ' : 'Fenêtre récente ') +
+      period.start + ' au ' + period.end + ' : ' + period.dayCount + ' jour(s), ' +
+      fmt(period.medianIndoorHA) + ' g/m³ intérieur, ' + fmt(period.medianIncomingHA) +
+      ' g/m³ air entrant, ' + fmt(period.medianRH) + ' % HR, ' +
+      (period.estimatedFanKwh == null ? 'énergie ventilateur non estimable' : fmt(period.estimatedFanKwh, 3) + ' kWh ventilateur estimés sur ' + period.energyCoveredDays + ' jour(s)') + '.'
+    ));
   } else {
     energyDetails.push('Le bilan comparatif des deux fenêtres de sept jours reste indisponible : chacune doit contenir au moins ' +
       weekly.minDaysPerWindow + ' journées suffisamment documentées.');
@@ -324,14 +366,37 @@ export function buildVmiAssistantSummary(data, options = {}) {
   if (measuredEnergy.meters.length) {
     energyDetails.push('Compteurs externes : ' + measuredEnergy.meters.map(meter =>
       meter.label + ' — ' + meter.readingCount + ' index, ' +
-      meter.measuredIntervalCount + ' intervalle(s) mesuré(s), ' +
-      fmt(meter.totalKwh, 3) + ' kWh cumulés sur les intervalles valides.'
+      (meter.measuredIntervalCount
+        ? meter.measuredIntervalCount + ' intervalle(s) mesuré(s), ' + fmt(meter.totalKwh, 3) + ' kWh cumulés sur les intervalles valides.'
+        : 'aucun intervalle valide : consommation non calculable avec un seul index ou des index non exploitables.')
     ).join(' ; ') + '.');
+    for (const meter of measuredEnergy.meters) {
+      const latest = [...meter.intervals].reverse().find(interval => interval.status === 'measured');
+      if (latest) energyDetails.push('Dernier intervalle mesuré — ' + meter.label + ' : ' +
+        fmt(latest.deltaKwh, 3) + ' kWh sur ' + duration(latest.elapsedHours) +
+        ', puissance moyenne ' + fmt(latest.averagePowerW) + ' W (' +
+        dateLabel(latest.from) + ' au ' + dateLabel(latest.to) + ').');
+      const monthly = monthlyMeasuredEnergy.find(item => item.meterType === meter.meterType);
+      if (monthly?.months.length) {
+        energyDetails.push('Bilans mensuels mesurés — ' + meter.label + ' : ' + monthly.months.map(month =>
+          month.month + ' : ' + fmt(month.energyKwh, 3) + ' kWh sur ' + month.intervalCount + ' intervalle(s)'
+        ).join(' ; ') + '. Les intervalles traversant un changement de mois ne sont pas répartis artificiellement.');
+      }
+      if (monthly?.crossMonthIntervalCount) energyDetails.push(monthly.crossMonthIntervalCount +
+        ' intervalle(s) de ' + meter.label + ' traversent une limite de mois (' +
+        fmt(monthly.crossMonthKwh, 3) + ' kWh) et restent exclus des totaux mensuels.');
+    }
   } else {
     energyDetails.push('Aucun index électrique externe enregistré : aucune consommation mesurée en kWh n’est disponible.');
   }
   energyDetails.push(measuredEnergyClimate.matchedIntervalCount +
     ' intervalle(s) de compteur externe disposent d’un rapprochement climatique avec une couverture suffisante.');
+  for (const meter of measuredEnergyClimate.meters) {
+    energyDetails.push('Contexte climatique du compteur ' + meter.label + ' : ' +
+      meter.intervals.filter(interval => interval.context.ready).length + ' intervalle(s) suffisamment couverts sur ' +
+      meter.intervals.length + ' ; seuil de couverture ' + measuredEnergyClimate.minCoveredHours +
+      ' h et ' + percent(measuredEnergyClimate.minCoveragePercent) + '.');
+  }
   sections.push(section(
     'energy', 'Énergie et consommation',
     fan.status === 'estimated' || measuredEnergy.meters.length ? 'available' : 'limited',
