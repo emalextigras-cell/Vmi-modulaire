@@ -41,9 +41,10 @@ test('setMany écrit toutes les clés dans une transaction unique', async () => 
   const mock = installIndexedDB();
   try {
     const store = createStore({ databaseName: 'test', storeName: 'data' });
-    await store.setMany([['hist', [{ t: 1 }]], ['live', [{ t: 2 }]], ['meta', { lastSync: 3 }]]);
-    assert.deepEqual(mock.writes.map(([key]) => key), ['hist', 'live', 'meta']);
+    await store.setMany([['hist', [{ t: 1 }]], ['live', [{ t: 2 }]], ['migrated', true]]);
+    assert.deepEqual(mock.writes.map(([key]) => key), ['hist', 'live', 'migrated']);
     assert.equal(mock.writes[0][1][0].t, 1);
+    assert.equal(mock.writes[2][1], true);
   } finally {
     mock.restore();
   }
