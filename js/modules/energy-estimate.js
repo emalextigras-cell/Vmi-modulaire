@@ -79,3 +79,93 @@ export function summarizeFanEnergyEstimate(history, { maxGapHours = 2 } = {}) {
     ]
   };
 }
+
+function medianEstimate(values) {
+  const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
+  if (!sorted.length) return null;
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+/**
+ * Ventile l'estimation entre niveaux manuels confirmés (1/2/3).
+ * Un intervalle n'est attribué à un mode que si ses deux extrémités
+ * portent le même vmiModeRaw. Les changements de mode sont ignorés.
+ * La puissance moyenne affichée est la médiane des moyennes journalières,
+ * pour éviter qu'une journée très échantillonnée pèse davantage.
+ */
+export function summarizeFanEnergyByManualMode(history, { maxGapHours = 2, minDays = 2 } = {}) {
+  const rows = (Array.isArray(history) ? history : [])
+    .filter(row => Number.isFinite(row?.t))
+    .sort((a, b) => a.t - b.t);
+  const unique = [];
+  for (const row of rows) {
+    if (unique.length && unique[unique.length - 1].t === row.t) unique[unique.length - 1] = row;
+    else unique.push(row);
+  }
+  const groups = [1, 2, 3].map(mode => ({
+    mode, energyWh: 0, coveredMs: 0, candidateMs: 0,
+    intervalCount: 0, longGapCount: 0, invalidFlowIntervalCount: 0,
+    daily: new Map()
+  }));
+  const byMode = new Map(groups.map(group => [group.mode, group]));
+  const maxGapMs = maxGapHours * 3600000;
+  let transitionIntervalCount = 0;
+  for (let index = 1; index < unique.length; index++) {
+    const a = unique[index - 1], b = unique[index];
+    const elapsedMs = b.t - a.t;
+    if (!(elapsedMs > 0)) continue;
+    const mode = a.vmiModeRaw;
+    if (![1, 2, 3].includes(mode) || b.vmiModeRaw !== mode) {
+      if ([1, 2, 3].includes(mode) || [1, 2, 3].includes(b.vmiModeRaw)) transitionIntervalCount++;
+      continue;
+    }
+    const group = byMode.get(mode);
+    group.candidateMs += elapsedMs;
+    if (elapsedMs > maxGapMs) { group.longGapCount++; continue; }
+    const powerA = estimateFanPowerFromFlow(a.debit);
+    const powerB = estimateFanPowerFromFlow(b.debit);
+    if (powerA == null || powerB == null) { group.invalidFlowIntervalCount++; continue; }
+    const hours = elapsedMs / 3600000;
+    const wh = ((powerA + powerB) / 2) * hours;
+    group.energyWh += wh;
+    group.coveredMs += elapsedMs;
+    group.intervalCount++;
+    const midpoint = new Date(a.t + elapsedMs / 2);
+    const dayKey = [midpoint.getFullYear(), String(midpoint.getMonth() + 1).padStart(2, '0'), String(midpoint.getDate()).padStart(2, '0')].join('-');
+    const daily = group.daily.get(dayKey) || { wh: 0, hours: 0 };
+    daily.wh += wh;
+    daily.hours += hours;
+    group.daily.set(dayKey, daily);
+  }
+  const results = groups.map(group => {
+    const coveredHours = group.coveredMs / 3600000;
+    const candidateHours = group.candidateMs / 3600000;
+    const dailyPowers = [...group.daily.values()].filter(day => day.hours > 0).map(day => day.wh / day.hours);
+    const dayCount = dailyPowers.length;
+    return {
+      mode: group.mode,
+      status: group.intervalCount ? (dayCount >= minDays ? 'comparable' : 'insufficient-days') : 'insufficient-data',
+      estimatedKwh: group.intervalCount ? group.energyWh / 1000 : null,
+      coveredHours, candidateHours,
+      coveragePercent: candidateHours > 0 ? coveredHours / candidateHours * 100 : 0,
+      weightedAveragePowerW: coveredHours > 0 ? group.energyWh / coveredHours : null,
+      medianDailyAveragePowerW: medianEstimate(dailyPowers),
+      dayCount, intervalCount: group.intervalCount,
+      longGapCount: group.longGapCount,
+      invalidFlowIntervalCount: group.invalidFlowIntervalCount
+    };
+  });
+  return {
+    groups: results,
+    hasManualModeData: unique.some(row => [1, 2, 3].includes(row.vmiModeRaw)),
+    transitionIntervalCount,
+    maxGapHours, minDays,
+    limits: [
+      'Seuls les niveaux manuels 1, 2 et 3 du champ Mode sont utilisés ; les codes bruts VMI+ ne sont jamais substitués.',
+      'Les intervalles qui traversent un changement de mode, dépassent ' + maxGapHours + ' h ou ont un débit hors plage constructeur sont exclus.',
+      'La puissance moyenne par mode est la médiane des moyennes journalières ; elle reste descriptive et non causale.',
+      'L’estimation concerne uniquement le ventilateur, pas le préchauffage ni la consommation totale de la VMI.'
+    ]
+  };
+}
