@@ -695,10 +695,15 @@ export function buildHygrometricDiagnosis(data, {
   });
   const eligibleHours=hourlyDetails.filter(b=>b.sampleCount>=5&&b.dayCount>=2);
   const hourlyPairs=[];
+  let candidatePairCount=0;
+  let pairsWithTwoCommonDays=0;
+  let pairsMeetingDailyMinimum=0;
   for(let i=0;i<eligibleHours.length;i++){
     for(let j=i+1;j<eligibleHours.length;j++){
       const left=eligibleHours[i],right=eligibleHours[j];
+      candidatePairCount++;
       const commonDayKeys=left.dayKeys.filter(day=>right.dayKeys.includes(day));
+      if(commonDayKeys.length>=2)pairsWithTwoCommonDays++;
       // Une date ne contribue à la comparaison que si chaque créneau y compte
       // au moins trois relevés : une journée isolée ne pèse pas autant qu'une
       // journée correctement échantillonnée.
@@ -710,6 +715,7 @@ export function buildHygrometricDiagnosis(data, {
         ).length>=hourlyMinimumDailySamples
       ));
       if(sharedDayKeys.length<2)continue;
+      pairsMeetingDailyMinimum++;
       const pairedStats=[left,right].map(bucket=>{
         const daily=sharedDayKeys.map(day=>{
           const daySamples=rows.filter(r=>
@@ -753,6 +759,29 @@ export function buildHygrometricDiagnosis(data, {
         b.sharedDayCount-a.sharedDayCount
       )[0]
     :null;
+  let hourlyComparisonReason=null;
+  if(!bestWindow){
+    if(eligibleHours.length<2){
+      hourlyComparisonReason='Moins de deux tranches horaires disposent chacune d’au moins cinq relevés répartis sur deux jours.';
+    }else if(candidatePairCount>0&&pairsWithTwoCommonDays===0){
+      hourlyComparisonReason='Les tranches horaires candidates ne partagent pas au moins deux mêmes jours calendaires.';
+    }else if(pairsWithTwoCommonDays>0&&pairsMeetingDailyMinimum===0){
+      hourlyComparisonReason='Des jours sont communs, mais chaque paire échoue au minimum de trois relevés dans chaque tranche et pour chaque jour commun.';
+    }else{
+      hourlyComparisonReason='Aucune paire ne satisfait l’ensemble des critères de validité des mesures horaires.';
+    }
+  }
+  const hourlyComparisonDiagnostics={
+    candidateWindowCount:eligibleHours.length,
+    candidatePairCount,
+    pairsWithTwoCommonDays,
+    pairsMeetingDailyMinimum,
+    minimumSamplesPerWindow:5,
+    minimumDistinctDaysPerWindow:2,
+    minimumSharedDays:2,
+    minimumSamplesPerWindowAndDay:3,
+    reason:hourlyComparisonReason
+  };
 
   // Le niveau décrit la robustesse de l'échantillonnage, pas l'état physique de la VMI.
   // Il tient compte de la couverture temporelle et de la part de lignes réellement retenues.
@@ -795,6 +824,16 @@ export function buildHygrometricDiagnosis(data, {
       title:'Conditions hygrométriques variables',
       detail:`Aucune situation dominante nette : air entrant plus sec ${Math.round((dryShare||0)*100)} % du temps observé, plus humide ${Math.round((humidShare||0)*100)} %.`,
       recommendation:'Privilégier l’analyse des périodes horaires et saisonnières plutôt qu’une conclusion basée sur un relevé isolé.'
+    });
+  }
+
+  if(!bestWindow){
+    observations.push({
+      code:'hourly-comparison-limited',level:'info',
+      basis:hourlyComparisonDiagnostics,
+      title:'Comparaison horaire non concluante',
+      detail:hourlyComparisonReason+' Aucun créneau n’est désigné comme plus favorable lorsque ces conditions ne sont pas réunies.',
+      recommendation:'Conserver l’historique et réévaluer après plusieurs journées comportant des relevés répartis dans les différentes tranches horaires.'
     });
   }
 
@@ -859,7 +898,7 @@ export function buildHygrometricDiagnosis(data, {
     medianIncomingHA:median(rows.map(r=>r.incomingHA)),
     medianIndoorDewPoint:median(rows.map(r=>r.indoorDew)),
     medianIncomingDewPoint:median(rows.map(r=>r.incomingDew)),
-    dryShare,humidShare,trendChange,bestWindow,
+    dryShare,humidShare,trendChange,bestWindow,hourlyComparisonDiagnostics,
     observations,
     limits:[
       `Les durées sont estimées entre deux relevés, sans extrapolation au-delà de ${maxGapHours} heure(s).`,
