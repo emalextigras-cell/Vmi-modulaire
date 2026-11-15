@@ -470,6 +470,10 @@ test('durable trend evidence identifies both calendar windows and their medians'
  assert.equal(finding.basis.totalComparisonSpanDays,6);
  assert.ok(Number.isFinite(finding.basis.baselineMedianAbsoluteHumidity));
  assert.ok(Number.isFinite(finding.basis.recentMedianAbsoluteHumidity));
+ assert.ok(Number.isFinite(finding.basis.baselineIncomingMedianAbsoluteHumidity));
+ assert.ok(Number.isFinite(finding.basis.recentIncomingMedianAbsoluteHumidity));
+ assert.ok(Number.isFinite(finding.basis.baselineIndoorMinusIncomingMedian));
+ assert.ok(Number.isFinite(finding.basis.recentIndoorMinusIncomingMedian));
  assert.match(finding.basis.baselineDailyValues,/2026-11-01/);
  assert.match(finding.basis.baselineDailyValues,/4 relevés/);
  assert.match(finding.basis.recentDailyValues,/2026-11-07/);
