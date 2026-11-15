@@ -53,7 +53,7 @@ Fermer VMI+ avant de se connecter : la VMI n'accepte qu'une seule connexion simu
 - Les données sont conservées localement dans IndexedDB.
 - Les indicateurs hygrométriques sont indicatifs. La valeur « Debit » exportée par VMI+ correspond au débit d'air en m³/h.
 - Les comparaisons de niveaux manuels utilisent exclusivement le champ d'annotation `Mode` (`vmiModeRaw`) (1/2/3). Le champ historique `vit` et le code `Vitesse` VMI+ restent des données brutes et ne sont jamais assimilés à un niveau manuel. Les exports CSV VMI+ ne fournissent pas, à eux seuls, cette annotation.
-- Le régime moteur est présenté en tr/min lorsqu'il est disponible. Les valeurs Débit, PWM et Cons DP restent brutes tant que leur signification/unité n'est pas confirmée.
+- Le régime moteur est présenté en tr/min lorsqu'il est disponible. Le champ `Debit` exporté par VMI+ est le débit d'air en m³/h (unité confirmée par l'utilisateur). PWM et Cons DP restent des valeurs brutes dont la signification et l'unité ne sont pas confirmées.
 - L'application ne calcule aucune consommation électrique mesurée ni optimum énergétique réel. L'estimation du ventilateur reste indicative et repose sur le débit exporté en m³/h.
 
 ## Tests locaux
@@ -114,7 +114,7 @@ Ce moteur est une première couche de diagnostic déterministe et explicable ; c
 
 L'import CSV conserve désormais séparément les champs énergétiques ou de fonctionnement supplémentaires de VMI+ : `Cons Res`, `Cons HydroR`, `Cons TMax` (seuil de température extérieure en °C, sens confirmé par l’utilisateur), `Kmoteur`, `Jmoteur`, `Kreseau`, `Jreseau`, `Pression Moteur`, `Offset Press`, `% fonct`, `% fonct.1` et `Dcint`. À l’exception de Cons TMax, dont le sens est confirmé comme seuil de température extérieure en °C, les autres champs sont affichés dans l'inventaire avec leurs valeurs min/max et leur effectif, sans leur attribuer de signification ni d'unité non documentée. L'inventaire distingue aussi les zéros des valeurs absentes ou non numériques, pour éviter de confondre une valeur nulle avec une mesure manquante. Les deux colonnes exportées sous le même en-tête `% fonct` sont distinguées par leur occurrence dans l'en-tête, afin de ne pas confondre leurs valeurs.
 
-Le régime moteur reste exprimé en tr/min selon les confirmations disponibles. Le champ `Debit` de l'export reste brut et son unité physique n'est pas confirmée par l'en-tête CSV. Les valeurs PWM, Cons DP et les autres champs dont le sens n’est pas confirmé restent bruts. Aucun calcul de watts, kWh, coût, consommation ou rendement n'est effectué tant qu'une mesure électrique et sa définition ne sont pas vérifiées. Des tests dédiés vérifient la conservation des champs et l'absence d'interprétation énergétique abusive.
+Le régime moteur reste exprimé en tr/min selon les confirmations disponibles. Le champ `Debit` de l'export VMI+ correspond au débit d'air exprimé en m³/h, conformément à la confirmation de l'utilisateur. L'en-tête CSV ne répète pas l'unité, mais cela ne remet pas en cause cette confirmation. Les valeurs PWM, Cons DP et les autres champs dont le sens n’est pas confirmé restent bruts. Aucun calcul de watts, kWh, coût, consommation ou rendement n'est effectué tant qu'une mesure électrique et sa définition ne sont pas vérifiées. Des tests dédiés vérifient la conservation des champs et l'absence d'interprétation énergétique abusive.
 
 
 ### Examen de la capture Bluetooth et de l'export VMI+ (novembre 2026)
@@ -159,7 +159,7 @@ Le téléchargement d'historique, lui, transporte des lignes textuelles séparé
 
 ### Référence descriptive du fonctionnement par mode VMI+
 
-L'interface construit désormais, à partir de l'historique affiché, un profil par valeur du champ `Mode`: effectifs, jours couverts, médianes et plages observées de la valeur Debit brute, du régime moteur et des champs bruts PWM, Pression moteur et Cons DP. Le code `Vitesse` reste strictement séparé et n'est jamais utilisé comme substitut du mode. Cette référence décrit uniquement les données importées ; elle ne qualifie pas un état de normal ou anormal et ne détecte pas encore de panne. Une comparaison entre plusieurs périodes nécessitera plusieurs exports distincts et comparables. Deux tests vérifient la séparation Mode/Vitesse et l'absence de conversion des champs bruts.
+L'interface construit désormais, à partir de l'historique affiché, un profil par valeur du champ `Mode`: effectifs, jours couverts, médianes et plages observées du débit d'air `Debit` en m³/h, du régime moteur et des champs bruts PWM, Pression moteur et Cons DP. Le code `Vitesse` reste strictement séparé et n'est jamais utilisé comme substitut du mode. Cette référence décrit uniquement les données importées ; elle ne qualifie pas un état de normal ou anormal et ne détecte pas encore de panne. Une comparaison entre plusieurs périodes nécessitera plusieurs exports distincts et comparables. Deux tests vérifient la séparation Mode/Vitesse et l'absence de conversion des champs bruts.
 
 
 ## Séparation des données directes et des analyses
