@@ -8,7 +8,7 @@ export function createStore({ databaseName, storeName, onError = () => {} }) {
         const db = req.result;
         if (!db.objectStoreNames.contains(storeName)) db.createObjectStore(storeName);
       };
-      req.onsuccess = () => resolve(key === 'hist' ? filterRawDateHistory(req.result) : req.result);
+      req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     });
   }
@@ -22,7 +22,7 @@ export function createStore({ databaseName, storeName, onError = () => {} }) {
       const database = await db();
       return await new Promise((resolve, reject) => {
         const req = database.transaction(storeName, 'readonly').objectStore(storeName).get(key);
-        req.onsuccess = () => resolve(req.result);
+        req.onsuccess = () => resolve(key === 'hist' ? filterRawDateHistory(req.result) : req.result);
         req.onerror = () => reject(req.error);
       });
     } catch (error) { onError('IndexedDB lecture : ' + error.message); return null; }
