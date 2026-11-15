@@ -175,3 +175,21 @@ test('compte les doublons strictement identiques sans gonfler le nombre de relev
   assert.equal(result.conflictingTimestampCount,0);
   assert.equal(result.periods[0].sampleCount,21);
 });
+
+
+test('ancre les fenêtres sur le dernier horodatage reçu même si ce relevé est conflictuel',()=>{
+  const days=[
+    ...Array.from({length:14},(_,day)=>makeDay(day,50,40,{count:3})).flat()
+  ];
+  const latestRow=makeDay(14,50,40,{count:3})[0];
+  const latestConflict={...latestRow,sh:95};
+  const result=summarizeWeeklyDiagnostic([...days,latestRow,latestConflict]);
+  assert.equal(result.status,'available');
+  assert.equal(result.duplicateTimestampCount,1);
+  assert.equal(result.conflictingTimestampCount,1);
+  assert.equal(result.periods[0].start,'2026-01-02');
+  assert.equal(result.periods[0].end,'2026-01-08');
+  assert.equal(result.periods[1].start,'2026-01-09');
+  assert.equal(result.periods[1].end,'2026-01-15');
+  assert.equal(result.periods[1].dayCount,6);
+});

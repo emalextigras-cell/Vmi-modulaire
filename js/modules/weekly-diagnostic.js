@@ -88,7 +88,10 @@ export function summarizeWeeklyDiagnostic(history,{
     return {status:'no-data',periods:[],comparison:null,minSamplesPerDay,minDaysPerWindow,windowDays,duplicateTimestampCount,conflictingTimestampCount};
   }
 
-  const latest=new Date(unique[unique.length-1].t);
+  // L'ancrage temporel doit suivre le dernier horodatage reçu, même si
+  // ce relevé est écarté pour conflit : sinon un conflit récent ferait
+  // reculer artificiellement les fenêtres et pourrait masquer la fraîcheur.
+  const latest=new Date(rows[rows.length-1].t);
   const recentEnd=shiftDate(latest,1);
   const recentStart=shiftDate(recentEnd,-windowDays);
   const previousStart=shiftDate(recentStart,-windowDays);
