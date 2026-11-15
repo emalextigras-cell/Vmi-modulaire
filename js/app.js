@@ -1038,7 +1038,7 @@ function renderWeeklyDiagnostic(data){
    '<p class="note">Les périodes ne sont pas rapprochées lorsqu’une couverture minimale manque. Les trous de plusieurs jours ne sont pas comblés.</p>'+duplicateSummary;
   return;
  }
- let html='<p class="note">Comparaison des deux fenêtres calendaires de '+result.windowDays+' jours, ancrées sur la date du dernier relevé. Chaque journée a le même poids dans les médianes.</p>';
+ let html='<p class="note">Comparaison des deux fenêtres calendaires de '+result.windowDays+' jours, ancrées sur la date du dernier relevé. Chaque journée a le même poids dans les médianes.</p>'+duplicateSummary;
  html+='<div class="table-wrap"><table><thead><tr><th>Période</th><th>Jours / relevés</th><th>HA intérieure</th><th>HA air entrant</th><th>Écart intérieur − entrant</th><th>HR intérieure</th><th>Température</th><th>Ventilateur estimé</th></tr></thead><tbody>';
  for(const period of result.periods){
   const energy=period.estimatedFanKwh==null?'–':fmt(period.estimatedFanKwh)+' kWh ('+period.energyCoveredDays+' j)';
