@@ -58,13 +58,34 @@ export function summarizeWeeklyDiagnostic(history,{
   const rows=(Array.isArray(history)?history:[])
     .filter(row=>Number.isFinite(row?.t))
     .sort((a,b)=>a.t-b.t);
-  const unique=[];
+  // Un même horodatage ne doit jamais être arbitrairement représenté par
+  // la dernière ligne rencontrée : en cas de valeurs contradictoires,
+  // l'instant est écarté pour éviter de biaiser les médianes et l'énergie.
+  const groups=[];
   for(const row of rows){
-    if(unique.length&&unique[unique.length-1].t===row.t)unique[unique.length-1]=row;
-    else unique.push(row);
+    const last=groups[groups.length-1];
+    if(last&&last.timestamp===row.t)last.rows.push(row);
+    else groups.push({timestamp:row.t,rows:[row]});
+  }
+  const unique=[];
+  let duplicateTimestampCount=0;
+  let conflictingTimestampCount=0;
+  for(const group of groups){
+    if(group.rows.length>1)duplicateTimestampCount++;
+    const fingerprints=new Set(group.rows.map(row=>JSON.stringify(
+      Object.keys(row).sort().reduce((result,key)=>{
+        result[key]=row[key];
+        return result;
+      },{})
+    )));
+    if(fingerprints.size>1){
+      conflictingTimestampCount++;
+      continue;
+    }
+    unique.push(group.rows[0]);
   }
   if(!unique.length){
-    return {status:'no-data',periods:[],comparison:null,minSamplesPerDay,minDaysPerWindow,windowDays};
+    return {status:'no-data',periods:[],comparison:null,minSamplesPerDay,minDaysPerWindow,windowDays,duplicateTimestampCount,conflictingTimestampCount};
   }
 
   const latest=new Date(unique[unique.length-1].t);
@@ -166,6 +187,7 @@ export function summarizeWeeklyDiagnostic(history,{
     status:enough?'available':'insufficient-data',
     periods:summaries,comparison,findings,
     windowDays,minSamplesPerDay,minDaysPerWindow,minEnergyDays,maxGapHours,changeThreshold,
+    duplicateTimestampCount,conflictingTimestampCount,
     limits:[
       'Les deux fenêtres couvrent chacune '+windowDays+' jours calendaires et sont ancrées sur la date du dernier relevé.',
       'Une journée est retenue si elle contient au moins '+minSamplesPerDay+' relevés complets et plausibles pour les capteurs intérieur et air entrant.',
