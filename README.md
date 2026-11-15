@@ -201,3 +201,10 @@ Cette analyse décrit l'évolution de l'humidité absolue intérieure ; elle n'i
 Six jours échantillonnés ne suffisent pas à eux seuls à qualifier une tendance durable s'ils sont trop éloignés dans le calendrier. Chaque fenêtre de trois jours échantillonnés doit tenir dans une période de quatre jours calendaires maximum, et les deux fenêtres doivent couvrir ensemble quatorze jours calendaires maximum. Si ces conditions ne sont pas réunies, le diagnostic explique que les relevés sont trop espacés et ne signale pas de hausse ou baisse durable.
 
 Ces bornes encadrent l'interprétation temporelle ; elles ne constituent ni un seuil de fonctionnement de la VMI ni une preuve de causalité.
+
+
+## Phase 15 — rendre les fenêtres de tendance vérifiables
+
+Lorsqu'une hausse ou une baisse durable est signalée, les preuves détaillées affichent désormais les dates de début et de fin de chacune des deux fenêtres comparées, leur étendue calendaire, l'étendue totale, ainsi que les deux médianes d'humidité absolue. L'utilisateur peut ainsi vérifier quelles journées soutiennent le constat, sans devoir déduire les périodes à partir des seules dates extrêmes.
+
+Cette évolution améliore la traçabilité du diagnostic ; elle ne change aucun calcul, seuil ou comportement de la VMI.
