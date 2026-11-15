@@ -125,3 +125,118 @@ export function summarizeMonthlyEnergyReadings(readings) {
     };
   }).filter(meter => meter.months.length || meter.crossMonthIntervalCount);
 }
+
+
+/**
+ * Met en regard chaque intervalle électrique mesuré avec les observations
+ * hygrométriques et thermiques qui le recouvrent réellement.
+ *
+ * Les segments d'historique sont intégrés par interpolation linéaire seulement
+ * entre deux relevés espacés d'au plus maxGapHours. Aucun prolongement avant
+ * le premier relevé, après le dernier, ni comblement des grands trous.
+ */
+export function summarizeEnergyClimateContext(readings, history, {
+  maxGapHours = 2,
+  minCoveredHours = 3,
+  minCoveragePercent = 50
+} = {}) {
+  const summary = summarizeEnergyReadings(readings);
+  const rows = (Array.isArray(history) ? history : [])
+    .filter(row => Number.isFinite(row?.t))
+    .sort((a, b) => a.t - b.t);
+  const maxGapMs = maxGapHours * 3600000;
+
+  const valuesFor = row => {
+    const validTemp = value => Number.isFinite(value) && value >= -30 && value <= 60;
+    const validRh = value => Number.isFinite(value) && value >= 0 && value <= 100;
+    const indoorAbs = validTemp(row.st) && validRh(row.sh)
+      ? absoluteHumidity(row.st, row.sh) : null;
+    const incomingAbs = validTemp(row.te) && validRh(row.he)
+      ? absoluteHumidity(row.te, row.he) : null;
+    return {
+      indoorTemp: validTemp(row.st) ? row.st : null,
+      outdoorTemp: validTemp(row.tExt) ? row.tExt : null,
+      indoorRH: validRh(row.sh) ? row.sh : null,
+      incomingTemp: validTemp(row.te) ? row.te : null,
+      incomingRH: validRh(row.he) ? row.he : null,
+      indoorAbsHumidity: indoorAbs,
+      incomingAbsHumidity: incomingAbs,
+      deltaAbsHumidity: indoorAbs != null && incomingAbs != null
+        ? indoorAbs - incomingAbs : null
+    };
+  };
+  const metricKeys = [
+    'indoorTemp', 'outdoorTemp', 'indoorRH', 'incomingTemp', 'incomingRH',
+    'indoorAbsHumidity', 'incomingAbsHumidity', 'deltaAbsHumidity'
+  ];
+  const interpolate = (a, b, ratio) => a + (b - a) * ratio;
+
+  const measureContext = interval => {
+    const sums = Object.fromEntries(metricKeys.map(key => [key, 0]));
+    const coverage = Object.fromEntries(metricKeys.map(key => [key, 0]));
+    for (let index = 1; index < rows.length; index++) {
+      const first = rows[index - 1], second = rows[index];
+      const gap = second.t - first.t;
+      if (!(gap > 0) || gap > maxGapMs) continue;
+      const start = Math.max(interval.from, first.t);
+      const end = Math.min(interval.to, second.t);
+      if (!(end > start)) continue;
+      const a = valuesFor(first), b = valuesFor(second);
+      const startRatio = (start - first.t) / gap;
+      const endRatio = (end - first.t) / gap;
+      const duration = end - start;
+      for (const key of metricKeys) {
+        if (!Number.isFinite(a[key]) || !Number.isFinite(b[key])) continue;
+        const atStart = interpolate(a[key], b[key], startRatio);
+        const atEnd = interpolate(a[key], b[key], endRatio);
+        sums[key] += ((atStart + atEnd) / 2) * duration;
+        coverage[key] += duration;
+      }
+    }
+    const means = Object.fromEntries(metricKeys.map(key => [
+      key, coverage[key] > 0 ? sums[key] / coverage[key] : null
+    ]));
+    const durationMs = interval.to - interval.from;
+    const climateCoverageMs = coverage.deltaAbsHumidity;
+    const coverageHours = climateCoverageMs / 3600000;
+    const coveragePercent = durationMs > 0 ? climateCoverageMs / durationMs * 100 : 0;
+    return {
+      ...means,
+      coverageHours,
+      coveragePercent,
+      coveredMs: climateCoverageMs,
+      ready: coverageHours >= minCoveredHours && coveragePercent >= minCoveragePercent,
+      metricCoverageHours: Object.fromEntries(metricKeys.map(key => [
+        key, coverage[key] / 3600000
+      ]))
+    };
+  };
+
+  const meters = summary.meters.map(meter => ({
+    meterType: meter.meterType,
+    label: meter.label,
+    intervals: meter.intervals
+      .filter(interval => interval.status === 'measured')
+      .map(interval => ({
+        ...interval,
+        context: measureContext(interval)
+      }))
+  }));
+  return {
+    meters,
+    historySampleCount: rows.length,
+    maxGapHours,
+    minCoveredHours,
+    minCoveragePercent,
+    matchedIntervalCount: meters.reduce((sum, meter) =>
+      sum + meter.intervals.filter(interval => interval.context.ready).length, 0),
+    measuredIntervalCount: meters.reduce((sum, meter) => sum + meter.intervals.length, 0),
+    limits: [
+      'La comparaison utilise uniquement les portions d’historique réellement comprises entre les deux index du compteur.',
+      'Les trous de plus de ' + maxGapHours + ' h ne sont pas comblés et aucune donnée n’est extrapolée hors de la période observée.',
+      'La couverture est calculée sur les mesures nécessaires à l’écart d’humidité absolue intérieur / air entrant.',
+      'Une moyenne sur un intervalle ne décrit pas les variations instantanées et ne démontre pas de lien de causalité.',
+      'Un compteur global décrit l’ensemble de la VMI ; il ne permet pas d’isoler ventilation et préchauffage.'
+    ]
+  };
+}
