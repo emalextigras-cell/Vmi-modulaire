@@ -60,7 +60,7 @@ test('ne confond pas le code brut Vitesse avec les modes manuels 1/2/3', () => {
   const airflowSection = result.sections.find(item => item.id === 'airflow');
 
   assert.match(speedSection.summary, /Aucune annotation de vitesse manuelle/);
-  assert.ok(airflowSection.details.some(line => /codes « Vitesse » bruts/.test(line)));
+  assert.ok(airflowSection.details.some(line => /codes « Vitesse » bruts/i.test(line)));
   assert.ok(result.recommendations.some(item => /annotation Mode manuel/.test(item.text)));
 });
 
@@ -78,5 +78,5 @@ test('distingue les index externes mesurés de l’estimation du ventilateur', (
 
   assert.ok(energy.details.some(line => /2 kWh cumulés/.test(line)));
   assert.ok(energy.details.some(line => /kWh estimés/.test(line)));
-  assert.ok(energy.details.some(line => /ne représentent pas une mesure électrique/.test(line)));
+  assert.ok(energy.details.some(line => /ne représente pas une mesure électrique/.test(line)));
 });
