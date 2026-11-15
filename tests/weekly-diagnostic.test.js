@@ -140,3 +140,36 @@ test('accepte un seuil descriptif nul et des paramètres valides',()=>{
   assert.equal(result.comparison.indoorHA,0);
   assert.ok(result.findings.some(item=>item.title==='Humidité absolue intérieure relativement stable'));
 });
+
+
+test('écarte les horodatages dupliqués contradictoires sans dépendre de l’ordre des lignes',()=>{
+  const days=[
+    ...Array.from({length:7},(_,day)=>makeDay(day,50,40,{count:4})).flat(),
+    ...Array.from({length:7},(_,day)=>makeDay(day+7,50,40,{count:4})).flat()
+  ];
+  const duplicate={...days[0],sh:95};
+  const first=summarizeWeeklyDiagnostic([...days,duplicate]);
+  const second=summarizeWeeklyDiagnostic([duplicate,...days].reverse());
+  for(const result of [first,second]){
+    assert.equal(result.status,'available');
+    assert.equal(result.duplicateTimestampCount,1);
+    assert.equal(result.conflictingTimestampCount,1);
+    assert.equal(result.periods[0].sampleCount,27);
+    assert.equal(result.periods[0].dayCount,7);
+    assert.ok(result.periods[0].medianRH<60);
+  }
+  assert.equal(first.periods[0].medianRH,second.periods[0].medianRH);
+  assert.equal(first.periods[0].medianIndoorHA,second.periods[0].medianIndoorHA);
+});
+
+test('compte les doublons strictement identiques sans gonfler le nombre de relevés',()=>{
+  const days=[
+    ...Array.from({length:7},(_,day)=>makeDay(day,50,40,{count:3})).flat(),
+    ...Array.from({length:7},(_,day)=>makeDay(day+7,52,40,{count:3})).flat()
+  ];
+  const result=summarizeWeeklyDiagnostic([...days,{...days[0]}]);
+  assert.equal(result.status,'available');
+  assert.equal(result.duplicateTimestampCount,1);
+  assert.equal(result.conflictingTimestampCount,0);
+  assert.equal(result.periods[0].sampleCount,21);
+});
