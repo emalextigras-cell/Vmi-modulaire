@@ -239,7 +239,7 @@ export function compareOperatingPeriods(data, {
   }));
 
   const metrics = [
-    { key: 'debit', label: 'Débit exporté', unit: 'valeur brute (unité à confirmer)', verified: false },
+    { key: 'debit', label: 'Débit', unit: 'm³/h', verified: true },
     { key: 'rpm', label: 'Régime moteur', unit: 'tr/min' },
     { key: 'vmiPwmRaw', label: 'PWM', unit: 'valeur brute' },
     { key: 'motorPressureRaw', label: 'Pression moteur', unit: 'valeur brute, unité inconnue' }
@@ -317,7 +317,7 @@ export function summarizeEnergyReadiness(data) {
   const rows=Array.isArray(data)?data:[];
   const fields=[
     {key:'rpm',label:'Régime moteur',unit:'tr/min (confirmé)',verified:true},
-    {key:'debit',label:'Débit exporté',unit:'valeur brute (unité à confirmer)',verified:false},
+    {key:'debit',label:'Débit',unit:'m³/h',verified:true},
     {key:'vmiSpeedRaw',label:'Code vitesse VMI+',unit:'code brut',verified:false},
     {key:'vmiPwmRaw',label:'PWM VMI+',unit:'valeur brute (échelle à confirmer)',verified:false},
     {key:'consDpRaw',label:'Cons DP',unit:'signification et unité à confirmer',verified:false},
@@ -1000,7 +1000,7 @@ export function summarizeOperatingReference(data, { minSamples = 10 } = {}) {
     modes.get(row.vmiModeRaw).push(row);
   }
   const metrics = [
-    { key: 'debit', label: 'Débit exporté', unit: 'valeur brute (unité à confirmer)', verified: false },
+    { key: 'debit', label: 'Débit', unit: 'm³/h', verified: true },
     { key: 'rpm', label: 'Régime moteur', unit: 'tr/min confirmé', verified: true },
     { key: 'vmiPwmRaw', label: 'PWM', unit: 'valeur brute', verified: false },
     { key: 'motorPressureRaw', label: 'Pression moteur', unit: 'unité à confirmer', verified: false },
