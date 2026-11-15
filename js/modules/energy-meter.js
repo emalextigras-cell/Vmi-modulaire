@@ -129,14 +129,6 @@ export function summarizeMonthlyEnergyReadings(readings) {
 }
 
 
-/**
- * Met en regard chaque intervalle électrique mesuré avec les observations
- * hygrométriques et thermiques qui le recouvrent réellement.
- *
- * Les segments d'historique sont intégrés par interpolation linéaire seulement
- * entre deux relevés espacés d'au plus maxGapHours. Aucun prolongement avant
- * le premier relevé, après le dernier, ni comblement des grands trous.
- */
 const assertValidEnergyClimateOptions = (maxGapHours, minCoveredHours, minCoveragePercent) => {
   const maxGapMs = maxGapHours * 3600000;
   if (!Number.isFinite(maxGapHours) || maxGapHours <= 0 ||
