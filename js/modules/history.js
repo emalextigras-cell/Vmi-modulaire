@@ -21,7 +21,7 @@ export function filterRawDateHistory(records, minValid = MIN_VALID) {
   return (Array.isArray(records) ? records : []).filter(record => isRawDateEligible(record, minValid));
 }
 export function pruneHistory(records, maxRecords) {
-  const valid = (Array.isArray(records) ? records : []).filter(record =>
+  const valid = filterRawDateHistory(records).filter(record =>
     record && (record.st != null || record.sh != null || record.tExt != null || record.te != null ||
       record.he != null || record.rpm != null || record.t1 != null || record.h1 != null ||
       record.debit != null || record.vmiSpeedRaw != null || record.vmiAbsP0 != null || record.vmiAbsP1 != null ||
@@ -50,10 +50,10 @@ export function mergeRecordFields(existing, incoming) {
 /** Fusionne les imports par horodatage sans perdre les champs déjà renseignés. */
 export function mergeImportedHistory(currentRecords, importedRecords) {
   const byTimestamp = new Map((Array.isArray(currentRecords) ? currentRecords : [])
-    .filter(record => record && Number.isFinite(record.t))
+    .filter(record => isRawDateEligible(record))
     .map(record => [record.t, record]));
   (Array.isArray(importedRecords) ? importedRecords : [])
-    .filter(record => record && Number.isFinite(record.t))
+    .filter(record => isRawDateEligible(record))
     .forEach(record => byTimestamp.set(record.t, mergeRecordFields(byTimestamp.get(record.t), record)));
   return [...byTimestamp.values()].sort((a, b) => a.t - b.t);
 }
