@@ -17,9 +17,9 @@ test('explique les critères quotidiens de robustesse sans les confondre avec l�
   };
   const text = formatDiagnosisConfidence(result, value => String(value));
   assert.match(text, /4 jour\(s\) avec au moins 3 relevé\(s\)/);
-  assert.match(text, /couverture temporelle 32.4 %/);
-  assert.match(text, /87.5 % des lignes retenues/);
-  assert.match(text, /pas l’état physique de la VMI/);
+  assert.ok(text.includes('couverture temporelle 32.4 %'));
+  assert.ok(text.includes('87.5 % des lignes retenues'));
+  assert.ok(text.includes('pas l’état physique de la VMI'));
 });
 
 test('signale une couverture indisponible lorsque les données ne permettent pas son calcul', () => {
@@ -30,6 +30,6 @@ test('signale une couverture indisponible lorsque les données ne permettent pas
     observedHours: 0,
     confidenceBasis: { observedCoveragePercent: null, acceptedSampleShare: 1 }
   });
-  assert.match(text, /couverture temporelle indisponible/);
+  assert.ok(text.includes('couverture temporelle indisponible'));
   assert.match(text, /1 jour\(s) avec au moins 3 relevé\(s\)/);
 });
