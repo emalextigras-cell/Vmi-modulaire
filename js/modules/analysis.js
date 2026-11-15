@@ -682,6 +682,18 @@ export function buildHygrometricDiagnosis(data, {
   const dryShare=periods.observedDurationMs?periods.dryDurationMs/periods.observedDurationMs:null;
   const humidShare=periods.observedDurationMs?periods.humidDurationMs/periods.observedDurationMs:null;
   const daily=summarizeDailyTrends(rows);
+  const dailyAirContext=new Map();
+  for(const row of rows){
+    const date=dayKey(row.t);
+    if(!dailyAirContext.has(date))dailyAirContext.set(date,{incoming:[],indoorMinusIncoming:[]});
+    const context=dailyAirContext.get(date);
+    context.incoming.push(absoluteHumidity(row.te,row.he));
+    context.indoorMinusIncoming.push(row.indoorHA-row.incomingHA);
+  }
+  const dailyAirContextStats=new Map([...dailyAirContext.entries()].map(([date,values])=>[date,{
+    incoming:median(values.incoming),
+    indoorMinusIncoming:median(values.indoorMinusIncoming)
+  }]));
   // Une tendance durable compare deux fenêtres non chevauchantes de trois jours
   // suffisamment échantillonnés. Une journée isolée ne peut pas suffire.
   const eligibleTrendDays=daily.days.filter(day=>day.sampleCount>=3&&Number.isFinite(day.medianAbsoluteHumidity));
@@ -881,7 +893,9 @@ export function buildHygrometricDiagnosis(data, {
       recommendation:'Importer des relevés sur des journées plus rapprochées avant de conclure à une tendance durable.'
     });
   } else {
-    const trendBasis={firstDate:first.date,lastDate:last.date,baselineWindowStartDate:firstTrendWindow[0].date,baselineWindowEndDate:firstTrendWindow.at(-1).date,recentWindowStartDate:lastTrendWindow[0].date,recentWindowEndDate:lastTrendWindow.at(-1).date,baselineWindowSpanDays:trendWindowSpanDays[0],recentWindowSpanDays:trendWindowSpanDays[1],totalComparisonSpanDays:totalTrendSpanDays,baselineDailyValues:firstTrendWindow.map(day=>`${day.date} : ${day.medianAbsoluteHumidity.toFixed(2)} g/m³ (${day.sampleCount} relevés)`).join(' · '),recentDailyValues:lastTrendWindow.map(day=>`${day.date} : ${day.medianAbsoluteHumidity.toFixed(2)} g/m³ (${day.sampleCount} relevés)`).join(' · '),baselineMedianAbsoluteHumidity:baselineTrendMedian,recentMedianAbsoluteHumidity:recentTrendMedian,change:trendChange,threshold:trendDelta,eligibleDays:eligibleTrendDays.length,daysPerWindow:trendWindowDays,risingDays:trendDirectionalDays.rising,fallingDays:trendDirectionalDays.falling,minimumDirectionalDays:2,unit:'g/m³'};
+    const baselineAirContext=firstTrendWindow.map(day=>dailyAirContextStats.get(day.date));
+    const recentAirContext=lastTrendWindow.map(day=>dailyAirContextStats.get(day.date));
+    const trendBasis={firstDate:first.date,lastDate:last.date,baselineWindowStartDate:firstTrendWindow[0].date,baselineWindowEndDate:firstTrendWindow.at(-1).date,recentWindowStartDate:lastTrendWindow[0].date,recentWindowEndDate:lastTrendWindow.at(-1).date,baselineWindowSpanDays:trendWindowSpanDays[0],recentWindowSpanDays:trendWindowSpanDays[1],totalComparisonSpanDays:totalTrendSpanDays,baselineDailyValues:firstTrendWindow.map(day=>`${day.date} : ${day.medianAbsoluteHumidity.toFixed(2)} g/m³ (${day.sampleCount} relevés)`).join(' · '),recentDailyValues:lastTrendWindow.map(day=>`${day.date} : ${day.medianAbsoluteHumidity.toFixed(2)} g/m³ (${day.sampleCount} relevés)`).join(' · '),baselineMedianAbsoluteHumidity:baselineTrendMedian,recentMedianAbsoluteHumidity:recentTrendMedian,baselineIncomingMedianAbsoluteHumidity:median(baselineAirContext.map(value=>value?.incoming)),recentIncomingMedianAbsoluteHumidity:median(recentAirContext.map(value=>value?.incoming)),baselineIndoorMinusIncomingMedian:median(baselineAirContext.map(value=>value?.indoorMinusIncoming)),recentIndoorMinusIncomingMedian:median(recentAirContext.map(value=>value?.indoorMinusIncoming)),change:trendChange,threshold:trendDelta,eligibleDays:eligibleTrendDays.length,daysPerWindow:trendWindowDays,risingDays:trendDirectionalDays.rising,fallingDays:trendDirectionalDays.falling,minimumDirectionalDays:2,unit:'g/m³'};
     if(trendChange>=trendDelta&&trendDirectionalDays.rising>=2){
       observations.push({
         code:'indoor-moisture-rising',level:'caution',
