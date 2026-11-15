@@ -698,7 +698,17 @@ export function buildHygrometricDiagnosis(data, {
   for(let i=0;i<eligibleHours.length;i++){
     for(let j=i+1;j<eligibleHours.length;j++){
       const left=eligibleHours[i],right=eligibleHours[j];
-      const sharedDayKeys=left.dayKeys.filter(day=>right.dayKeys.includes(day));
+      const commonDayKeys=left.dayKeys.filter(day=>right.dayKeys.includes(day));
+      // Une date ne contribue à la comparaison que si chaque créneau y compte
+      // au moins trois relevés : une journée isolée ne pèse pas autant qu'une
+      // journée correctement échantillonnée.
+      const hourlyMinimumDailySamples=3;
+      const sharedDayKeys=commonDayKeys.filter(day=>[left,right].every(bucket=>
+        rows.filter(r=>
+          Math.floor(new Date(r.t).getHours()/6)===Math.floor(bucket.startHour/6)&&
+          dayKey(r.t)===day
+        ).length>=hourlyMinimumDailySamples
+      ));
       if(sharedDayKeys.length<2)continue;
       const pairedStats=[left,right].map(bucket=>{
         const daily=sharedDayKeys.map(day=>{
@@ -817,7 +827,7 @@ export function buildHygrometricDiagnosis(data, {
   }
 
   return {
-    methodology:{version:'hygrometric-diagnostic-v6',dryDeltaThreshold:dryDelta,trendDeltaThreshold:trendDelta,minimumSamples:minSamples,minimumDistinctDays:2,minimumObservedHours:3,dominantDurationShare:0.6,maximumGapHours:maxGapHours,hourlyBucketHours:6,hourlyMinimumSamples:5,hourlyMinimumDistinctDays:2,hourlyMinimumSharedDays:2,minimumDailySamplesForConfidence:3,moderateCoveragePercent:20,highCoveragePercent:50,moderateAcceptedShare:0.7,highAcceptedShare:0.9},
+    methodology:{version:'hygrometric-diagnostic-v6',dryDeltaThreshold:dryDelta,trendDeltaThreshold:trendDelta,minimumSamples:minSamples,minimumDistinctDays:2,minimumObservedHours:3,dominantDurationShare:0.6,maximumGapHours:maxGapHours,hourlyBucketHours:6,hourlyMinimumSamples:5,hourlyMinimumDistinctDays:2,hourlyMinimumSharedDays:2,hourlyMinimumDailySamples:3,minimumDailySamplesForConfidence:3,moderateCoveragePercent:20,highCoveragePercent:50,moderateAcceptedShare:0.7,highAcceptedShare:0.9},
     status:sufficient?'analysis-available':'insufficient-data',
     inputQuality:{
       inputSampleCount:inputRows.length,
