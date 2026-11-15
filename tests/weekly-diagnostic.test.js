@@ -221,4 +221,4 @@ test('refuse une fenêtre dont les bornes dépassent la plage de dates JavaScrip
     RangeError
   );
 });
-\n
+
