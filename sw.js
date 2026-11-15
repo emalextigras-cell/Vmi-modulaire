@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vmi-modulaire-v13-cache-3';
+const CACHE_NAME = 'vmi-modulaire-v13-cache-4';
 const CACHE_PREFIX = 'vmi-modulaire-';
 const APP_SHELL = [
   './','./index.html','./manifest.json','./css/style.css','./js/app.js',
@@ -8,7 +8,7 @@ const APP_SHELL = [
   './js/modules/legacy-migration.js','./js/modules/history.js',
   './js/modules/backup.js','./js/modules/date-utils.js',
   './js/modules/bluetooth-protocol.js','./js/modules/psychrometry.js',
-  './js/modules/data-quality.js','./js/modules/chart-renderer.js'
+  './js/modules/data-quality.js','./js/modules/chart-renderer.js','./js/modules/energy-meter.js'
 ];
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(APP_SHELL)).then(()=>self.skipWaiting()));

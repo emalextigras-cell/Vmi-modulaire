@@ -161,3 +161,17 @@ L'interface construit désormais, à partir de l'historique affiché, un profil 
 ### Consigne de température extérieure — Cons TMax
 
 Le champ `Cons TMax` de l’export VMI+ est interprété comme le seuil de température extérieure configuré dans VMI+ (en °C), selon la confirmation de l’utilisateur : lorsque la température extérieure dépasse ce seuil, la VMI réduit sa ventilation. Le parseur conserve séparément cette consigne (`consTmaxRaw`) et la température extérieure mesurée (`tExt`, colonne `Tempext`). L’analyse présente les relevés au-dessus et au seuil ou en dessous, avec des médianes de débit et de régime séparées par mode manuel déclaré. Elle reste descriptive : elle ne prouve pas à elle seule que la régulation est la cause d’une baisse de débit et ne déclenche aucune commande.
+
+
+## Phase 11 — suivi électrique mesuré par compteur externe
+
+L'application permet d'enregistrer des index cumulés en kWh lus sur un compteur externe, séparément pour :
+- la ventilation, si elle dispose d'un compteur dédié ;
+- le préchauffage, si celui-ci dispose d'un compteur dédié ;
+- le total VMI, si un seul compteur global est disponible.
+
+L'énergie consommée entre deux index successifs d'un même compteur est calculée par différence. La puissance moyenne sur l'intervalle est calculée à partir de cette énergie et de la durée écoulée. Ce n'est pas une puissance instantanée. Les compteurs restent séparés : un compteur global ne permet pas d'isoler le préchauffage et ne doit pas être additionné aux sous-compteurs.
+
+Une baisse d'index est signalée comme une remise à zéro ou un changement de compteur ; aucun delta n'est calculé sur cet intervalle. Les index sont conservés dans IndexedDB et inclus dans les sauvegardes JSON. Les anciennes sauvegardes v13 sans index électriques restent restaurables.
+
+Aucun kWh n'est déduit de `Cons Res`, `Cons HydroR`, du PWM, du débit ou des courbes constructeur. Aucune commande Bluetooth ni régulation automatique n'est modifiée.
