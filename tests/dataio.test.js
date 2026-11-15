@@ -301,3 +301,42 @@ test('la détection de l’en-tête est limitée à la fenêtre autorisée', () 
   assert.equal(findVmiHeaderRowIndex(rows), -1);
   assert.equal(findVmiHeaderRowIndex(rows, 21), 20);
 });
+
+
+import { isRawDateEligible, filterRawDateHistory, mergeImportedHistory } from '../js/modules/history.js';
+import { fixClock } from '../js/modules/clock-correction.js';
+import { mergeBackupData } from '../js/modules/backup.js';
+import { MIN_VALID } from '../js/modules/date-utils.js';
+
+test('exclut une date brute de 2018 même si sa date corrigée pointe en 2026', () => {
+  const old = { t: new Date(2026, 10, 10, 12).getTime(), rk: '10/11/2018 12:00:00', fixed: true, sh: 50 };
+  const recent = { t: new Date(2026, 10, 10, 12, 5).getTime(), rk: '10/11/2026 12:05:00', sh: 51 };
+  assert.equal(isRawDateEligible(old), false);
+  assert.equal(isRawDateEligible(recent), true);
+  assert.deepEqual(filterRawDateHistory([old, recent]), [recent]);
+});
+
+test('la fusion des imports ne réintroduit pas les dates brutes antérieures à 2025', () => {
+  const old = { t: new Date(2026, 10, 10).getTime(), rk: '10/11/2018 12:00:00', fixed: true, sh: 50 };
+  const recent = { t: new Date(2026, 10, 11).getTime(), rk: '11/11/2026 12:00:00', sh: 51 };
+  assert.deepEqual(mergeImportedHistory([old], [old, recent]), [recent]);
+});
+
+test('fixClock écarte les dates brutes antérieures à 2025 avant toute correction', () => {
+  const old = { t: new Date(2018, 3, 10, 12).getTime(), rk: '10/04/2018 12:00:00', d: 100, sh: 50 };
+  const recent = { t: new Date(2026, 10, 10, 12).getTime(), rk: '10/11/2026 12:00:00', d: 300, sh: 51 };
+  const result = fixClock([old, recent], []);
+  assert.deepEqual(result.kept, [recent]);
+  assert.equal(result.fixed, 0);
+});
+
+test('la restauration ignore les dates brutes anciennes dans la sauvegarde et dans la base courante', () => {
+  const old = { t: MIN_VALID + 1000, rk: '10/04/2018 12:00:00', fixed: true, sh: 50 };
+  const recent = { t: MIN_VALID + 2000, rk: '10/11/2026 12:00:00', sh: 51 };
+  const result = mergeBackupData({
+    backup: { app: 'vmi-purevent', hist: [old, recent] },
+    currentHist: [old], minValid: MIN_VALID
+  });
+  assert.deepEqual(result.hist, [recent]);
+  assert.equal(result.addedHistory, 1);
+});
