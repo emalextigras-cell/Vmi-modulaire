@@ -6,16 +6,17 @@ const source = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
 
 test('le diagnostic GATT journalise un instantané sans identifiant Bluetooth', () => {
   const helper = source.slice(source.indexOf('function logGattState('), source.indexOf('function onDisconnect()'));
-  for (const field of ['transport=', 'chC=', 'chT=', 'download=', 'intentional=', 'manual=', 'autoDone=', 'polling=']) {
+  for (const field of ['transport=', 'chC=', 'chT=', 'download=', 'manual=', 'autoDone=', 'polling=']) {
     assert.ok(helper.includes(field), 'état manquant : ' + field);
   }
-  assert.doesNotMatch(helper, /dev\.id|device\.id|address/i);
+  assert.doesNotMatch(helper, /dev\.id|device\.id|address|intentional/i);
 });
 
-test('la déconnexion est journalisée avant le nettoyage et la consommation du drapeau', () => {
+test('la déconnexion est journalisée avant le nettoyage et conserve la stratégie V13', () => {
   const handler = source.slice(source.indexOf('function onDisconnect()'), source.indexOf('async function connectCharacteristics('));
-  assert.ok(handler.indexOf("logGattState('event:gattserverdisconnected')") < handler.indexOf('intentionalDisconnect=false;'));
   assert.ok(handler.indexOf("logGattState('event:gattserverdisconnected')") < handler.indexOf('cleanupConnection()'));
+  assert.match(handler, /setTimeout\(reconnect,4000\)/);
+  assert.doesNotMatch(handler, /intentionalDisconnect|live-reconnect-scheduled/);
 });
 
 test('les étapes de découverte et notifications GATT distinguent succès et échec', () => {
@@ -33,23 +34,13 @@ test('les étapes de découverte et notifications GATT distinguent succès et é
   ]) assert.ok(discovery.includes(stage), 'étape non journalisée : ' + stage);
 });
 
-test('la coupure volontaire est journalisée après le drapeau et avant disconnect()', () => {
+test('la fin de téléchargement demande la coupure avant de laisser onDisconnect gérer la reconnexion', () => {
   const finish = source.slice(source.indexOf('function finishDownload('), source.indexOf('async function startDownload('));
-  assert.match(finish, /intentionalDisconnect=true;\s*logGattState\('sync:request-intentional-disconnect'\);\s*dev\.gatt\.disconnect\(\)/);
+  assert.match(finish, /logGattState\('sync:request-disconnect'\);\s*dev\.gatt\.disconnect\(\)/);
   assert.ok(finish.includes('sync:cut-reached-but-transport-already-disconnected'));
 });
 
-test('une fin de synchronisation volontaire relance le direct sans relancer l’historique', () => {
-  const handler = source.slice(source.indexOf('function onDisconnect()'), source.indexOf('async function connectCharacteristics('));
-  assert.match(handler, /if\(wasIntentional\)\{[\s\S]*?sync:live-reconnect-scheduled[\s\S]*?setTimeout\(reconnect,3000\)[\s\S]*?return;/);
-  assert.ok(handler.indexOf('sync:live-reconnect-scheduled') < handler.indexOf('setTimeout(reconnect,3000)'));
-  assert.ok(handler.includes('if(!manualDisconnect&&dev)'));
-  const connect = source.slice(source.indexOf('async function connectDevice('), source.indexOf('async function connectBLE('));
-  assert.match(connect, /setTimeout\(autoHistory,3000\)/);
-  assert.doesNotMatch(connect, /autoDone=false/);
-});
-
-test('chaque tentative de reconnexion journalise son résultat sans changer sa stratégie', () => {
+test('chaque tentative de reconnexion journalise son résultat sans changer le délai V13', () => {
   const reconnect = source.slice(source.indexOf('async function reconnect()'), source.indexOf("$('conn').onclick"));
   assert.match(reconnect, /reconnect:attempt/);
   assert.match(reconnect, /reconnect:success/);
