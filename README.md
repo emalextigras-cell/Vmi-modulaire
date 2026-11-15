@@ -194,3 +194,10 @@ Le diagnostic ne qualifie plus une simple différence entre le premier et le der
 Une hausse ou une baisse durable n'est signalée que si l'écart atteint le seuil configuré (0,8 g/m³ par défaut) et si au moins deux des trois jours de la fenêtre récente vont dans le même sens par rapport à la médiane initiale. Avec moins de six jours exploitables, le diagnostic indique que la tendance reste à confirmer. Une variation isolée est explicitement distinguée d'une tendance persistante.
 
 Cette analyse décrit l'évolution de l'humidité absolue intérieure ; elle n'identifie pas la cause, ne démontre pas l'efficacité de la VMI et ne déclenche aucune commande. Elle ne modifie ni les seuils de pilotage, ni les données, ni le protocole Bluetooth.
+
+
+## Phase 14 — continuité calendaire des tendances hygrométriques
+
+Six jours échantillonnés ne suffisent pas à eux seuls à qualifier une tendance durable s'ils sont trop éloignés dans le calendrier. Chaque fenêtre de trois jours échantillonnés doit tenir dans une période de quatre jours calendaires maximum, et les deux fenêtres doivent couvrir ensemble quatorze jours calendaires maximum. Si ces conditions ne sont pas réunies, le diagnostic explique que les relevés sont trop espacés et ne signale pas de hausse ou baisse durable.
+
+Ces bornes encadrent l'interprétation temporelle ; elles ne constituent ni un seuil de fonctionnement de la VMI ni une preuve de causalité.
