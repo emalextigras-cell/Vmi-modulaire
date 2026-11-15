@@ -414,23 +414,15 @@ export function buildVmiAssistantSummary(data, options = {}) {
       'La couverture ou le nombre de journées valides ne permet pas encore un diagnostic robuste.'
     ));
   }
-  if (quality.transientSpikes.count || quality.affectedRecords) {
+  if (quality.affectedRecords) {
     recommendations.push(recommendation(
-      'à vérifier', 'Vérifier les mesures inhabituelles',
-      'Compare les valeurs signalées aux conditions réelles et aux autres sondes. Vérifie les sondes et leurs connexions seulement si les écarts se répètent.',
-      'Des valeurs aberrantes ou des pics isolés ont été repérés ; cela ne suffit pas à conclure à une panne.'
+      'à vérifier', 'Contrôler les valeurs hors limites',
+      'Repère les dates et les sondes concernées dans « Fiabilité des données ». Compare-les aux conditions réelles ; ne conclus à un défaut que si les écarts se répètent.',
+      quality.affectedRecords + ' relevé(s) contiennent au moins une valeur hors des limites de plausibilité. Les pics isolés plausibles restent signalés dans les détails, sans déclencher à eux seuls une alerte.'
     ));
   }
-  const recentValid = rows.filter(row =>
-    Number.isFinite(row?.t) && Number.isFinite(row?.st) &&
-    Number.isFinite(row?.sh) && row.sh >= 0 && row.sh <= 100
-  ).sort((a, b) => a.t - b.t).slice(-24);
-  if (recentValid.length) {
-    const recentMedianRH = recentValid.map(row => row.sh).sort((a, b) => a - b);
-    const middle = Math.floor(recentMedianRH.length / 2);
-    const recentRH = recentMedianRH.length % 2
-      ? recentMedianRH[middle]
-      : (recentMedianRH[middle - 1] + recentMedianRH[middle]) / 2;
+  const recentRH = daily.latest?.medianRH;
+  if (Number.isFinite(recentRH)) {
     if (recentRH > targetRH + 5) {
       recommendations.push(recommendation(
         'à examiner', 'Chercher d’abord les apports d’humidité',
@@ -477,24 +469,24 @@ export function buildVmiAssistantSummary(data, options = {}) {
       currentSeason.opportunityDayCount + ' jour(s) avec un écart thermique d’au moins deux degrés ont été repérés dans les données saisonnières.'
     ));
   }
-  if (speeds.status !== 'no-speed-data') {
+  if (readyPairs.length) {
+    const examples = readyPairs.slice(0, 2).map(item =>
+      item.label + ' (niveaux ' + item.speeds.join('/') + ', ' +
+      item.sharedDayCount + ' jours communs, écart HA ' +
+      signed(item.medianDeltaHADifference, 'g/m³') + ')'
+    );
     recommendations.push(recommendation(
-      'méthode', 'Comparer les vitesses sans chercher un gagnant automatique',
-      'Pour évaluer un réglage, conserve les autres paramètres aussi stables que possible et compare des périodes suffisamment longues, avec météo et horaires comparables.',
-      'Les comparaisons de vitesses restent descriptives et ne déterminent pas une vitesse optimale.'
-    ));
-  } else {
-    recommendations.push(recommendation(
-      'information', 'Conserver les vitesses comme données manuelles',
-      'Si tu veux comparer les niveaux 1, 2 et 3, utilise un historique qui contient l’annotation Mode manuel. Les codes bruts « Vitesse » ne la remplacent pas.',
-      'Aucun niveau manuel confirmé n’est disponible dans la période analysée.'
+      'méthode', 'Examiner les comparaisons de vitesses disponibles',
+      'Une comparaison horaire répond aux critères de dates communes et d’effectifs. Consulte les résultats détaillés avant de modifier un réglage ; ils ne désignent pas une vitesse optimale.',
+      examples.join(' ; ') + '. Les différences de météo, d’occupation et d’apports d’humidité ne sont pas neutralisées.'
     ));
   }
-  if (!measuredEnergy.meters.length) {
+
+  if (!recommendations.length) {
     recommendations.push(recommendation(
-      'information', 'Mesurer la consommation réelle si nécessaire',
-      'Pour connaître les kWh réellement consommés par le ventilateur ou le préchauffage, il faut un compteur électrique externe adapté. L’estimation affichée ne suffit pas.',
-      'Aucun index électrique externe n’est enregistré ; les données VMI+ ne donnent pas une consommation électrique vérifiée.'
+      'information', 'Poursuivre la surveillance',
+      'Aucun point ne demande actuellement une intervention particulière selon les règles de l’assistant. Continue à observer l’évolution avant de modifier les réglages.',
+      'Les seuils de conseil ne déclenchent pas d’alerte prioritaire sur la période analysée ; cela ne constitue pas une certification du fonctionnement de la VMI.'
     ));
   }
 
