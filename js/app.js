@@ -183,7 +183,8 @@ function handleNotification(ev){
  log('< '+hex(a));
  if(type===1&&a.length>53){
   cur.filtre=a[28];cur.jours=a[26];cur.vol=a[22]|(a[23]<<8);cur.tmax=a[38];
-  cur.vit=a[34]+1; // code brut VMI : ne jamais le traiter comme niveau manuel\n   cur.boost=a[44];cur.hol=a[43];cur.rpm=null;
+  cur.vit=a[34]+1; // code brut VMI : ne jamais le traiter comme niveau manuel
+  cur.boost=a[44];cur.hol=a[43];cur.rpm=null;
   lastSeen.state=now;
   $('fi').textContent=cur.filtre;$('jf').textContent=cur.jours;$('vo').textContent=cur.vol;$('tm').textContent=cur.tmax;
   $('sp').textContent=cur.vit;$('bo').textContent=cur.boost?'Actif':'Arrêté';$('ho').textContent=cur.hol?'Actif':'Arrêté';
