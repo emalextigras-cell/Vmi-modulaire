@@ -435,7 +435,7 @@ async function startDownload(auto=false){
 $('dlh').onclick=()=>startDownload(false);
 function autoHistory(){
  if(autoDone||download.on||!connected())return;
- autoDone=true; /* une seule fois par connexion : pas de boucle déconnexion/reconnexion */
+ autoDone=true; /* une seule fois par session : une reconnexion ne relance pas le téléchargement en boucle */
  startDownload(true).catch(e=>log('Téléchargement automatique impossible : '+(e.message||e)));
 }
 
