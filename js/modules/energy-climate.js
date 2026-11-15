@@ -1,6 +1,27 @@
 import { estimateFanPowerFromFlow } from './energy-estimate.js';
 import { absoluteHumidity } from './psychrometry.js';
 
+const assertPositiveInteger = (name,value) => {
+  if(!Number.isSafeInteger(value)||value<1) {
+    throw new RangeError(name+' doit être un entier supérieur ou égal à 1.');
+  }
+};
+const assertNonNegativeInteger = (name,value) => {
+  if(!Number.isSafeInteger(value)||value<0) {
+    throw new RangeError(name+' doit être un entier positif ou nul.');
+  }
+};
+const assertPositiveFinite = (name,value) => {
+  if(!Number.isFinite(value)||value<=0) {
+    throw new RangeError(name+' doit être un nombre fini strictement positif.');
+  }
+};
+const assertNonNegativeFinite = (name,value) => {
+  if(!Number.isFinite(value)||value<0) {
+    throw new RangeError(name+' doit être un nombre fini positif ou nul.');
+  }
+};
+
 const HOUR = 3600000;
 const dayKey = timestamp => {
   const date = new Date(timestamp);
@@ -22,6 +43,10 @@ const median = values => {
 export function summarizeDailyEnergyClimateContext(history, {
   maxGapHours = 2, minFanHours = 3, minClimateSamples = 3, minDays = 3
 } = {}) {
+  assertPositiveFinite('maxGapHours',maxGapHours);
+  assertNonNegativeFinite('minFanHours',minFanHours);
+  assertPositiveInteger('minClimateSamples',minClimateSamples);
+  assertNonNegativeInteger('minDays',minDays);
   const rows=(Array.isArray(history)?history:[])
     .filter(row=>Number.isFinite(row?.t))
     .sort((a,b)=>a.t-b.t);
