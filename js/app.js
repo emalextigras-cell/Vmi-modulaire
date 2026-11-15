@@ -733,6 +733,7 @@ function renderIntelligentDiagnosis(data){
      humidDurationShare:'Air entrant plus humide',dominanceThreshold:'Seuil de dominance',
      firstDate:'Première date comparée',lastDate:'Dernière date comparée',
      baselineWindowStartDate:'Début de la fenêtre initiale',baselineWindowEndDate:'Fin de la fenêtre initiale',
+     baselineDailyValues:'Relevés journaliers — fenêtre initiale',recentDailyValues:'Relevés journaliers — fenêtre récente',
      recentWindowStartDate:'Début de la fenêtre récente',recentWindowEndDate:'Fin de la fenêtre récente',
      baselineWindowSpanDays:'Étendue de la fenêtre initiale (jours)',recentWindowSpanDays:'Étendue de la fenêtre récente (jours)',totalComparisonSpanDays:'Étendue totale comparée (jours)',
      firstMedianAbsoluteHumidity:'Humidité absolue médiane au départ',

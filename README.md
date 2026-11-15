@@ -208,3 +208,10 @@ Ces bornes encadrent l'interprétation temporelle ; elles ne constituent ni un s
 Lorsqu'une hausse ou une baisse durable est signalée, les preuves détaillées affichent désormais les dates de début et de fin de chacune des deux fenêtres comparées, leur étendue calendaire, l'étendue totale, ainsi que les deux médianes d'humidité absolue. L'utilisateur peut ainsi vérifier quelles journées soutiennent le constat, sans devoir déduire les périodes à partir des seules dates extrêmes.
 
 Cette évolution améliore la traçabilité du diagnostic ; elle ne change aucun calcul, seuil ou comportement de la VMI.
+
+
+## Phase 16 — détail des médianes journalières comparées
+
+Les preuves d'une tendance durable détaillent maintenant, pour chacune des deux fenêtres, la médiane d'humidité absolue de chaque journée retenue et le nombre de relevés qui la composent. L'utilisateur peut vérifier les trois valeurs journalières derrière chaque médiane de fenêtre et repérer immédiatement une journée atypique ou moins documentée.
+
+Les valeurs restent des médianes journalières descriptives. Aucun relevé n'est ajouté, pondéré artificiellement ou interprété comme une cause.
