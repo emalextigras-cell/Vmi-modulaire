@@ -142,10 +142,10 @@ export function summarizeWeeklyDiagnostic(history,{
 
   const findings=[];
   if(enough&&comparison.indoorHA!=null){
-    if(comparison.indoorHA>=changeThreshold){
+    if(comparison.indoorHA>changeThreshold){
       findings.push({type:'observation',title:'Humidité absolue intérieure en hausse',
         text:'La médiane journalière équilibrée est plus élevée de '+comparison.indoorHA.toFixed(1)+' g/m³ sur la fenêtre récente.'});
-    }else if(comparison.indoorHA<=-changeThreshold){
+    }else if(comparison.indoorHA<-changeThreshold){
       findings.push({type:'observation',title:'Humidité absolue intérieure en baisse',
         text:'La médiane journalière équilibrée est plus basse de '+Math.abs(comparison.indoorHA).toFixed(1)+' g/m³ sur la fenêtre récente.'});
     }else{
