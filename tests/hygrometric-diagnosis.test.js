@@ -29,11 +29,24 @@ function makeHourlyRows(groups) {
  return rows;
 }
 
+function makeUnevenHourlyRows(groups) {
+ const rows=[];
+ for(const group of groups){
+  for(let i=0;i<group.count;i++){
+   rows.push({
+    t:new Date(2026,10,10+group.day,group.hour, i*(60/group.count),0).getTime(),
+    st:20,sh:65,te:10,he:group.incomingRH
+   });
+  }
+ }
+ return rows;
+}
+
 
 test('diagnostic exposes its thresholds and the measured basis of each finding',()=>{
  const result=buildHygrometricDiagnosis(makeRows());
  assert.deepEqual(result.methodology,{
-  version:'hygrometric-diagnostic-v5',
+  version:'hygrometric-diagnostic-v6',
   dryDeltaThreshold:1,
   trendDeltaThreshold:0.8,
   minimumSamples:12,
@@ -117,6 +130,31 @@ test('hourly comparison recalculates both medians on exactly the same shared day
  const expected=absoluteHumidity(20,65)-absoluteHumidity(10,25);
  assert.ok(Math.abs(finding.basis.medianDelta-expected)<0.001);
  assert.match(finding.detail,/mêmes 2 jours calendaires/);
+});
+
+test('hourly comparison gives every shared day equal weight when sample counts differ',()=>{
+ const rows=makeUnevenHourlyRows([
+  {day:0,hour:7,count:6,incomingRH:20},
+  {day:1,hour:7,count:60,incomingRH:80},
+  {day:0,hour:13,count:6,incomingRH:80},
+  {day:1,hour:13,count:60,incomingRH:20}
+ ]);
+ const result=buildHygrometricDiagnosis(rows);
+ const finding=result.observations.find(x=>x.code==='favorable-time-window');
+ assert.ok(finding);
+ // Les médianes journalières sont les mêmes pour les deux créneaux :
+ // l'ordre stable départage l'égalité. Une médiane globale brute aurait favorisé l'après-midi.
+ assert.equal(finding.basis.timeWindow,'06–11 h');
+ assert.equal(finding.basis.comparisonWindow,'12–17 h');
+ assert.equal(finding.basis.sampleCount,66);
+ assert.equal(finding.basis.comparisonSampleCount,66);
+ assert.equal(finding.basis.aggregationMethod,'Médiane des médianes journalières, avec un poids égal par date');
+ const dayA=absoluteHumidity(20,65)-absoluteHumidity(10,20);
+ const dayB=absoluteHumidity(20,65)-absoluteHumidity(10,80);
+ const expected=(dayA+dayB)/2;
+ assert.ok(Math.abs(finding.basis.medianDelta-expected)<0.001);
+ assert.ok(Math.abs(finding.basis.comparisonMedianDelta-expected)<0.001);
+ assert.match(finding.detail,/chaque jour ayant le même poids/);
 });
 
 test('diagnostic reports the actual custom thresholds used',()=>{
