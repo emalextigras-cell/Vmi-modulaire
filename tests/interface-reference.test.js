@@ -7,6 +7,7 @@ test('les graphiques de débit signalent que l’unité du champ CSV reste à co
   assert.match(html, /Débit exporté VMI\+ \(valeur brute ; unité à confirmer\)/);
   const chart = await readFile(new URL('../js/modules/chart-renderer.js', import.meta.url), 'utf8');
   assert.match(chart, /Débit exporté VMI\+ \(valeur brute ; unité à confirmer\)/);
+  assert.match(html, /Estimation conditionnelle du ventilateur PUREVENT/);
 });
 
 test('le code ne marque pas l’unité Debit comme confirmée', async () => {
