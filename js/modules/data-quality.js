@@ -20,14 +20,21 @@ const TRANSIENT_SPIKE_FIELDS = [
 /**
  * Repère les pics isolés qui reviennent près du niveau initial.
  * Ce sont des événements à vérifier, jamais une preuve de panne de capteur.
- * Les deux intervalles voisins doivent être datés et <= 30 minutes.
+ * Les deux intervalles voisins doivent être datés et <= maxGapMinutes.
  */
-export function detectTransientSensorSpikes(records, { maxGapMinutes = 30 } = {}) {
+export function detectTransientSensorSpikes(records, options = {}) {
+  const maxGapMinutes = options?.maxGapMinutes ?? 30;
+  if (!Number.isFinite(maxGapMinutes) || maxGapMinutes < 0) {
+    throw new RangeError('maxGapMinutes doit être un nombre fini positif ou nul');
+  }
+  const maxGapMs = maxGapMinutes * 60 * 1000;
+  if (!Number.isFinite(maxGapMs)) {
+    throw new RangeError('maxGapMinutes dépasse la plage exploitable');
+  }
   const rows = (Array.isArray(records) ? records : [])
     .filter(row => Number.isFinite(row?.t))
     .slice()
     .sort((a, b) => a.t - b.t);
-  const maxGapMs = maxGapMinutes * 60 * 1000;
   const candidates = [];
   for (const field of TRANSIENT_SPIKE_FIELDS) {
     for (let index = 1; index < rows.length - 1; index++) {
