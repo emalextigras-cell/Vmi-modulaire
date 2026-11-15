@@ -983,10 +983,10 @@ export function buildHygrometricDiagnosis(data, {
 }
 
 /**
- * Décrit les valeurs Debit brutes selon le code Vitesse brut exporté par VMI+.
- * Aucun code n'est converti en niveau manuel et aucune unité n'est attribuée au débit.
+ * Décrit le débit Debit (m³/h) selon le code Vitesse brut exporté par VMI+.
+ * Aucun code Vitesse n'est converti en niveau manuel ; l'unité du débit est confirmée en m³/h.
  */
-/** Regroupe les valeurs brutes Debit par mode VMI+ ; l'unité physique reste à confirmer. */
+/** Regroupe le débit d'air Debit (m³/h) par mode VMI+ ; Mode et Vitesse restent distincts. */
 /**
  * Référence descriptive du fonctionnement par mode VMI+.
  * Mode et code Vitesse brut restent distincts ; les unités non confirmées restent brutes.
@@ -1055,7 +1055,7 @@ export function summarizeRawVmiMode(data) {
     }
   }
   // Référence communiquée par l'utilisateur : mode 3 = 184 m³/h.
-  // Elle reste distincte des valeurs Debit brutes de l'historique, dont l'unité n'est pas confirmée.
+  // Elle reste distincte des débits Debit (m³/h) réellement présents dans l'historique.
   if (!groups.has(3)) groups.set(3, []);
   return [...groups.entries()].sort((a,b)=>a[0]-b[0]).map(([mode, rows]) => ({
     mode, sampleCount: rows.length,
