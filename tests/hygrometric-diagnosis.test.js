@@ -46,9 +46,13 @@ function makeUnevenHourlyRows(groups) {
 test('diagnostic exposes its thresholds and the measured basis of each finding',()=>{
  const result=buildHygrometricDiagnosis(makeRows());
  assert.deepEqual(result.methodology,{
-  version:'hygrometric-diagnostic-v6',
+  version:'hygrometric-diagnostic-v7',
   dryDeltaThreshold:1,
   trendDeltaThreshold:0.8,
+  trendMinimumDailySamples:3,
+  trendMinimumDays:6,
+  trendWindowDays:3,
+  trendMinimumDirectionalDays:2,
   minimumSamples:12,
   minimumDistinctDays:2,
   minimumObservedHours:3,
@@ -374,4 +378,44 @@ test('diagnostic explains when eligible hourly windows have no common days',()=>
  assert.equal(result.hourlyComparisonDiagnostics.candidatePairCount,1);
  assert.equal(result.hourlyComparisonDiagnostics.pairsWithTwoCommonDays,0);
  assert.match(finding.detail,/ne partagent pas au moins deux/);
+});
+
+
+function makeTrendRows(dailyValues) {
+ const rows=[];
+ dailyValues.forEach((value,day)=>{
+  for(let i=0;i<4;i++){
+   rows.push({
+    t:new Date(2026,10,1+day,8,i*30,0).getTime(),
+    st:20,sh:60,te:10,he:40,
+    // Adjust indoor temperature/RH together to obtain a controlled HA signal.
+    ...(value==null?{}:{st:20,sh:value})
+   });
+  }
+ });
+ return rows;
+}
+
+test('trend requires six adequately sampled days and compares non-overlapping three-day windows',()=>{
+ const short=buildHygrometricDiagnosis(makeTrendRows([55,55,55,60,60]));
+ assert.ok(short.observations.some(item=>item.code==='trend-insufficient-data'));
+ const long=buildHygrometricDiagnosis(makeTrendRows([45,45,45,65,65,65]));
+ const finding=long.observations.find(item=>item.code==='indoor-moisture-rising');
+ assert.ok(finding);
+ assert.equal(finding.basis.daysPerWindow,3);
+ assert.equal(finding.basis.risingDays,3);
+ assert.equal(finding.basis.eligibleDays,6);
+});
+
+test('one isolated high-humidity day is not reported as a durable trend',()=>{
+ const result=buildHygrometricDiagnosis(makeTrendRows([50,50,50,50,50,85]));
+ assert.ok(result.observations.some(item=>item.code==='trend-not-sustained'));
+ assert.ok(!result.observations.some(item=>item.code==='indoor-moisture-rising'));
+});
+
+test('a durable falling trend requires persistence across at least two recent days',()=>{
+ const result=buildHygrometricDiagnosis(makeTrendRows([75,75,75,55,55,55]));
+ const finding=result.observations.find(item=>item.code==='indoor-moisture-falling');
+ assert.ok(finding);
+ assert.equal(finding.basis.fallingDays,3);
 });
