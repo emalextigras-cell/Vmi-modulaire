@@ -12,7 +12,7 @@ import { parseCell, recFrom, getColumnMapping, findVmiHeaderRowIndex, parseCsvRo
 import { fixClock } from './modules/clock-correction.js';
 import { absoluteHumidity, psychro, validTemp } from './modules/psychrometry.js';
 import { summarizeDataQuality, isPlausibleHumidity, isPlausibleTemperature } from './modules/data-quality.js';
-import { upsertEnergyReading, summarizeEnergyReadings, ENERGY_METER_LABELS } from './modules/energy-meter.js';
+import { upsertEnergyReading, summarizeEnergyReadings, summarizeMonthlyEnergyReadings, ENERGY_METER_LABELS } from './modules/energy-meter.js';
 
 
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
@@ -917,6 +917,23 @@ function renderEnergyMeterTracking(){
    }
   }
   html+='</tbody></table>';
+  const monthly=summarizeMonthlyEnergyReadings(energyReadings).find(item=>item.meterType===meter.meterType);
+  html+='<h5>Bilans mensuels mesurés</h5>';
+  if(monthly&&monthly.months.length){
+   html+='<table><thead><tr><th>Mois</th><th>Énergie mesurée</th><th>Intervalles</th></tr></thead><tbody>';
+   for(const month of monthly.months){
+    const parts=month.month.split('-').map(Number);
+    const label=new Date(parts[0],parts[1]-1,1).toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+    html+='<tr><td>'+label+'</td><td>'+fmt(month.energyKwh)+' kWh</td><td>'+month.intervalCount+'</td></tr>';
+   }
+   html+='</tbody></table>';
+   html+='<p class="note">Ces totaux regroupent uniquement les intervalles dont les deux index sont dans le même mois. Ils ne représentent pas nécessairement un mois complet.</p>';
+  }else{
+   html+='<p class="note">Pas encore d’intervalle entièrement compris dans un même mois.</p>';
+  }
+  if(monthly&&monthly.crossMonthIntervalCount){
+   html+='<p class="note"> '+monthly.crossMonthIntervalCount+' intervalle(s), soit '+fmt(monthly.crossMonthKwh)+' kWh, traversent une limite de mois : ils restent dans le total global mais ne sont attribués à aucun mois pour éviter une répartition artificielle.</p>';
+  }
  }
  html+='<details><summary>Limites et méthode</summary><ul>'+result.limits.map(item=>'<li>'+item+'</li>').join('')+'</ul></details>';
  const rows=[...energyReadings].filter(item=>item&&Number.isFinite(item.t)).sort((a,b)=>b.t-a.t);
