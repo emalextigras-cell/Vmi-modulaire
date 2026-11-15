@@ -113,6 +113,8 @@ test('refuse les paramètres de fenêtre et de couverture invalides',()=>{
   const invalidOptions=[
     {windowDays:0},
     {windowDays:1.5},
+    {windowDays:Number.MAX_SAFE_INTEGER},
+    {windowDays:100_000_000},
     {minSamplesPerDay:0},
     {minDaysPerWindow:0},
     {minEnergyDays:0},
