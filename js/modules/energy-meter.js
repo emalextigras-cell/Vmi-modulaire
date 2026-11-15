@@ -81,3 +81,47 @@ export function summarizeEnergyReadings(readings) {
     ]
   };
 }
+
+/**
+ * Regroupe les intervalles mesurés par mois civil.
+ * Un intervalle qui traverse deux mois n'est jamais réparti artificiellement :
+ * il est comptabilisé à part et exclu des totaux mensuels.
+ */
+export function summarizeMonthlyEnergyReadings(readings) {
+  const summary = summarizeEnergyReadings(readings);
+  return summary.meters.map(meter => {
+    const months = new Map();
+    let crossMonthIntervalCount = 0;
+    let crossMonthKwh = 0;
+    for (const interval of meter.intervals) {
+      if (interval.status !== 'measured') continue;
+      const from = new Date(interval.from);
+      const to = new Date(interval.to);
+      const fromKey = String(from.getFullYear()) + '-' + String(from.getMonth() + 1).padStart(2, '0');
+      const toKey = String(to.getFullYear()) + '-' + String(to.getMonth() + 1).padStart(2, '0');
+      if (fromKey !== toKey) {
+        crossMonthIntervalCount++;
+        crossMonthKwh += interval.deltaKwh;
+        continue;
+      }
+      if (!months.has(fromKey)) {
+        months.set(fromKey, {
+          month: fromKey, energyKwh: 0, intervalCount: 0,
+          firstAt: interval.from, lastAt: interval.to
+        });
+      }
+      const month = months.get(fromKey);
+      month.energyKwh += interval.deltaKwh;
+      month.intervalCount++;
+      month.firstAt = Math.min(month.firstAt, interval.from);
+      month.lastAt = Math.max(month.lastAt, interval.to);
+    }
+    return {
+      meterType: meter.meterType,
+      label: meter.label,
+      months: [...months.values()].sort((a, b) => a.month.localeCompare(b.month)),
+      crossMonthIntervalCount,
+      crossMonthKwh
+    };
+  }).filter(meter => meter.months.length || meter.crossMonthIntervalCount);
+}

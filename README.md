@@ -175,3 +175,9 @@ L'énergie consommée entre deux index successifs d'un même compteur est calcul
 Une baisse d'index est signalée comme une remise à zéro ou un changement de compteur ; aucun delta n'est calculé sur cet intervalle. Les index sont conservés dans IndexedDB et inclus dans les sauvegardes JSON. Les anciennes sauvegardes v13 sans index électriques restent restaurables.
 
 Aucun kWh n'est déduit de `Cons Res`, `Cons HydroR`, du PWM, du débit ou des courbes constructeur. Aucune commande Bluetooth ni régulation automatique n'est modifiée.
+
+## Phase 12 — bilans mensuels des compteurs électriques
+
+Les intervalles mesurés sont regroupés par mois civil uniquement lorsque les deux index encadrant l'intervalle appartiennent au même mois. Un intervalle traversant une limite de mois reste inclus dans le total global, mais il est exclu des totaux mensuels et signalé séparément. Aucune répartition au prorata ni estimation de consommation journalière ou mensuelle n'est effectuée.
+
+Les totaux mensuels correspondent donc aux intervalles réellement mesurés dans le mois ; ils ne garantissent pas une couverture complète du mois. Les compteurs ventilation, préchauffage et total restent séparés.

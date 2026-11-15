@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { upsertEnergyReading, summarizeEnergyReadings } from '../js/modules/energy-meter.js';
+import { upsertEnergyReading, summarizeEnergyReadings, summarizeMonthlyEnergyReadings } from '../js/modules/energy-meter.js';
 
 const HOUR = 60 * 60 * 1000;
 const reading = (meterType, t, kwh, id = meterType + ':' + t) => ({ id, meterType, t, kwh });
@@ -61,4 +61,49 @@ test('refuse un index négatif, une date invalide ou un type inconnu', () => {
   assert.throws(() => upsertEnergyReading([], reading('total', 1, -1)), /Relevé invalide/);
   assert.throws(() => upsertEnergyReading([], reading('total', NaN, 1)), /Relevé invalide/);
   assert.throws(() => upsertEnergyReading([], reading('other', 1, 1)), /Relevé invalide/);
+});
+
+test('regroupe les intervalles intégralement compris dans un même mois civil', () => {
+  const start = new Date(2026, 9, 3, 8, 0).getTime();
+  const middle = new Date(2026, 9, 8, 8, 0).getTime();
+  const end = new Date(2026, 9, 20, 8, 0).getTime();
+  const result = summarizeMonthlyEnergyReadings([
+    reading('total', start, 100),
+    reading('total', middle, 101.5),
+    reading('total', end, 105)
+  ]);
+  assert.equal(result.length, 1);
+  assert.equal(result[0].months.length, 1);
+  assert.equal(result[0].months[0].month, '2026-10');
+  assert.equal(result[0].months[0].energyKwh, 5);
+  assert.equal(result[0].months[0].intervalCount, 2);
+  assert.equal(result[0].crossMonthIntervalCount, 0);
+});
+
+test('n’attribue pas artificiellement à un mois un intervalle qui traverse deux mois', () => {
+  const before = new Date(2026, 9, 31, 23, 0).getTime();
+  const after = new Date(2026, 10, 1, 1, 0).getTime();
+  const result = summarizeMonthlyEnergyReadings([
+    reading('total', before, 20),
+    reading('total', after, 20.5)
+  ]);
+  assert.equal(result.length, 1);
+  assert.equal(result[0].months.length, 0);
+  assert.equal(result[0].crossMonthIntervalCount, 1);
+  assert.equal(result[0].crossMonthKwh, 0.5);
+});
+
+test('isole les compteurs et ignore les intervalles avec remise à zéro', () => {
+  const t1 = new Date(2026, 4, 2, 8).getTime();
+  const t2 = new Date(2026, 4, 3, 8).getTime();
+  const t3 = new Date(2026, 4, 4, 8).getTime();
+  const result = summarizeMonthlyEnergyReadings([
+    reading('ventilation', t1, 10), reading('ventilation', t2, 11), reading('ventilation', t3, 2),
+    reading('preheating', t1, 100), reading('preheating', t2, 102)
+  ]);
+  assert.equal(result.length, 2);
+  const ventilation = result.find(meter => meter.meterType === 'ventilation');
+  const preheating = result.find(meter => meter.meterType === 'preheating');
+  assert.equal(ventilation.months[0].energyKwh, 1);
+  assert.equal(preheating.months[0].energyKwh, 2);
 });
