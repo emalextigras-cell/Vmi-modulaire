@@ -635,7 +635,7 @@ function renderIntelligentDiagnosis(data){
   coverageDescription.textContent='Pas assez de relevés datés pour calculer une couverture temporelle.';
   coverageMethod.textContent='Il faut au moins deux horodatages valides distincts. Les intervalles de plus de '+result.maxGapHours+' h sont exclus.';
  }
- const confidence='Couverture '+result.coverageLevel+' · '+result.sampleCount+' relevés valides · '+result.dayCount+' jour(s) · '+fmt(result.observedHours)+' h exploitables';
+ const confidence='Robustesse des données : '+result.coverageLevel+' · '+result.sampleCount+' relevés valides · '+result.dayCount+' jour(s) · '+fmt(result.observedHours)+' h exploitables · couverture temporelle '+(result.confidenceBasis.observedCoveragePercent==null?'indisponible':fmt(result.confidenceBasis.observedCoveragePercent)+' %')+' · '+fmt(result.confidenceBasis.acceptedSampleShare*100)+' % des lignes retenues';
  const quality=result.inputQuality;
  const inputSummary='Entrée : '+quality.inputSampleCount+' lignes · '+quality.acceptedSampleCount+' retenues après contrôle et dédoublonnage · '+quality.excludedSampleCount+' écartées ou regroupées ('+quality.missingTimestampCount+' sans horodatage, '+quality.incompleteSensorRecordCount+' incomplètes, '+quality.implausibleSensorRecordCount+' avec valeurs aberrantes, '+quality.duplicateTimestampCount+' doublons). Les catégories peuvent se chevaucher.';
  box.className=available?'advice good':'advice warn';
@@ -720,7 +720,7 @@ function renderIntelligentDiagnosis(data){
  const methodTitle=document.createElement('summary');
  methodTitle.textContent='Méthode et seuils utilisés';
  const methodText=document.createElement('p');
- methodText.textContent='Version '+result.methodology.version+' · écart hygrométrique : '+fmt(result.methodology.dryDeltaThreshold)+' g/m³ · évolution intérieure : '+fmt(result.methodology.trendDeltaThreshold)+' g/m³ · minimum '+result.methodology.minimumSamples+' relevés sur '+result.methodology.minimumDistinctDays+' jours et '+result.methodology.minimumObservedHours+' h exploitables · interruptions de plus de '+fmt(result.methodology.maximumGapHours)+' h exclues · dominance requise : '+Math.round(result.methodology.dominantDurationShare*100)+' % · tranches horaires de '+result.methodology.hourlyBucketHours+' h (au moins '+result.methodology.hourlyMinimumSamples+' relevés sur '+result.methodology.hourlyMinimumDistinctDays+' jours).';
+ methodText.textContent='Version '+result.methodology.version+' · écart hygrométrique : '+fmt(result.methodology.dryDeltaThreshold)+' g/m³ · évolution intérieure : '+fmt(result.methodology.trendDeltaThreshold)+' g/m³ · minimum '+result.methodology.minimumSamples+' relevés sur '+result.methodology.minimumDistinctDays+' jours et '+result.methodology.minimumObservedHours+' h exploitables · interruptions de plus de '+fmt(result.methodology.maximumGapHours)+' h exclues · dominance requise : '+Math.round(result.methodology.dominantDurationShare*100)+' % · tranches horaires de '+result.methodology.hourlyBucketHours+' h (au moins '+result.methodology.hourlyMinimumSamples+' relevés sur '+result.methodology.hourlyMinimumDistinctDays+' jours). Le niveau de robustesse tient aussi compte de la couverture temporelle (20 % pour modérée, 50 % pour élevée), de la part de lignes retenues (70 % / 90 %) et d’au moins 3 relevés sur chaque jour compté.';
  method.append(methodTitle,methodText);
  evidence.append(method);
  limits.textContent='À garder en tête : '+result.limits.join(' ');
