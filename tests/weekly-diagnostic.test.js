@@ -106,3 +106,37 @@ test('trie les relevés et ne compte qu’une seule observation par horodatage',
   assert.equal(result.periods[0].sampleCount,21);
   assert.equal(result.periods[0].dayCount,7);
 });
+
+test('refuse les paramètres de fenêtre et de couverture invalides',()=>{
+  const invalidOptions=[
+    {windowDays:0},
+    {windowDays:1.5},
+    {minSamplesPerDay:0},
+    {minDaysPerWindow:0},
+    {minEnergyDays:0},
+    {maxGapHours:0},
+    {maxGapHours:Infinity},
+    {changeThreshold:-0.1},
+    {changeThreshold:NaN},
+    {minDaysPerWindow:8},
+    {minEnergyDays:8}
+  ];
+  for(const options of invalidOptions){
+    assert.throws(
+      ()=>summarizeWeeklyDiagnostic([],options),
+      RangeError,
+      JSON.stringify(options)
+    );
+  }
+});
+
+test('accepte un seuil descriptif nul et des paramètres valides',()=>{
+  const history=[
+    ...Array.from({length:7},(_,day)=>makeDay(day,50,40)).flat(),
+    ...Array.from({length:7},(_,day)=>makeDay(day+7,50,40)).flat()
+  ];
+  const result=summarizeWeeklyDiagnostic(history,{changeThreshold:0});
+  assert.equal(result.status,'available');
+  assert.equal(result.comparison.indoorHA,0);
+  assert.ok(result.findings.some(item=>item.title==='Humidité absolue intérieure relativement stable'));
+});
