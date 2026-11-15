@@ -4,7 +4,8 @@ import {
   isPlausibleHumidity,
   isPlausibleTemperature,
   summarizeDataQuality,
-  detectTransientSensorSpikes
+  detectTransientSensorSpikes,
+  isPlaceholderSensorRecord
 } from '../js/modules/data-quality.js';
 
 test('les humidités hors de 0 à 100 % sont signalées', () => {
@@ -182,4 +183,26 @@ test('une fenêtre temporelle nulle est acceptée sans détecter de pic', () => 
 test('une option nulle conserve la fenêtre temporelle par défaut', () => {
   const result = detectTransientSensorSpikes([], null);
   assert.equal(result.maxGapMinutes, 30);
+});
+
+
+test('une trame simultanée 20 °C / 50 % sur les trois sondes est identifiée', () => {
+  const placeholder = { st: 20, sh: 50, t1: 20, h1: 50, te: 20, he: 50 };
+  const real = { st: 20, sh: 50, t1: 13, h1: 96, te: 13, he: 97 };
+  assert.equal(isPlaceholderSensorRecord(placeholder), true);
+  assert.equal(isPlaceholderSensorRecord(real), false);
+  assert.equal(isPlaceholderSensorRecord({ ...placeholder, sh: 51 }), false);
+});
+
+test('les trames de remplacement sont exclues de la couverture complète sans effacer les données', () => {
+  const placeholder = { st: 20, sh: 50, t1: 20, h1: 50, te: 20, he: 50 };
+  const real = { st: 19, sh: 60, t1: 14, h1: 80, te: 14, he: 81 };
+  const rows = [real, placeholder];
+  const before = JSON.stringify(rows);
+  const result = summarizeDataQuality(rows);
+  assert.equal(result.total, 2);
+  assert.equal(result.placeholderRecords, 1);
+  assert.equal(result.affectedRecords, 1);
+  assert.equal(result.completeHygrometricRecords, 1);
+  assert.equal(JSON.stringify(rows), before);
 });
