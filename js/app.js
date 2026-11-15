@@ -14,6 +14,7 @@ import { absoluteHumidity, psychro, validTemp } from './modules/psychrometry.js'
 import { summarizeDataQuality, isPlausibleHumidity, isPlausibleTemperature } from './modules/data-quality.js';
 import { upsertEnergyReading, summarizeEnergyReadings, summarizeMonthlyEnergyReadings, summarizeEnergyClimateContext, ENERGY_METER_LABELS } from './modules/energy-meter.js';
 import { summarizeFanEnergyEstimate, summarizeFanEnergyByManualMode } from './modules/energy-estimate.js';
+import { chooseAuthorizedDevice } from './modules/bluetooth-autoconnect.js';
 
 
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
@@ -55,7 +56,7 @@ function showError(e){$('err').textContent=e?String(e.message||e):''}
 function renderLog(){const p=$('log');p.textContent=logLines.slice(-70).join('\n');p.scrollTop=p.scrollHeight}
 function log(s){logLines.push(`${new Date().toLocaleTimeString('fr-FR')} ${s}`);if(logLines.length>300)logLines.shift();if($('logDetails').open)renderLog()}
 $('logDetails').addEventListener('toggle',()=>{if($('logDetails').open)renderLog()});
-function setStatus(s,isConnected=false){$('st').textContent=s;$('bleState').textContent=isConnected?'Connecté':'Déconnecté';$('conn').disabled=isConnected;$('disc').disabled=!isConnected}
+function setStatus(s,isConnected=false){$('st').textContent=s;$('bleState').textContent=isConnected?'Connecté':'Déconnecté';$('conn').disabled=isConnected;$('disc').disabled=!isConnected;const overview=$('dashboardConnectionStatus');if(overview)overview.textContent=s}
 
 /* La lecture IndexedDB ancienne reste ici ; la conversion des lignes est isolée. */
 async function readOldDatabase(){
@@ -248,21 +249,57 @@ async function connectCharacteristics(server){
  await chT.startNotifications();chT.removeEventListener('characteristicvaluechanged',onNotification);chT.addEventListener('characteristicvaluechanged',onNotification);
  try{await chC.startNotifications();chC.removeEventListener('characteristicvaluechanged',onNotification);chC.addEventListener('characteristicvaluechanged',onNotification)}catch(e){log('Notifications canal commande non disponibles : '+e.message)}
 }
+function preferredBluetoothDeviceId(){
+ try{return localStorage.getItem('vmi_bluetooth_device_id')||''}catch(e){return ''}
+}
+function rememberBluetoothDevice(device){
+ try{if(device&&device.id)localStorage.setItem('vmi_bluetooth_device_id',device.id)}catch(e){}
+}
+async function connectDevice(device){
+ if(!device||!device.gatt)throw new Error('Appareil Bluetooth invalide.');
+ dev=device;manualDisconnect=false;
+ dev.removeEventListener('gattserverdisconnected',onDisconnect);
+ dev.addEventListener('gattserverdisconnected',onDisconnect);
+ setStatus('Connexion à '+(dev.name||'la VMI')+'…');
+ const server=await dev.gatt.connect();
+ await connectCharacteristics(server);
+ setStatus('Connecté à '+(dev.name||'la VMI')+'. Synchronisation des données…',true);
+ startPolling();
+ autoDone=false;
+ setTimeout(autoHistory,3000);
+}
 async function connectBLE(){
  manualDisconnect=false;clearTimeout(reconnectTimer);showError('');
  if(!navigator.bluetooth){showError('Web Bluetooth indisponible. Utilise Chrome sur Android ou un navigateur compatible, en HTTPS.');return}
  try{
-  dev=await navigator.bluetooth.requestDevice({acceptAllDevices:true,optionalServices:[SVC_C,SVC_T]});
-  dev.removeEventListener('gattserverdisconnected',onDisconnect);dev.addEventListener('gattserverdisconnected',onDisconnect);
-  setStatus('Connexion à '+(dev.name||'la VMI')+'…');
-  const server=await dev.gatt.connect();await connectCharacteristics(server);
-  setStatus('Connecté à '+(dev.name||'la VMI')+'.',true);startPolling();
-  autoDone=false;setTimeout(autoHistory,3000);
+  /* requestDevice reste directement dans le geste utilisateur requis par le navigateur. */
+  const device=await navigator.bluetooth.requestDevice({acceptAllDevices:true,optionalServices:[SVC_C,SVC_T]});
+  rememberBluetoothDevice(device);
+  await connectDevice(device);
  }catch(e){showError(e);setStatus('Connexion impossible.')}
+}
+async function autoConnectAuthorizedDevice(){
+ if(!navigator.bluetooth||typeof navigator.bluetooth.getDevices!=='function'){
+  setStatus('Autorisation Bluetooth requise : appuie sur « Se connecter ».');
+  return;
+ }
+ try{
+  const devices=await navigator.bluetooth.getDevices();
+  const device=chooseAuthorizedDevice(devices,preferredBluetoothDeviceId());
+  if(!device){
+   setStatus(devices.length>1?'Plusieurs appareils sont autorisés. Appuie sur « Se connecter » pour choisir la VMI.':'VMI non encore autorisée. Appuie sur « Se connecter » une première fois.');
+   return;
+  }
+  log('VMI déjà autorisée détectée : tentative de reconnexion automatique.');
+  await connectDevice(device);
+ }catch(e){
+  log('Reconnexion automatique indisponible : '+(e.message||e));
+  setStatus('Reconnexion automatique impossible. Appuie sur « Se connecter ».');
+ }
 }
 async function reconnect(){
  if(manualDisconnect||!dev)return;
- try{const server=await dev.gatt.connect();await connectCharacteristics(server);setStatus('Reconnecté à '+(dev.name||'la VMI')+'.',true);startPolling()}
+ try{await connectDevice(dev)}
  catch(e){log('Reconnexion échouée : '+e.message);clearTimeout(reconnectTimer);reconnectTimer=setTimeout(reconnect,7000)}
 }
 $('conn').onclick=connectBLE;
@@ -1076,4 +1113,4 @@ $('themeBtn').onclick=()=>{
 };
 try{const theme=localStorage.getItem('vmi_modulaire_theme');if(theme)document.documentElement.dataset.theme=theme}catch(e){}
 if(!navigator.bluetooth)showError('Web Bluetooth indisponible : ouvre cette page en HTTPS dans Chrome sur Android.');
-init();
+init().then(autoConnectAuthorizedDevice).catch(e=>recordError('Initialisation impossible : '+(e.message||e)));
