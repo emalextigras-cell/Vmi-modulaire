@@ -64,7 +64,7 @@ function setStatus(s,isConnected=false){$('st').textContent=s;$('bleState').text
 
 /* La lecture IndexedDB ancienne reste ici ; la conversion des lignes est isolée.
    Un état "unavailable" interdit de marquer la migration terminée : l'ancienne base
-   n'a alors pas été vérifiée et pourrait encore contenir l'historique à récupérer. */
+   n'a alors pas été vérifiée et pourrait encore contenir l’historique à récupérer. */
 async function readOldDatabase(){
  if(typeof indexedDB==='undefined'||typeof indexedDB.databases!=='function')return {status:'unavailable'};
  let list;
@@ -384,7 +384,7 @@ function ingest(recs,label){
  render();
 }
 
-/* Téléchargement de l'historique : on s'arrête au premier relevé déjà connu, puis on coupe la connexion
+/* Téléchargement de l’historique : on s'arrête au premier relevé déjà connu, puis on coupe la connexion
    pour interrompre le flux de la VMI (elle ne sait pas s'arrêter seule). */
 const sigOf=r=>r.rk+'|'+r.d;
 function parseDownloadLine(line){
@@ -488,7 +488,7 @@ function downloadText(content,name,type,bom=true){
  a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
-/* ---------- Export, sauvegarde et fraîcheur de l'historique ---------- */
+/* ---------- Export, sauvegarde et fraîcheur de l’historique ---------- */
 const fmtLocal=t=>{const d=new Date(t);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`};
 const fmtShort=t=>{const d=new Date(t);return `${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`};
 const decFr=v=>(v==null||!Number.isFinite(v))?'':String(Math.round(v*100)/100).replace('.',',');
@@ -634,7 +634,7 @@ function selectDataRange(records){
  if(daysSetting&&data.length){const end=data[data.length-1].t;return data.filter(r=>r.t>=end-daysSetting*86400000)}
  return data;
 }
-/* Le direct reste une vue facultative ; toutes les analyses utilisent l'historique importé/téléchargé. */
+/* Le direct reste une vue facultative ; toutes les analyses utilisent l’historique importé/téléchargé. */
 function selectedData(){return selectDataRange(source==='live'?live:hist)}
 function selectedHistoricalData(){return selectDataRange(hist)}
 function formatDuration(ms){
@@ -884,7 +884,7 @@ function analyzeSpeeds(data){
   periodHtml+='<div class="advice">Pas encore assez de données Mode réparties sur deux périodes successives comparables. Il faut au moins 12 relevés sur 3 jours dans chaque période, pour un même Mode et une même tranche horaire. Les codes Vitesse bruts ne sont pas utilisés.</div>';
  }else{
   periodHtml+='<p class="muted">Période précédente : '+periods.periods[0].start+' au '+periods.periods[0].end+' · Période récente : '+periods.periods[1].start+' au '+periods.periods[1].end+'.</p>';
-  periodHtml+='<table><thead><tr><th>Mode / horaire</th><th>Relevés / jours<br>précédent → récent</th><th>Débit m³/h<br>médiane · Δ</th><th>RPM<br>médiane · Δ</th><th>PWM brut<br>médiane · Δ</th><th>Pression moteur brute<br>médiane · Δ</th></tr></thead><tbody>';
+  periodHtml+='<table><thead><tr><th>Mode / horaire</th><th>Relevés / jours<br>précédent → récent</th><th>Débit (m³/h)<br>médiane · Δ</th><th>RPM<br>médiane · Δ</th><th>PWM brut<br>médiane · Δ</th><th>Pression moteur brute<br>médiane · Δ</th></tr></thead><tbody>';
   for(const item of periods.comparisons.filter(entry=>entry.comparable)){
    const show=key=>{
     const value=item.deltas[key];
@@ -900,7 +900,7 @@ function analyzeSpeeds(data){
 }
 function renderEnergyReadiness(data){
  const result=summarizeEnergyReadiness(data);
- const labels={rpm:'Régime moteur',debit:'Débit VMI+ (m³/h confirmé)',vmiSpeedRaw:'Code vitesse VMI+ brut',vmiPwmRaw:'PWM brut',consDpRaw:'Cons DP brut',consTmaxRaw:'Seuil température extérieure (Cons TMax)'};
+ const labels={rpm:'Régime moteur',debit:'Débit VMI+ (m³/h)',vmiSpeedRaw:'Code vitesse VMI+ brut',vmiPwmRaw:'PWM brut',consDpRaw:'Cons DP brut',consTmaxRaw:'Seuil température extérieure (Cons TMax)'};
  let html='<table><thead><tr><th>Champ exporté</th><th>Mesures</th><th>Zéros</th><th>Manquants</th><th>Minimum</th><th>Maximum</th><th>Valeurs distinctes</th></tr></thead><tbody>';
  for(const f of result.fields){
   const distinct=f.distinct.length>8?f.distinct.slice(0,8).map(fmt).join(', ')+'…':f.distinct.map(fmt).join(', ')||'–';
@@ -923,7 +923,7 @@ function renderEnergyReadiness(data){
  }
  operatingHtml+='<div class="advice">'+operating.limits.join(' ')+'</div>';
  const modeGroups=summarizeRawVmiMode(data);
- let modeHtml='<h4>Débit et renouvellement théorique par mode VMI+</h4><p class="muted">Le champ « mode » est distinct du champ « Vitesse ». Débit en m³/h confirmé. Le mode 3 dispose d’une référence confirmée de 184 m³/h ; elle est affichée séparément des mesures historiques. Le taux est calculé à partir du volume du logement renseigné dans chaque relevé ; il décrit un renouvellement théorique, pas une mesure de l’air effectivement distribué dans chaque pièce.</p>';
+ let modeHtml='<h4>Débit et renouvellement théorique par mode VMI+</h4><p class="muted">Le champ « mode » est distinct du champ « Vitesse ». La colonne « Debit » de l’export VMI+ correspond au débit d’air en m³/h. Le mode 3 dispose d’une référence distincte communiquée par l’utilisateur de 184 m³/h. Le taux de renouvellement théorique est calculé à partir du débit en m³/h et du volume du logement ; il ne mesure pas l’air effectivement distribué dans chaque pièce.</p>';
  if(!modeGroups.length){modeHtml+='<div class="advice">Aucun mode VMI+ exploitable dans la période sélectionnée.</div>'}
  else{
   modeHtml+='<table><thead><tr><th>Mode VMI+</th><th>Relevés</th><th>Débit médian / référence</th><th>Min–max débit mesuré</th><th>Renouvellement théorique</th></tr></thead><tbody>';
@@ -934,7 +934,7 @@ function renderEnergyReadiness(data){
  let rawHtml='<h4>Débit selon le code vitesse brut VMI+</h4><p class="muted">Le code « Vitesse » est affiché séparément du mode. Les codes bruts ne sont pas assimilés aux niveaux manuels 1, 2 ou 3.</p>';
  if(!rawGroups.length){rawHtml+='<div class="advice">Aucun code vitesse brut exploitable dans la période sélectionnée.</div>'}
  else{
-  rawHtml+='<table><thead><tr><th>Code vitesse brut</th><th>Relevés</th><th>Débit médian</th><th>Minimum</th><th>Maximum</th></tr></thead><tbody>';
+  rawHtml+='<table><thead><tr><th>Code vitesse brut</th><th>Relevés</th><th>Débit médian (m³/h)</th><th>Minimum (m³/h)</th><th>Maximum (m³/h)</th></tr></thead><tbody>';
   for(const group of rawGroups){rawHtml+='<tr><td>'+fmt(group.code)+'</td><td>'+group.sampleCount+'</td><td>'+(group.medianDebit==null?'–':fmt(group.medianDebit)+' m³/h')+'</td><td>'+(group.minDebit==null?'–':fmt(group.minDebit)+' m³/h')+'</td><td>'+(group.maxDebit==null?'–':fmt(group.maxDebit)+' m³/h')+'</td></tr>'}
   rawHtml+='</tbody></table>';
  }
@@ -987,7 +987,7 @@ function renderEnergyReadiness(data){
  referenceHtml+='</tbody></table>';
  referenceHtml+='<div class="advice">La notice indique également une puissance maximale de 169 W sans préchauffage et une puissance maximale de préchauffage de 1 800 W. Ces repères ne permettent pas de reconstituer la consommation réelle de ton historique : le CSV ne fournit pas de mesure électrique vérifiée, et l’état/temps de fonctionnement du préchauffage n’est pas confirmé par les champs disponibles. Ne pas assimiler « Cons Res » à des watts.</div>';
  referenceHtml+='<p class="note">Source : <a href="https://www.vmi-technologies.com/wp-content/uploads/2024/11/FR-VMI%C2%AE-Purevent-Notice-dinstallation-et-de-maintenance-1.pdf" target="_blank" rel="noopener">notice officielle VMI PUREVENT, §2.2–2.3, pages 7–8</a>. Il s’agit d’une référence constructeur, pas d’une mesure de cette installation.</p>';
- $('energyReadiness').innerHTML=volumeHtml+html+temperatureLimitHtml+operatingHtml+modeHtml+rawHtml+referenceHtml+'<div class="advice">'+result.message+' Les valeurs brutes sont conservées ; aucune conversion des champs non documentés en watts, kWh ou rendement n’est appliquée. Le débit confirmé reste affiché en m³/h.</div>';
+ $('energyReadiness').innerHTML=volumeHtml+html+temperatureLimitHtml+operatingHtml+modeHtml+rawHtml+referenceHtml+'<div class="advice">'+result.message+' Les valeurs brutes sont conservées ; aucune conversion des champs non documentés en watts, kWh ou rendement n’est appliquée. Le débit exporté VMI+ est exprimé en m³/h.</div>';
  renderEnergyMeterTracking();
 }
 

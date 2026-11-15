@@ -105,7 +105,7 @@ export function summarizeFanEnergyEstimate(history, options = {}) {
     averagePowerW: coveredHours > 0 ? energyWh / coveredHours : null,
     maxGapHours,
     limits: [
-      'Estimation du ventilateur uniquement, par interpolation linéaire des points de puissance constructeur en fonction du débit exporté.',
+      'Estimation du ventilateur par interpolation des points constructeur en fonction du débit exporté VMI+ en m³/h.',
       'Les mesures constructeur sont associées à des pressions données ; la pression réelle de cette installation n’est pas mesurée ici.',
       'Les intervalles de plus de ' + maxGapHours + ' h et les débits hors plage 50–350 m³/h sont exclus, sans extrapolation.',
       'Le préchauffage n’est pas estimé : aucun état ni temps de fonctionnement exploitable n’est confirmé dans les champs CSV disponibles.',

@@ -239,7 +239,7 @@ export function compareOperatingPeriods(data, {
   }));
 
   const metrics = [
-    { key: 'debit', label: 'Débit', unit: 'm³/h' },
+    { key: 'debit', label: 'Débit', unit: 'm³/h', verified: true },
     { key: 'rpm', label: 'Régime moteur', unit: 'tr/min' },
     { key: 'vmiPwmRaw', label: 'PWM', unit: 'valeur brute' },
     { key: 'motorPressureRaw', label: 'Pression moteur', unit: 'valeur brute, unité inconnue' }
@@ -317,7 +317,7 @@ export function summarizeEnergyReadiness(data) {
   const rows=Array.isArray(data)?data:[];
   const fields=[
     {key:'rpm',label:'Régime moteur',unit:'tr/min (confirmé)',verified:true},
-    {key:'debit',label:'Débit exporté',unit:'m³/h (confirmé)',verified:true},
+    {key:'debit',label:'Débit',unit:'m³/h',verified:true},
     {key:'vmiSpeedRaw',label:'Code vitesse VMI+',unit:'code brut',verified:false},
     {key:'vmiPwmRaw',label:'PWM VMI+',unit:'valeur brute (échelle à confirmer)',verified:false},
     {key:'consDpRaw',label:'Cons DP',unit:'signification et unité à confirmer',verified:false},
@@ -983,10 +983,10 @@ export function buildHygrometricDiagnosis(data, {
 }
 
 /**
- * Décrit les valeurs Debit brutes selon le code Vitesse brut exporté par VMI+.
- * Aucun code n'est converti en niveau manuel et aucune unité n'est attribuée au débit.
+ * Décrit le débit Debit (m³/h) selon le code Vitesse brut exporté par VMI+.
+ * Aucun code Vitesse n'est converti en niveau manuel ; l'unité du débit est confirmée en m³/h.
  */
-/** Regroupe le débit confirmé en m³/h par mode VMI+ distinct du code vitesse. */
+/** Regroupe le débit d'air Debit (m³/h) par mode VMI+ ; Mode et Vitesse restent distincts. */
 /**
  * Référence descriptive du fonctionnement par mode VMI+.
  * Mode et code Vitesse brut restent distincts ; les unités non confirmées restent brutes.
@@ -1000,7 +1000,7 @@ export function summarizeOperatingReference(data, { minSamples = 10 } = {}) {
     modes.get(row.vmiModeRaw).push(row);
   }
   const metrics = [
-    { key: 'debit', label: 'Débit', unit: 'm³/h confirmé', verified: true },
+    { key: 'debit', label: 'Débit', unit: 'm³/h', verified: true },
     { key: 'rpm', label: 'Régime moteur', unit: 'tr/min confirmé', verified: true },
     { key: 'vmiPwmRaw', label: 'PWM', unit: 'valeur brute', verified: false },
     { key: 'motorPressureRaw', label: 'Pression moteur', unit: 'unité à confirmer', verified: false },
@@ -1054,8 +1054,8 @@ export function summarizeRawVmiMode(data) {
       groups.get(mode).push({ debit: row.debit, renewalRate: volume ? row.debit / volume : null });
     }
   }
-  // Référence confirmée par l'utilisateur : mode 3 = 184 m³/h.
-  // Elle reste distincte des débits réellement présents dans l'historique.
+  // Référence communiquée par l'utilisateur : mode 3 = 184 m³/h.
+  // Elle reste distincte des débits Debit (m³/h) réellement présents dans l'historique.
   if (!groups.has(3)) groups.set(3, []);
   return [...groups.entries()].sort((a,b)=>a[0]-b[0]).map(([mode, rows]) => ({
     mode, sampleCount: rows.length,

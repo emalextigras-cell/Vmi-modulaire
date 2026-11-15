@@ -1,4 +1,4 @@
-# VMI Purevent — version 13 modulaire
+# VMI Purevent — version 14 modulaire
 
 Copie de travail indépendante du dépôt source `emalextigras-cell/Vmi`. Le dépôt d'origine reste intact.
 
@@ -21,6 +21,24 @@ Copie de travail indépendante du dépôt source `emalextigras-cell/Vmi`. Le dé
 - `manifest.json` : configuration de l'application installable.
 - `sw.js` : service worker et cache des ressources.
 
+## Matériel installé — référence issue du devis
+
+Le devis d'installation fourni identifie le caisson comme **VMI Purevent Vision'R** (marque VMI, modèle indiqué « purevent »). Les caractéristiques explicitement inscrites au devis sont :
+
+- Débit maximal annoncé : **350 m³/h**.
+- Puissance maximale du moteur annoncée : **169 W**.
+- Puissance maximale de chauffage électrique : **1 800 W**.
+- Alimentation : **230 V – 50 Hz monophasé**.
+- Installation décrite : prise d'air en toiture et insufflation par deux bouches.
+
+Ces valeurs décrivent les caractéristiques annoncées au devis ; elles ne sont pas des mesures de fonctionnement de l'installation.
+
+### Précaution sur la courbe de puissance logicielle
+
+Le module energy-estimate.js utilise une courbe de puissance PUREVENT issue de la notice référencée dans l'interface (points de 50 à 350 m³/h, jusqu'à 99 W au point 350 m³/h / 195 Pa). Cette courbe est une **estimation de puissance du ventilateur par interpolation**, pas une mesure électrique. Le devis annonce par ailleurs 169 W de puissance moteur maximale. Le dépôt ne démontre pas que ces deux chiffres décrivent exactement le même périmètre ou les mêmes conditions d'essai : ils sont donc conservés comme références distinctes et ne doivent pas être assimilés.
+
+Le modèle Vision'R est documenté à partir du devis, mais les éléments disponibles ne permettent pas d'affirmer que chaque point de la courbe de la notice correspond aux conditions réelles de cette installation.
+
 ## Déploiement GitHub Pages
 
 Dans **Settings → Pages**, sélectionner la branche `main` et le dossier `/(root)`. Ouvrir ensuite l'adresse HTTPS dans Chrome sur Android pour utiliser Web Bluetooth.
@@ -33,10 +51,10 @@ Fermer VMI+ avant de se connecter : la VMI n'accepte qu'une seule connexion simu
 - Les commandes sont envoyées séquentiellement et leur état est vérifié par retour de la VMI.
 - Aucun pilotage automatique par IA n'est activé.
 - Les données sont conservées localement dans IndexedDB.
-- Les indicateurs hygrométriques sont indicatifs. La valeur « Debit » exportée par VMI+ est conservée et tracée en m³/h (unité confirmée).
+- Les indicateurs hygrométriques sont indicatifs. La valeur « Debit » exportée par VMI+ correspond au débit d'air en m³/h.
 - Les comparaisons de niveaux manuels utilisent exclusivement le champ d'annotation `Mode` (`vmiModeRaw`) (1/2/3). Le champ historique `vit` et le code `Vitesse` VMI+ restent des données brutes et ne sont jamais assimilés à un niveau manuel. Les exports CSV VMI+ ne fournissent pas, à eux seuls, cette annotation.
-- Le régime moteur est présenté en tr/min lorsqu'il est disponible. Les valeurs Débit, PWM et Cons DP restent brutes tant que leur signification/unité n'est pas confirmée.
-- Sans mesure électrique fiable en W ou kWh et sans débit validé, l'application ne calcule ni consommation, ni rendement, ni optimum énergétique.
+- Le régime moteur est présenté en tr/min lorsqu'il est disponible. Le champ `Debit` exporté par VMI+ est le débit d'air en m³/h (unité confirmée par l'utilisateur). PWM et Cons DP restent des valeurs brutes dont la signification et l'unité ne sont pas confirmées.
+- L'application ne calcule aucune consommation électrique mesurée ni optimum énergétique réel. L'estimation du ventilateur reste indicative et repose sur le débit exporté en m³/h.
 
 ## Tests locaux
 
@@ -96,7 +114,7 @@ Ce moteur est une première couche de diagnostic déterministe et explicable ; c
 
 L'import CSV conserve désormais séparément les champs énergétiques ou de fonctionnement supplémentaires de VMI+ : `Cons Res`, `Cons HydroR`, `Cons TMax` (seuil de température extérieure en °C, sens confirmé par l’utilisateur), `Kmoteur`, `Jmoteur`, `Kreseau`, `Jreseau`, `Pression Moteur`, `Offset Press`, `% fonct`, `% fonct.1` et `Dcint`. À l’exception de Cons TMax, dont le sens est confirmé comme seuil de température extérieure en °C, les autres champs sont affichés dans l'inventaire avec leurs valeurs min/max et leur effectif, sans leur attribuer de signification ni d'unité non documentée. L'inventaire distingue aussi les zéros des valeurs absentes ou non numériques, pour éviter de confondre une valeur nulle avec une mesure manquante. Les deux colonnes exportées sous le même en-tête `% fonct` sont distinguées par leur occurrence dans l'en-tête, afin de ne pas confondre leurs valeurs.
 
-Le régime moteur reste exprimé en tr/min et le débit en m³/h selon les confirmations disponibles. Les valeurs PWM, Cons DP et les autres champs dont le sens n’est pas confirmé restent bruts. Aucun calcul de watts, kWh, coût, consommation ou rendement n'est effectué tant qu'une mesure électrique et sa définition ne sont pas vérifiées. Des tests dédiés vérifient la conservation des champs et l'absence d'interprétation énergétique abusive.
+Le régime moteur reste exprimé en tr/min selon les confirmations disponibles. Le champ `Debit` de l'export VMI+ correspond au débit d'air exprimé en m³/h, conformément à la confirmation de l'utilisateur. L'en-tête CSV ne répète pas l'unité, mais cela ne remet pas en cause cette confirmation. Les valeurs PWM, Cons DP et les autres champs dont le sens n’est pas confirmé restent bruts. Aucun calcul de watts, kWh, coût, consommation ou rendement n'est effectué tant qu'une mesure électrique et sa définition ne sont pas vérifiées. Des tests dédiés vérifient la conservation des champs et l'absence d'interprétation énergétique abusive.
 
 
 ### Examen de la capture Bluetooth et de l'export VMI+ (novembre 2026)
@@ -141,7 +159,7 @@ Le téléchargement d'historique, lui, transporte des lignes textuelles séparé
 
 ### Référence descriptive du fonctionnement par mode VMI+
 
-L'interface construit désormais, à partir de l'historique affiché, un profil par valeur du champ `Mode`: effectifs, jours couverts, médianes et plages observées du débit confirmé, du régime moteur et des champs bruts PWM, Pression moteur et Cons DP. Le code `Vitesse` reste strictement séparé et n'est jamais utilisé comme substitut du mode. Cette référence décrit uniquement les données importées ; elle ne qualifie pas un état de normal ou anormal et ne détecte pas encore de panne. Une comparaison entre plusieurs périodes nécessitera plusieurs exports distincts et comparables. Deux tests vérifient la séparation Mode/Vitesse et l'absence de conversion des champs bruts.
+L'interface construit désormais, à partir de l'historique affiché, un profil par valeur du champ `Mode`: effectifs, jours couverts, médianes et plages observées du débit d'air `Debit` en m³/h, du régime moteur et des champs bruts PWM, Pression moteur et Cons DP. Le code `Vitesse` reste strictement séparé et n'est jamais utilisé comme substitut du mode. Cette référence décrit uniquement les données importées ; elle ne qualifie pas un état de normal ou anormal et ne détecte pas encore de panne. Une comparaison entre plusieurs périodes nécessitera plusieurs exports distincts et comparables. Deux tests vérifient la séparation Mode/Vitesse et l'absence de conversion des champs bruts.
 
 
 ## Séparation des données directes et des analyses
@@ -156,7 +174,7 @@ L'interface construit désormais, à partir de l'historique affiché, un profil 
 ## Comparaison de l'évolution du fonctionnement
 - Une nouvelle lecture compare deux périodes calendaires successives de 7 jours, en conservant le même champ `Mode` (`vmiModeRaw`) et la même tranche horaire locale de 6 heures.
 - Chaque période doit contenir au moins 12 relevés répartis sur au moins 3 jours distincts pour le même Mode et la même tranche horaire.
-- Les médianes de débit (m³/h confirmé) et de régime moteur (tr/min confirmé) sont comparées. PWM et Pression moteur sont présentés uniquement comme valeurs brutes, avec unité non confirmée.
+- Les médianes du débit exporté (m³/h) et du régime moteur (tr/min confirmé) sont comparées. PWM et Pression moteur sont présentés uniquement comme valeurs brutes, avec unité non confirmée.
 - Les écarts absolus et relatifs sont descriptifs. Aucun seuil ne déclenche un diagnostic automatique de filtre encrassé ou de panne.
 - Les comparaisons ne neutralisent pas les changements de météo, d'occupation, de réglage, d'entretien ou d'installation. Elles servent à repérer une évolution à examiner, pas à en établir la cause.
 - Les données sans champ `Mode` exploitable, ou sans couverture suffisante sur les deux périodes, ne sont pas comparées. Les champs `Vitesse`, `vit` et `vmiSpeedRaw` ne servent jamais à identifier un niveau manuel.
