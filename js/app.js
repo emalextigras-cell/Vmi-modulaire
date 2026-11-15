@@ -341,7 +341,8 @@ $('clk').onclick=setClock;
 function ingest(recs,label){
  const {fixed,kept}=fixClock(recs,hist);
  hist=mergeImportedHistory(hist,kept);
- pruneHist();dbSet('hist',hist);source='hist';selectedDate=null;$('dayPicker').value='';
+ pruneHist();dbSet('hist',hist);source='hist';
+ // Conserver le jour choisi : une synchronisation en arrière-plan ne doit pas réinitialiser les graphiques.
  const lost=recs.length-kept.length;
  $('importInfo').textContent=`${label} : ${recs.length} relevés lus${fixed?`, dont ${fixed} dont la date a été corrigée (horloge de la VMI fausse)`:''}${lost?`, ${lost} ignorés (date invalide impossible à corriger)`:''}.`;
  log($('importInfo').textContent);
