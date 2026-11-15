@@ -702,15 +702,24 @@ export function buildHygrometricDiagnosis(data, {
       if(sharedDayKeys.length<2)continue;
       const sharedDays=new Set(sharedDayKeys);
       const pairedStats=[left,right].map(bucket=>{
-        const samples=rows.filter(r=>
-          Math.floor(new Date(r.t).getHours()/6)===Math.floor(bucket.startHour/6)&&
-          sharedDays.has(dayKey(r.t))
-        );
+        const daily=sharedDayKeys.map(day=>{
+          const daySamples=rows.filter(r=>
+            Math.floor(new Date(r.t).getHours()/6)===Math.floor(bucket.startHour/6)&&
+            dayKey(r.t)===day
+          );
+          return {
+            day,
+            sampleCount:daySamples.length,
+            medianDelta:median(daySamples.map(r=>absoluteHumidity(r.st,r.sh)-absoluteHumidity(r.te,r.he)))
+          };
+        });
         return {
           ...bucket,
-          medianDelta:median(samples.map(r=>absoluteHumidity(r.st,r.sh)-absoluteHumidity(r.te,r.he))),
-          sampleCount:samples.length,
-          dayCount:sharedDayKeys.length
+          // Chaque date pèse autant, même si le nombre de relevés diffère fortement.
+          medianDelta:median(daily.map(item=>item.medianDelta)),
+          sampleCount:daily.reduce((total,item)=>total+item.sampleCount,0),
+          dayCount:sharedDayKeys.length,
+          dailyMedianValues:daily
         };
       });
       if(pairedStats.some(item=>item.sampleCount<5||item.medianDelta==null))continue;
@@ -724,6 +733,7 @@ export function buildHygrometricDiagnosis(data, {
         comparisonSampleCount:comparator.sampleCount,
         sharedDayCount:sharedDayKeys.length,
         sharedDayKeys,
+        aggregationMethod:'Médiane des médianes journalières, avec un poids égal par date',
         advantage:winner.medianDelta-comparator.medianDelta
       });
     }
@@ -803,7 +813,7 @@ export function buildHygrometricDiagnosis(data, {
       code:'favorable-time-window',level:'positive',
       basis:{timeWindow:bestWindow.label,comparisonWindow:bestWindow.comparisonWindow,medianDelta:bestWindow.medianDelta,comparisonMedianDelta:bestWindow.comparisonMedianDelta,advantage:bestWindow.advantage,unit:'g/m³',sampleCount:bestWindow.sampleCount,comparisonSampleCount:bestWindow.comparisonSampleCount,dayCount:bestWindow.dayCount,sharedDayCount:bestWindow.sharedDayCount,sharedDayKeys:bestWindow.sharedDayKeys},
       title:'Période horaire plus favorable repérée',
-      detail:`Sur les deux créneaux comparés, ${bestWindow.label} présente un écart médian plus favorable (${bestWindow.medianDelta.toFixed(1)} g/m³) que ${bestWindow.comparisonWindow} (${bestWindow.comparisonMedianDelta.toFixed(1)} g/m³). Comparaison limitée aux mêmes ${bestWindow.sharedDayCount} jours calendaires, avec ${bestWindow.sampleCount} et ${bestWindow.comparisonSampleCount} relevés respectivement.`,
+      detail:`Sur les deux créneaux comparés, ${bestWindow.label} présente un écart médian plus favorable (${bestWindow.medianDelta.toFixed(1)} g/m³) que ${bestWindow.comparisonWindow} (${bestWindow.comparisonMedianDelta.toFixed(1)} g/m³). Comparaison limitée aux mêmes ${bestWindow.sharedDayCount} jours calendaires, chaque jour ayant le même poids dans les médianes, avec ${bestWindow.sampleCount} et ${bestWindow.comparisonSampleCount} relevés respectivement.`,
       recommendation:'Vérifier si ce créneau se retrouve sur d’autres semaines et saisons avant d’en tirer une règle de réglage.'
     });
   }
