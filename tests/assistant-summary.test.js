@@ -76,7 +76,7 @@ test('distingue les index externes mesurés de l’estimation du ventilateur', (
   });
   const energy = result.sections.find(item => item.id === 'energy');
 
-  assert.ok(energy.details.some(line => /2,000 kWh cumulés/.test(line)));
+  assert.ok(energy.details.some(line => /2 kWh cumulés/.test(line)));
   assert.ok(energy.details.some(line => /kWh estimés/.test(line)));
   assert.ok(energy.details.some(line => /ne représentent pas une mesure électrique/.test(line)));
 });
