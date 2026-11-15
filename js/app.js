@@ -13,7 +13,7 @@ import { fixClock } from './modules/clock-correction.js';
 import { absoluteHumidity, psychro, validTemp } from './modules/psychrometry.js';
 import { summarizeDataQuality, isPlausibleHumidity, isPlausibleTemperature } from './modules/data-quality.js';
 import { upsertEnergyReading, summarizeEnergyReadings, summarizeMonthlyEnergyReadings, summarizeEnergyClimateContext, ENERGY_METER_LABELS } from './modules/energy-meter.js';
-import { summarizeFanEnergyEstimate } from './modules/energy-estimate.js';
+import { summarizeFanEnergyEstimate, summarizeFanEnergyByManualMode } from './modules/energy-estimate.js';
 
 
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
@@ -903,6 +903,20 @@ function renderFanEnergyEstimate(data){
   '<p class="note">Il s’agit d’une estimation du ventilateur, pas d’une mesure au compteur. La pression réelle du réseau, l’état du filtre et les conditions d’installation peuvent modifier la puissance absorbée.</p>'+
   '<p class="note"><strong>Préchauffage et total VMI : non estimables avec les champs actuellement validés.</strong> Le champ « Cons Res » n’est pas converti en watts ou en kWh.</p>'+
   '<details><summary>Méthode et limites</summary><ul>'+result.limits.map(item=>'<li>'+item+'</li>').join('')+'</ul><p class="note">Référence : notice officielle PUREVENT, valeurs de puissance mesurées par TÜV SÜD à 50, 125, 200, 245 et 350 m³/h.</p></details>';
+  const modeBox=$('fanEnergyByMode');
+  if(modeBox){
+   const byMode=summarizeFanEnergyByManualMode(data);
+   if(!byMode.hasManualModeData){
+    modeBox.textContent='Pas de champ « Mode » manuel identifié dans cet historique. Les codes bruts VMI+ ne sont pas utilisés pour inventer les niveaux 1/2/3.';
+   }else{
+    let table='<div class="table-wrap"><table><thead><tr><th>Mode manuel</th><th>Énergie estimée</th><th>Puissance moyenne quotidienne médiane</th><th>Heures intégrées</th><th>Jours</th><th>Couverture</th></tr></thead><tbody>';
+    for(const group of byMode.groups){
+     table+='<tr><td>'+group.mode+'</td><td>'+(group.estimatedKwh==null?'–':fmt(group.estimatedKwh)+' kWh')+'</td><td>'+(group.medianDailyAveragePowerW==null?'–':fmt(group.medianDailyAveragePowerW)+' W')+'</td><td>'+fmt(group.coveredHours)+' h</td><td>'+group.dayCount+'</td><td>'+fmt(group.coveragePercent)+' %</td></tr>';
+    }
+    table+='</tbody></table></div>';
+    modeBox.innerHTML=table+'<p class="note">Les changements de mode, les trous de plus de '+byMode.maxGapHours+' h et les débits hors plage sont exclus. '+byMode.transitionIntervalCount+' intervalle(s) traversant un changement de mode ignoré(s).</p><p class="note">La puissance moyenne est la médiane des moyennes journalières afin que les journées aient le même poids. Une comparaison nécessite au moins '+byMode.minDays+' jours par mode ; les lignes avec moins de jours restent descriptives.</p>';
+   }
+  }
 }
 function renderEnergyMeterTracking(){
  const result=summarizeEnergyReadings(energyReadings);
