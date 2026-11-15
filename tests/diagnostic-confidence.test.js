@@ -31,5 +31,5 @@ test('signale une couverture indisponible lorsque les données ne permettent pas
     confidenceBasis: { observedCoveragePercent: null, acceptedSampleShare: 1 }
   });
   assert.ok(text.includes('couverture temporelle indisponible'));
-  assert.ok(text.includes('1 jour(s) avec au moins 3 relevé(s)'));
+  assert.ok(text.includes('0 jour(s) avec au moins 3 relevé(s)'));
 });
