@@ -691,13 +691,25 @@ export function buildHygrometricDiagnosis(data, {
   const lastTrendWindow=eligibleTrendDays.slice(-trendWindowDays);
   const trendWindowsAreDistinct=eligibleTrendDays.length>=trendMinimumDays&&
     firstTrendWindow.at(-1).date<lastTrendWindow[0].date;
-  const first=trendWindowsAreDistinct?firstTrendWindow[0]:null;
-  const last=trendWindowsAreDistinct?lastTrendWindow.at(-1):null;
-  const baselineTrendMedian=trendWindowsAreDistinct?median(firstTrendWindow.map(day=>day.medianAbsoluteHumidity)):null;
-  const recentTrendMedian=trendWindowsAreDistinct?median(lastTrendWindow.map(day=>day.medianAbsoluteHumidity)):null;
+  const trendDateSpanDays=(start,end)=>(Date.parse(end+'T00:00:00Z')-Date.parse(start+'T00:00:00Z'))/86400000;
+  const trendWindowSpanDays=trendWindowsAreDistinct?[
+    trendDateSpanDays(firstTrendWindow[0].date,firstTrendWindow.at(-1).date),
+    trendDateSpanDays(lastTrendWindow[0].date,lastTrendWindow.at(-1).date)
+  ]:null;
+  const totalTrendSpanDays=trendWindowsAreDistinct
+    ?trendDateSpanDays(firstTrendWindow[0].date,lastTrendWindow.at(-1).date):null;
+  const maxTrendWindowSpanDays=4;
+  const maxTrendComparisonSpanDays=14;
+  const trendWindowsTemporallyCompact=trendWindowsAreDistinct&&
+    trendWindowSpanDays.every(span=>span<=maxTrendWindowSpanDays)&&
+    totalTrendSpanDays<=maxTrendComparisonSpanDays;
+  const first=trendWindowsTemporallyCompact?firstTrendWindow[0]:null;
+  const last=trendWindowsTemporallyCompact?lastTrendWindow.at(-1):null;
+  const baselineTrendMedian=trendWindowsTemporallyCompact?median(firstTrendWindow.map(day=>day.medianAbsoluteHumidity)):null;
+  const recentTrendMedian=trendWindowsTemporallyCompact?median(lastTrendWindow.map(day=>day.medianAbsoluteHumidity)):null;
   const trendSpanDays=first&&last?(Date.parse(last.date+'T00:00:00Z')-Date.parse(first.date+'T00:00:00Z'))/86400000:0;
-  const trendChange=trendWindowsAreDistinct?recentTrendMedian-baselineTrendMedian:null;
-  const trendDirectionalDays=trendWindowsAreDistinct?{
+  const trendChange=trendWindowsTemporallyCompact?recentTrendMedian-baselineTrendMedian:null;
+  const trendDirectionalDays=trendWindowsTemporallyCompact?{
     rising:lastTrendWindow.filter(day=>day.medianAbsoluteHumidity>baselineTrendMedian).length,
     falling:lastTrendWindow.filter(day=>day.medianAbsoluteHumidity<baselineTrendMedian).length
   }:null;
@@ -860,6 +872,14 @@ export function buildHygrometricDiagnosis(data, {
       detail:`Seulement ${eligibleTrendDays.length} jour(s) disposent d’au moins trois relevés valides. Il en faut au moins ${trendMinimumDays}, répartis en deux fenêtres distinctes de ${trendWindowDays} jours, pour distinguer une évolution durable d’une variation ponctuelle.`,
       recommendation:'Poursuivre l’import de l’historique sans modifier les réglages sur la base d’une journée isolée.'
     });
+  } else if(!trendWindowsTemporallyCompact){
+    observations.push({
+      code:'trend-calendar-span-limited',level:'info',
+      basis:{eligibleDays:eligibleTrendDays.length,firstWindowSpanDays:trendWindowSpanDays[0],lastWindowSpanDays:trendWindowSpanDays[1],totalSpanDays:totalTrendSpanDays,maximumWindowSpanDays:maxTrendWindowSpanDays,maximumComparisonSpanDays:maxTrendComparisonSpanDays},
+      title:'Jours de mesure trop espacés pour confirmer une tendance',
+      detail:`Les jours retenus couvrent ${totalTrendSpanDays} jours calendaires. Pour éviter de comparer des périodes trop éloignées, chaque fenêtre de ${trendWindowDays} jours échantillonnés doit tenir en ${maxTrendWindowSpanDays} jours calendaires et l’ensemble en ${maxTrendComparisonSpanDays} jours maximum.`,
+      recommendation:'Importer des relevés sur des journées plus rapprochées avant de conclure à une tendance durable.'
+    });
   } else {
     const trendBasis={firstDate:first.date,lastDate:last.date,baselineMedianAbsoluteHumidity:baselineTrendMedian,recentMedianAbsoluteHumidity:recentTrendMedian,change:trendChange,threshold:trendDelta,eligibleDays:eligibleTrendDays.length,daysPerWindow:trendWindowDays,risingDays:trendDirectionalDays.rising,fallingDays:trendDirectionalDays.falling,minimumDirectionalDays:2,unit:'g/m³'};
     if(trendChange>=trendDelta&&trendDirectionalDays.rising>=2){
@@ -900,7 +920,7 @@ export function buildHygrometricDiagnosis(data, {
   }
 
   return {
-    methodology:{version:'hygrometric-diagnostic-v7',dryDeltaThreshold:dryDelta,trendDeltaThreshold:trendDelta,trendMinimumDailySamples:3,trendMinimumDays:6,trendWindowDays:3,trendMinimumDirectionalDays:2,minimumSamples:minSamples,minimumDistinctDays:2,minimumObservedHours:3,dominantDurationShare:0.6,maximumGapHours:maxGapHours,hourlyBucketHours:6,hourlyMinimumSamples:5,hourlyMinimumDistinctDays:2,hourlyMinimumSharedDays:2,hourlyMinimumDailySamples:3,minimumDailySamplesForConfidence:3,moderateCoveragePercent:20,highCoveragePercent:50,moderateAcceptedShare:0.7,highAcceptedShare:0.9},
+    methodology:{version:'hygrometric-diagnostic-v7',dryDeltaThreshold:dryDelta,trendDeltaThreshold:trendDelta,trendMinimumDailySamples:3,trendMinimumDays:6,trendWindowDays:3,trendMinimumDirectionalDays:2,trendMaximumWindowSpanDays:4,trendMaximumComparisonSpanDays:14,minimumSamples:minSamples,minimumDistinctDays:2,minimumObservedHours:3,dominantDurationShare:0.6,maximumGapHours:maxGapHours,hourlyBucketHours:6,hourlyMinimumSamples:5,hourlyMinimumDistinctDays:2,hourlyMinimumSharedDays:2,hourlyMinimumDailySamples:3,minimumDailySamplesForConfidence:3,moderateCoveragePercent:20,highCoveragePercent:50,moderateAcceptedShare:0.7,highAcceptedShare:0.9},
     status:sufficient?'analysis-available':'insufficient-data',
     inputQuality:{
       inputSampleCount:inputRows.length,
