@@ -11,6 +11,7 @@ Copie de travail indépendante du dépôt source `emalextigras-cell/Vmi`. Le dé
 - `js/modules/psychrometry.js` : humidité absolue, point de rosée et indicateurs hygrométriques.
 - `js/modules/analysis.js` : tendances temporelles, comparaison descriptive des niveaux manuels et inventaire des champs énergétiques bruts.
 - `js/modules/diagnostic-confidence.js` : explication de la robustesse des données du diagnostic (couverture, relevés retenus et répartition quotidienne), distincte de l'état physique de la VMI.
+- `js/modules/assistant-summary.js` : assistant local qui rassemble les résultats hygrométriques, thermiques, saisonniers, débit, vitesses et énergie déjà calculés, puis formule des conseils pédagogiques et hiérarchisés sans piloter la VMI.
 - Comparaison horaire du diagnostic : médiane des médianes journalières sur les mêmes dates, chaque journée ayant le même poids indépendamment du nombre de relevés.
 - Une date ne participe à cette comparaison que si chaque créneau comporte au moins 3 relevés ce jour-là.
 - Si aucune comparaison horaire n'est possible, le diagnostic indique la cause : nombre de créneaux exploitables, jours communs ou minimum de relevés par jour.
@@ -44,6 +45,12 @@ Le modèle Vision'R est documenté à partir du devis, mais les éléments dispo
 Dans **Settings → Pages**, sélectionner la branche `main` et le dossier `/(root)`. Ouvrir ensuite l'adresse HTTPS dans Chrome sur Android pour utiliser Web Bluetooth.
 
 Fermer VMI+ avant de se connecter : la VMI n'accepte qu'une seule connexion simultanée.
+
+## Assistant intelligent VMI
+
+Le panneau « Assistant intelligent VMI » synthétise les modules d'analyse existants dans un langage accessible : qualité et couverture des données, humidité absolue, tendances, comparaisons horaires et par vitesse, débit et renouvellement théorique, opportunités saisonnières, estimation du ventilateur et index de compteurs externes. Les détails et critères restent consultables dans l'application.
+
+Il s'agit d'un moteur local à règles explicables, sans API distante ni transfert de données. Il ne s'agit pas d'un modèle génératif : il ne crée pas de résultats absents des calculs. Il ne commande jamais la VMI et ne désigne pas automatiquement une vitesse optimale. Les mesures réelles, estimations et données brutes non documentées restent distinguées.
 
 ## Sécurité et limites
 

@@ -103,3 +103,19 @@ section[id],details[id]{scroll-margin-top:62px}
 .coverage-card details{grid-column:1 / -1;margin-top:5px;padding-top:7px;border-top:1px solid var(--line);font-size:.78rem;color:var(--mut)}
 .coverage-card details summary{cursor:pointer;color:var(--acc);font-weight:600}
 .coverage-card details p{margin:6px 0 0}
+
+
+/* Assistant VMI : synthèse et conseils lisibles sur mobile. */
+.assistant-card{border:1px solid var(--acc);border-radius:10px;padding:12px;margin:12px 0 16px;background:var(--card)}
+.assistant-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.assistant-heading h3{margin:0 0 3px}
+#assistantOverview{font-size:.9rem;margin:9px 0 12px}
+.assistant-card>h4{font-size:.88rem;margin:12px 0 6px}
+.assistant-details,.assistant-detail{margin-top:10px;padding-top:9px;border-top:1px solid var(--line);font-size:.86rem}
+.assistant-details>summary,.assistant-detail>summary{cursor:pointer;color:var(--acc);font-weight:650}
+.assistant-detail{padding:9px 0 0;margin:8px 0}
+.assistant-detail p{margin:7px 0}
+.assistant-detail ul,.assistant-details>ul{padding-left:20px;margin:7px 0}
+.assistant-detail li,.assistant-details>ul li{margin:5px 0;color:var(--mut)}
+#assistantRecommendations .diagnosis-item{background:var(--bg)}
+@media(max-width:420px){.assistant-heading .pill{font-size:.68rem}}

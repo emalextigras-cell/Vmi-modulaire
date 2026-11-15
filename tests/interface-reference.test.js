@@ -29,5 +29,27 @@ test('la référence Vision’R et les limites constructeur sont documentées', 
 test('le module de conseils saisonniers est inclus dans le cache hors ligne', async () => {
   const sw = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
   assert.ok(sw.includes("'./js/modules/seasonal-advice.js'"));
-  assert.ok(sw.includes('vmi-modulaire-v14-cache-15'));
+  assert.ok(sw.includes('vmi-modulaire-v14-cache-16'));
+});
+
+
+test('le panneau assistant est présent et son moteur est mis en cache hors ligne', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  assert.ok(html.includes('id="assistantVmi"'));
+  assert.ok(html.includes('Assistant intelligent VMI'));
+  assert.ok(html.includes('id="assistantRecommendations"'));
+  const sw = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
+  assert.ok(sw.includes("'./js/modules/assistant-summary.js'"));
+  const app = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
+  assert.ok(app.includes("from './modules/assistant-summary.js'"));
+  assert.ok(app.includes('renderVmiAssistant(analysisData)'));
+});
+
+test('l’assistant reste local et ne modifie aucune commande Bluetooth', async () => {
+  const assistant = await readFile(new URL('../js/modules/assistant-summary.js', import.meta.url), 'utf8');
+  assert.ok(assistant.includes('buildHygrometricDiagnosis'));
+  assert.ok(assistant.includes('summarizeFanEnergyEstimate'));
+  assert.ok(assistant.includes('analyzeSeasonalVentilation'));
+  assert.ok(assistant.includes('Aucune commande de vitesse'));
+  assert.ok(!assistant.includes('fetch('));
 });

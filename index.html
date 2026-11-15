@@ -72,6 +72,21 @@
 
 <section class="card" id="analyses">
  <h2>Analyses et diagnostic</h2>
+ <section class="assistant-card" id="assistantVmi" aria-labelledby="assistantTitle">
+  <div class="assistant-heading"><div><h3 id="assistantTitle">Assistant intelligent VMI</h3><p class="note">Synthèse pédagogique de l’historique et des calculs de l’application. Analyse locale, sans envoi de données.</p></div><span class="pill">Conseils expliqués</span></div>
+  <div id="assistantStatus" class="advice" role="status" aria-live="polite">Préparation de la synthèse…</div>
+  <p id="assistantOverview">L’assistant rassemble les résultats dès que l’historique est chargé.</p>
+  <h4>Ce que je te conseille</h4>
+  <div id="assistantRecommendations" class="diagnosis-list"></div>
+  <details class="assistant-details">
+   <summary>Comprendre tous les résultats et calculs</summary>
+   <div id="assistantSections"></div>
+  </details>
+  <details class="assistant-details">
+   <summary>Limites et précautions de l’assistant</summary>
+   <ul id="assistantLimits"></ul>
+  </details>
+ </section>
  <div class="coverage-card" id="coverageCard" role="status" aria-live="polite">
   <div class="coverage-heading">Couverture des relevés</div>
   <div class="coverage-value" id="coverageValue">–</div>
