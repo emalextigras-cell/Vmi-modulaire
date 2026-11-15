@@ -7,6 +7,27 @@ import { absoluteHumidity } from './psychrometry.js';
  * La pression réelle de l'installation n'étant pas mesurée, ce résultat n'est
  * ni une mesure électrique ni une garantie de la puissance réellement absorbée.
  */
+const deduplicateByRelevantValues = (rows, fingerprint) => {
+  const groups=[];
+  for(const row of rows){
+    const last=groups[groups.length-1];
+    if(last&&last.timestamp===row.t)last.rows.push(row);
+    else groups.push({timestamp:row.t,rows:[row]});
+  }
+  const unique=[];
+  let duplicateTimestampCount=0,conflictingTimestampCount=0;
+  for(const group of groups){
+    if(group.rows.length>1)duplicateTimestampCount++;
+    const signatures=new Set(group.rows.map(row=>JSON.stringify(fingerprint(row))));
+    if(signatures.size>1){
+      conflictingTimestampCount++;
+      continue;
+    }
+    unique.push(group.rows[0]);
+  }
+  return {rows:unique,duplicateTimestampCount,conflictingTimestampCount};
+};
+
 export const PUREVENT_FAN_POWER_POINTS = Object.freeze([
   Object.freeze({ flow: 50, powerW: 4 }),
   Object.freeze({ flow: 125, powerW: 10 }),
@@ -38,11 +59,8 @@ export function summarizeFanEnergyEstimate(history, { maxGapHours = 2 } = {}) {
   const rows = (Array.isArray(history) ? history : [])
     .filter(row => Number.isFinite(row?.t))
     .sort((a, b) => a.t - b.t);
-  const unique = [];
-  for (const row of rows) {
-    if (unique.length && unique[unique.length - 1].t === row.t) unique[unique.length - 1] = row;
-    else unique.push(row);
-  }
+  const deduplicated=deduplicateByRelevantValues(rows,row=>[row.t,row.debit]);
+  const unique=deduplicated.rows;
   const sampleCount = unique.length;
   const firstAt = sampleCount ? unique[0].t : null;
   const lastAt = sampleCount ? unique[sampleCount - 1].t : null;
@@ -68,6 +86,8 @@ export function summarizeFanEnergyEstimate(history, { maxGapHours = 2 } = {}) {
     status: acceptedIntervalCount ? 'estimated' : 'insufficient-data',
     sampleCount, firstAt, lastAt, observedHours, coveredHours, coveragePercent,
     acceptedIntervalCount, longGapCount, invalidFlowIntervalCount,
+    duplicateTimestampCount:deduplicated.duplicateTimestampCount,
+    conflictingTimestampCount:deduplicated.conflictingTimestampCount,
     estimatedWh: acceptedIntervalCount ? energyWh : null,
     estimatedKwh: acceptedIntervalCount ? energyWh / 1000 : null,
     averagePowerW: coveredHours > 0 ? energyWh / coveredHours : null,
@@ -100,11 +120,10 @@ export function summarizeFanEnergyByManualMode(history, { maxGapHours = 2, minDa
   const rows = (Array.isArray(history) ? history : [])
     .filter(row => Number.isFinite(row?.t))
     .sort((a, b) => a.t - b.t);
-  const unique = [];
-  for (const row of rows) {
-    if (unique.length && unique[unique.length - 1].t === row.t) unique[unique.length - 1] = row;
-    else unique.push(row);
-  }
+  const deduplicated=deduplicateByRelevantValues(rows,row=>[
+    row.t,row.debit,row.vmiModeRaw,row.st,row.sh,row.te,row.he,row.tExt
+  ]);
+  const unique=deduplicated.rows;
   const groups = [1, 2, 3].map(mode => ({
     mode, energyWh: 0, coveredMs: 0, candidateMs: 0,
     intervalCount: 0, longGapCount: 0, invalidFlowIntervalCount: 0,
@@ -186,6 +205,8 @@ export function summarizeFanEnergyByManualMode(history, { maxGapHours = 2, minDa
     groups: results,
     hasManualModeData: unique.some(row => [1, 2, 3].includes(row.vmiModeRaw)),
     transitionIntervalCount,
+    duplicateTimestampCount:deduplicated.duplicateTimestampCount,
+    conflictingTimestampCount:deduplicated.conflictingTimestampCount,
     maxGapHours, minDays,
     limits: [
       'Seuls les niveaux manuels 1, 2 et 3 du champ Mode sont utilisés ; les codes bruts VMI+ ne sont jamais substitués.',
