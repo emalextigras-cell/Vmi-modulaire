@@ -234,3 +234,10 @@ Ces indicateurs restent descriptifs : ils ne démontrent pas que l'air entrant c
 Les preuves des tendances d'humidité absolue présentent également les médianes d'humidité relative et de température intérieure sur les deux fenêtres comparées. Cela permet de distinguer les grandeurs observées : une variation d'humidité relative peut accompagner une variation de température sans que l'humidité absolue évolue dans la même proportion.
 
 Ces valeurs sont affichées comme contexte descriptif ; aucune transformation en diagnostic de condensation, de paroi froide ou de cause n'est effectuée.
+
+
+## Phase 20 — écarts entre les deux contextes hygrométriques
+
+Les preuves détaillées quantifient aussi l'évolution entre fenêtres de l'humidité absolue de l'air entrant et de l'écart salon − air entrant. Ces différences permettent de voir si le contexte de l'air entrant et l'écart intérieur/entrant évoluent dans le même sens ou non.
+
+Il s'agit d'une comparaison descriptive de médianes ; elle ne démontre aucune relation causale ni l'efficacité de la ventilation.
