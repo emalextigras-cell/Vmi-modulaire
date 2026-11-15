@@ -277,7 +277,13 @@ function onDisconnect(){
  const wasIntentional=intentionalDisconnect;
  intentionalDisconnect=false;
  cleanupConnection();
- if(wasIntentional){setStatus('Synchronisation terminée. Bluetooth déconnecté.');return}
+ if(wasIntentional){
+  setStatus('Synchronisation terminée. Reconnexion pour les mesures en direct…');
+  logGattState('sync:live-reconnect-scheduled','dans 3 s ; autoDone conservé');
+  clearTimeout(reconnectTimer);
+  reconnectTimer=setTimeout(reconnect,3000);
+  return;
+ }
  setStatus('Déconnecté.');
  if(!manualDisconnect&&dev){setStatus('Connexion perdue, tentative de reconnexion…');clearTimeout(reconnectTimer);reconnectTimer=setTimeout(reconnect,4000)}
 }
