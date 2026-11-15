@@ -193,3 +193,19 @@ test('ancre les fenêtres sur le dernier horodatage reçu même si ce relevé es
   assert.equal(result.periods[1].end,'2026-01-15');
   assert.equal(result.periods[1].dayCount,6);
 });
+
+test('ne considère pas les métadonnées non utilisées comme un conflit de mesures',()=>{
+  const days=[
+    ...Array.from({length:7},(_,day)=>makeDay(day,50,40,{count:3})).flat(),
+    ...Array.from({length:7},(_,day)=>makeDay(day+7,52,40,{count:3})).flat()
+  ];
+  const duplicate={...days[0],vmiModeRaw:1,rawPayload:'ancienne métadonnée'};
+  const enriched={...days[0],vmiModeRaw:2,rawPayload:'métadonnée différente'};
+  const result=summarizeWeeklyDiagnostic([...days,duplicate,enriched]);
+  assert.equal(result.status,'available');
+  assert.equal(result.duplicateTimestampCount,1);
+  assert.equal(result.conflictingTimestampCount,0);
+  assert.equal(result.periods[0].sampleCount,21);
+  assert.equal(result.periods[0].dayCount,7);
+});
+
