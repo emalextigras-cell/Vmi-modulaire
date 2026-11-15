@@ -48,7 +48,7 @@ window.addEventListener('unhandledrejection',e=>recordError('Promesse rejetée :
 
 
 let dev=null,chC=null,chT=null,pollTimer=null,snapTimer=null,reconnectTimer=null;
-let manualDisconnect=false,commandQueue=Promise.resolve(),manualCommandPending=false,polling=false,autoDone=false;
+let manualDisconnect=false,intentionalDisconnect=false,connectionPromise=null,commandQueue=Promise.resolve(),manualCommandPending=false,polling=false,autoDone=false;
 let meta={},cur={},lastSeen={},live=[],hist=[],energyReadings=[],source='hist',selectedDate=null,daysSetting=30;
 let logLines=[],dlFrames=0;
 let download={on:false,rows:[],buf:'',total:0,sigs:new Set(),got:false,lastPacket:0,timeout:null};
@@ -268,8 +268,13 @@ function startPolling(){
 }
 function cleanupConnection(){clearInterval(pollTimer);clearInterval(snapTimer);chC=null;chT=null}
 function onDisconnect(){
+ const expected=intentionalDisconnect;
+ intentionalDisconnect=false;
  cleanupConnection();setStatus('Déconnecté.');
- if(!manualDisconnect&&dev){setStatus('Connexion perdue, tentative de reconnexion…');clearTimeout(reconnectTimer);reconnectTimer=setTimeout(reconnect,4000)}
+ if(!expected&&!manualDisconnect&&dev){
+  setStatus('Connexion perdue, tentative de reconnexion…');
+  clearTimeout(reconnectTimer);reconnectTimer=setTimeout(reconnect,4000);
+ }
 }
 async function connectCharacteristics(server){
  const serviceC=await server.getPrimaryService(SVC_C);
@@ -287,16 +292,33 @@ function rememberBluetoothDevice(device){
 }
 async function connectDevice(device){
  if(!device||!device.gatt)throw new Error('Appareil Bluetooth invalide.');
- dev=device;manualDisconnect=false;
- dev.removeEventListener('gattserverdisconnected',onDisconnect);
- dev.addEventListener('gattserverdisconnected',onDisconnect);
- setStatus('Connexion à '+(dev.name||'la VMI')+'…');
- const server=await dev.gatt.connect();
- await connectCharacteristics(server);
- setStatus('Connecté à '+(dev.name||'la VMI')+'. Synchronisation des données…',true);
- startPolling();
- autoDone=false;
- setTimeout(autoHistory,3000);
+ // Une seule opération GATT à la fois : les clics et les timers de reconnexion
+ // réutilisent la tentative déjà en cours au lieu d'ouvrir une seconde session.
+ if(connectionPromise)return connectionPromise;
+ connectionPromise=(async()=>{
+  dev=device;manualDisconnect=false;intentionalDisconnect=false;
+  dev.removeEventListener('gattserverdisconnected',onDisconnect);
+  dev.addEventListener('gattserverdisconnected',onDisconnect);
+  setStatus('Connexion à '+(dev.name||'la VMI')+'…');
+  try{
+   const server=await dev.gatt.connect();
+   await connectCharacteristics(server);
+   setStatus('Connecté à '+(dev.name||'la VMI')+'. Synchronisation des données…',true);
+   startPolling();
+   // L'historique automatique n'est lancé qu'une fois par session de page.
+   // Une reconnexion après coupure ne doit pas redémarrer le téléchargement.
+   if(!autoDone)setTimeout(autoHistory,3000);
+  }catch(e){
+   cleanupConnection();
+   if(dev&&dev.gatt&&dev.gatt.connected){
+    intentionalDisconnect=true;
+    try{dev.gatt.disconnect()}catch(disconnectError){intentionalDisconnect=false}
+   }
+   throw e;
+  }
+ })();
+ try{return await connectionPromise}
+ finally{connectionPromise=null}
 }
 async function connectBLE(){
  manualDisconnect=false;clearTimeout(reconnectTimer);showError('');
@@ -333,7 +355,7 @@ async function reconnect(){
  catch(e){log('Reconnexion échouée : '+e.message);clearTimeout(reconnectTimer);reconnectTimer=setTimeout(reconnect,7000)}
 }
 $('conn').onclick=connectBLE;
-$('disc').onclick=()=>{manualDisconnect=true;clearTimeout(reconnectTimer);cleanupConnection();if(dev&&dev.gatt&&dev.gatt.connected)dev.gatt.disconnect();setStatus('Déconnexion demandée.')};
+$('disc').onclick=()=>{manualDisconnect=true;intentionalDisconnect=true;clearTimeout(reconnectTimer);cleanupConnection();if(dev&&dev.gatt&&dev.gatt.connected)dev.gatt.disconnect();setStatus('Déconnexion demandée.')};
 
 /* Boutons de commande : une commande à la fois, avec vérification de l'état renvoyé par la VMI */
 const EXPECT={24:v=>['vit',v+1,'Vitesse '+(v+1)],25:v=>['boost',v,'Boost '+(v?'activé':'arrêté')],26:v=>['hol',v,'Mode vacances '+(v?'activé':'arrêté')]};
@@ -397,7 +419,7 @@ function finishDownload(reachedCut,timeout=false){
  if(download.got){meta.lastSync=Date.now();dbSet('meta',meta);renderFreshness()}
  $('dlh').disabled=false;setCommandsDisabled(false);
  $('dlp').textContent=`Terminé : ${count} nouvelles lignes${reachedCut?' · historique à jour':timeout?(download.got?' · arrêt après une pause de 20 s':' · aucune réponse de la VMI'):(download.sigs.size?' · attention : trou possible avant la dernière ligne mémorisée':' · historique complet')}`;
- if(reachedCut&&dev&&dev.gatt&&dev.gatt.connected)dev.gatt.disconnect();
+ if(reachedCut&&dev&&dev.gatt&&dev.gatt.connected){intentionalDisconnect=true;dev.gatt.disconnect();}
 }
 async function startDownload(auto=false){
  if(!chC){if(!auto)showError('Connecte-toi d’abord à la VMI.');return}
