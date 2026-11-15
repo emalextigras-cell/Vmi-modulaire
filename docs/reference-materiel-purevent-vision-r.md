@@ -26,4 +26,4 @@ Le devis indique également une surface maximale ventilée de 400 m² au niveau 
 
 ## Débit VMI+
 
-L'en-tête du CSV VMI+ nomme le champ `Debit` sans indiquer d'unité. Les valeurs sont conservées comme données brutes ; leur interprétation en m³/h est plausible au regard de leur plage et des références disponibles, mais elle n'est pas démontrée par le CSV ni par le devis. L'interface doit donc signaler « unité à confirmer ». Les valeurs ne démontrent pas à elles seules le débit réellement distribué dans chaque pièce.
+Le champ `Debit` de l'export VMI+ est interprété comme le débit d'air exprimé en m³/h, conformément à la confirmation de l'utilisateur. Cette donnée est distincte de la référence maximale constructeur de 350 m³/h. Elle représente le débit rapporté par la VMI, sans garantir à elle seule la répartition réelle de l'air dans chaque pièce.
