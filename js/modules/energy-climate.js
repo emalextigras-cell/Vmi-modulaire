@@ -25,10 +25,27 @@ export function summarizeDailyEnergyClimateContext(history, {
   const rows=(Array.isArray(history)?history:[])
     .filter(row=>Number.isFinite(row?.t))
     .sort((a,b)=>a.t-b.t);
-  const unique=[];
+  const groups=[];
   for(const row of rows){
-    if(unique.length&&unique[unique.length-1].t===row.t)unique[unique.length-1]=row;
-    else unique.push(row);
+    const last=groups[groups.length-1];
+    if(last&&last.timestamp===row.t)last.rows.push(row);
+    else groups.push({timestamp:row.t,rows:[row]});
+  }
+  const unique=[];
+  let duplicateTimestampCount=0;
+  let conflictingTimestampCount=0;
+  for(const group of groups){
+    if(group.rows.length>1)duplicateTimestampCount++;
+    // Seules les données utilisées par cette analyse définissent un conflit.
+    // Les métadonnées annexes ne doivent pas écarter une mesure exploitable.
+    const fingerprints=new Set(group.rows.map(row=>JSON.stringify(
+      [row.t,row.debit,row.st,row.sh,row.te,row.he]
+    )));
+    if(fingerprints.size>1){
+      conflictingTimestampCount++;
+      continue;
+    }
+    unique.push(group.rows[0]);
   }
   const days=new Map();
   const ensure=key=>{
@@ -88,6 +105,7 @@ export function summarizeDailyEnergyClimateContext(history, {
   return {
     status:matchedDays.length>=minDays?'available':'insufficient-data',
     days:daily,matchedDays,matchedDayCount:matchedDays.length,
+    duplicateTimestampCount,conflictingTimestampCount,
     maxGapHours,minFanHours,minClimateSamples,minDays,
     limits:[
       'Une journée est rapprochée uniquement si elle comporte au moins '+minFanHours+' h d’intervalles de ventilateur estimés et '+minClimateSamples+' relevés hygrométriques valides.',
