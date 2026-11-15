@@ -40,6 +40,20 @@ test('dewPoint refuse une humidité nulle ou invalide', () => {
   assert.equal(dewPoint(NaN, 50), null);
 });
 
+test('dewPoint refuse les températures hors du domaine de calcul', () => {
+  assert.equal(dewPoint(-80, 50), null);
+  assert.equal(dewPoint(80, 50), null);
+  assert.equal(dewPoint(-100, 50), null);
+  assert.equal(dewPoint(100, 50), null);
+});
+
+test('dewPoint ne renvoie jamais une valeur non finie', () => {
+  for (const temp of [-79.9, -40, 0, 40, 79.9]) {
+    const value = dewPoint(temp, 50);
+    assert.ok(Number.isFinite(value));
+  }
+});
+
 test('psychro calcule les valeurs intérieure et extérieure', () => {
   const result = psychro({ st: 20, sh: 50, te: 15, he: 70 });
   assert.ok(Math.abs(result.haIn - 8.6214) < 0.01);
