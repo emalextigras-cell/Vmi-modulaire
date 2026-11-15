@@ -946,7 +946,7 @@ function renderEnergyMeterTracking(){
     const c=interval.context;
     const value=(v,suffix='')=>v==null?'–':fmt(v)+suffix;
     const conditions=c.ready
-      ? 'Extérieur : '+value(c.outdoorTemp,' °C')+' · intérieur : '+value(c.indoorTemp,' °C')+'<br>Humidité relative intérieure : '+value(c.indoorRH,' %')+'<br>Humidité absolue : intérieur '+value(c.indoorAbsHumidity,' g/m³')+' · air entrant '+value(c.incomingAbsHumidity,' g/m³')+'<br>Écart intérieur − entrant : '+value(c.deltaAbsHumidity,' g/m³')
+      ? 'Extérieur : '+value(c.outdoorTemp,' °C')+' · air entrant : '+value(c.incomingTemp,' °C')+' · intérieur : '+value(c.indoorTemp,' °C')+'<br>Humidité relative : intérieur '+value(c.indoorRH,' %')+' · air entrant '+value(c.incomingRH,' %')+'<br>Humidité absolue : intérieur '+value(c.indoorAbsHumidity,' g/m³')+' · air entrant '+value(c.incomingAbsHumidity,' g/m³')+'<br>Écart intérieur − entrant : '+value(c.deltaAbsHumidity,' g/m³')
       : 'Conditions non interprétées : couverture insuffisante';
     html+='<tr><td>'+fmtShort(interval.from)+' → '+fmtShort(interval.to)+'</td><td>'+value(interval.deltaKwh,' kWh')+'<br>'+value(interval.averagePowerW,' W')+'</td><td>'+conditions+'</td><td>'+value(c.coveragePercent,' %')+'<br>'+value(c.coverageHours,' h')+'</td></tr>';
    }
