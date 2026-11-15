@@ -732,6 +732,9 @@ function renderIntelligentDiagnosis(data){
      requiredDurationShare:'Part minimale requise',dryDurationShare:'Air entrant plus sec',
      humidDurationShare:'Air entrant plus humide',dominanceThreshold:'Seuil de dominance',
      firstDate:'Première date comparée',lastDate:'Dernière date comparée',
+     baselineWindowStartDate:'Début de la fenêtre initiale',baselineWindowEndDate:'Fin de la fenêtre initiale',
+     recentWindowStartDate:'Début de la fenêtre récente',recentWindowEndDate:'Fin de la fenêtre récente',
+     baselineWindowSpanDays:'Étendue de la fenêtre initiale (jours)',recentWindowSpanDays:'Étendue de la fenêtre récente (jours)',totalComparisonSpanDays:'Étendue totale comparée (jours)',
      firstMedianAbsoluteHumidity:'Humidité absolue médiane au départ',
      lastMedianAbsoluteHumidity:'Humidité absolue médiane à la fin',
      baselineMedianAbsoluteHumidity:'Médiane de la première fenêtre',
@@ -746,7 +749,7 @@ function renderIntelligentDiagnosis(data){
     };
     const percentKeys=new Set(['durationShare','requiredDurationShare','dryDurationShare','humidDurationShare','dominanceThreshold']);
     const hourKeys=new Set(['observedHours','requiredObservedHours']);
-    const humidityKeys=new Set(['medianIndoorMinusIncomingHA','firstMedianAbsoluteHumidity','lastMedianAbsoluteHumidity','change','medianDelta','threshold']);
+    const humidityKeys=new Set(['medianIndoorMinusIncomingHA','firstMedianAbsoluteHumidity','lastMedianAbsoluteHumidity','baselineMedianAbsoluteHumidity','recentMedianAbsoluteHumidity','change','medianDelta','threshold']);
     Object.entries(item.basis).forEach(([key,value])=>{
      if(key==='unit'||value==null||!labels[key])return;
      const term=document.createElement('dt');
