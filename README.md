@@ -241,3 +241,10 @@ Ces valeurs sont affichées comme contexte descriptif ; aucune transformation en
 Les preuves détaillées quantifient aussi l'évolution entre fenêtres de l'humidité absolue de l'air entrant et de l'écart salon − air entrant. Ces différences permettent de voir si le contexte de l'air entrant et l'écart intérieur/entrant évoluent dans le même sens ou non.
 
 Il s'agit d'une comparaison descriptive de médianes ; elle ne démontre aucune relation causale ni l'efficacité de la ventilation.
+
+
+## Phase 21 — résumé contextuel visible des tendances
+
+Lorsqu'une hausse ou une baisse durable est signalée, le texte principal rappelle aussi les médianes de l'humidité absolue entrante et de l'écart salon − air entrant sur les fenêtres comparées. La réserve d'absence de lien causal est affichée dans le texte lui-même, sans obliger à ouvrir les preuves détaillées.
+
+Le résumé ne transforme pas ces concomitances en explication de la cause.
