@@ -48,7 +48,7 @@ window.addEventListener('unhandledrejection',e=>recordError('Promesse rejetée :
 
 
 let dev=null,chC=null,chT=null,pollTimer=null,snapTimer=null,reconnectTimer=null;
-let manualDisconnect=false,commandQueue=Promise.resolve(),manualCommandPending=false,polling=false,autoDone=false;
+let manualDisconnect=false,intentionalDisconnect=false,commandQueue=Promise.resolve(),manualCommandPending=false,polling=false,autoDone=false;
 let meta={},cur={},lastSeen={},live=[],hist=[],energyReadings=[],source='hist',selectedDate=null,daysSetting=30;
 let logLines=[],dlFrames=0;
 let download={on:false,rows:[],buf:'',total:0,sigs:new Set(),got:false,lastPacket:0,timeout:null};
@@ -269,19 +269,23 @@ function startPolling(){
 function cleanupConnection(){clearInterval(pollTimer);clearInterval(snapTimer);chC=null;chT=null}
 function logGattState(stage,detail=''){
  const transport=!!(dev&&dev.gatt&&dev.gatt.connected);
- const state=`transport=${transport} · chC=${!!chC} · chT=${!!chT} · download=${download.on} · manual=${manualDisconnect} · autoDone=${autoDone} · polling=${polling}`;
+ const state=`transport=${transport} · chC=${!!chC} · chT=${!!chT} · download=${download.on} · intentional=${intentionalDisconnect} · manual=${manualDisconnect} · autoDone=${autoDone} · polling=${polling}`;
  log(`[GATT] ${stage} | ${state}${detail?' | '+String(detail):''}`);
 }
 function onDisconnect(){
  logGattState('event:gattserverdisconnected');
+ const wasIntentional=intentionalDisconnect;
+ intentionalDisconnect=false;
  cleanupConnection();
- setStatus('Déconnecté.');
- if(!manualDisconnect&&dev){
-  setStatus('Connexion perdue, tentative de reconnexion…');
+ if(wasIntentional){
+  setStatus('Synchronisation terminée. Reconnexion pour les mesures en direct…');
+  logGattState('sync:live-reconnect-scheduled','dans 3 s ; autoDone conservé');
   clearTimeout(reconnectTimer);
-  logGattState('reconnect:scheduled','dans 4 s — comportement V13');
-  reconnectTimer=setTimeout(reconnect,4000);
+  reconnectTimer=setTimeout(reconnect,3000);
+  return;
  }
+ setStatus('Déconnecté.');
+ if(!manualDisconnect&&dev){setStatus('Connexion perdue, tentative de reconnexion…');clearTimeout(reconnectTimer);reconnectTimer=setTimeout(reconnect,4000)}
 }
 async function connectCharacteristics(server){
  logGattState('discovery:start');
@@ -355,22 +359,8 @@ async function autoConnectAuthorizedDevice(){
 async function reconnect(){
  if(manualDisconnect||!dev)return;
  logGattState('reconnect:attempt');
- try{
-  // Reconnexion calquée sur V13 : nouvelle session GATT, redécouverte,
-  // notifications, puis scrutation. Pas de relance du flux d'historique.
-  const server=await dev.gatt.connect();
-  logGattState('reconnect:transport-connected');
-  await connectCharacteristics(server);
-  logGattState('reconnect:ready');
-  setStatus('Reconnecté à '+(dev.name||'la VMI')+'.',true);
-  startPolling();
-  logGattState('reconnect:success');
- }catch(e){
-  logGattState('reconnect:failed',e.message);
-  log('Reconnexion échouée : '+e.message);
-  clearTimeout(reconnectTimer);
-  reconnectTimer=setTimeout(reconnect,7000);
- }
+ try{await connectDevice(dev);logGattState('reconnect:success')}
+ catch(e){logGattState('reconnect:failed',e.message);log('Reconnexion échouée : '+e.message);clearTimeout(reconnectTimer);reconnectTimer=setTimeout(reconnect,7000)}
 }
 $('conn').onclick=connectBLE;
 $('disc').onclick=()=>{manualDisconnect=true;clearTimeout(reconnectTimer);cleanupConnection();if(dev&&dev.gatt&&dev.gatt.connected)dev.gatt.disconnect();setStatus('Déconnexion demandée.')};
@@ -438,9 +428,10 @@ function finishDownload(reachedCut,timeout=false){
  $('dlh').disabled=false;setCommandsDisabled(false);
  $('dlp').textContent=`Terminé : ${count} nouvelles lignes${reachedCut?' · historique à jour':timeout?(download.got?' · arrêt après une pause de 20 s':' · aucune réponse de la VMI'):(download.sigs.size?' · attention : trou possible avant la dernière ligne mémorisée':' · historique complet')}`;
  if(reachedCut&&dev&&dev.gatt&&dev.gatt.connected){
-  // Comportement V13 : couper le flux historique, puis laisser onDisconnect
-  // appliquer la reconnexion standard après 4 secondes.
-  logGattState('sync:request-disconnect');
+  // La VMI ne sait pas arrêter seule le flux historique : cette coupure est volontaire.
+  // onDisconnect doit la distinguer d'une vraie perte de liaison.
+  intentionalDisconnect=true;
+  logGattState('sync:request-intentional-disconnect');
   dev.gatt.disconnect();
  }else if(reachedCut){
   logGattState('sync:cut-reached-but-transport-already-disconnected');
