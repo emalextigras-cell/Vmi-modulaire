@@ -88,3 +88,32 @@ test('ignore les métadonnées annexes lors du contrôle des doublons énergie-c
   assert.equal(result.days[0].fanHours,4);
 });
 
+test('rejette les paramètres énergie-climat invalides',()=>{
+  const history=[row(0),row(1),row(2),row(3)];
+  for(const options of [
+    {maxGapHours:0},
+    {maxGapHours:Infinity},
+    {maxGapHours:NaN},
+    {minFanHours:-1},
+    {minFanHours:Infinity},
+    {minClimateSamples:0},
+    {minClimateSamples:1.5},
+    {minClimateSamples:Number.MAX_SAFE_INTEGER+1},
+    {minDays:-1},
+    {minDays:1.5},
+    {minDays:Number.MAX_SAFE_INTEGER+1}
+  ]){
+    assert.throws(
+      ()=>summarizeDailyEnergyClimateContext(history,options),
+      RangeError
+    );
+  }
+});
+
+test('accepte une couverture énergétique nulle et zéro jour requis',()=>{
+  const result=summarizeDailyEnergyClimateContext([row(0)],{
+    minFanHours:0,minClimateSamples:1,minDays:0
+  });
+  assert.equal(result.status,'available');
+  assert.equal(result.matchedDayCount,0);
+});
