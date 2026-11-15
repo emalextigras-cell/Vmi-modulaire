@@ -101,5 +101,5 @@ export function renderCharts(data,selectedDate,$){
   seriesFor(data,'t1','P0 sortie résistance',COLORS[1],r=>isPlausibleTemperature(r.t1)?r.t1:null,r=>Number.isFinite(r.t1)&&!isPlausibleTemperature(r.t1)),
   seriesFor(data,'te','P1 entrée air',COLORS[2],r=>isPlausibleTemperature(r.te)?r.te:null,r=>Number.isFinite(r.te)&&!isPlausibleTemperature(r.te))],selectedDate,$);
  drawChart('chartRPM','Régime ventilateur',[seriesFor(data,'rpm','Régime',COLORS[0])],selectedDate,$);
- drawChart('chartDebit','Débit exporté VMI+ (valeur brute ; unité à confirmer)',[seriesFor(data,'debit','Débit exporté',COLORS[1])],selectedDate,$);
+ drawChart('chartDebit','Débit VMI+ (m³/h)',[seriesFor(data,'debit','Débit exporté',COLORS[1])],selectedDate,$);
 }
