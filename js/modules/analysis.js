@@ -906,16 +906,16 @@ export function buildHygrometricDiagnosis(data, {
         code:'indoor-moisture-rising',level:'caution',
         basis:trendBasis,
         title:'Tendance durable à la hausse de l’humidité absolue',
-        detail:`La médiane des ${trendWindowDays} derniers jours échantillonnés dépasse de ${trendChange.toFixed(1)} g/m³ celle des ${trendWindowDays} premiers jours. Le signal est retrouvé sur ${trendDirectionalDays.rising} des ${trendWindowDays} derniers jours.`,
-        recommendation:'Examiner les apports de vapeur d’eau, les extractions et les conditions extérieures. Cette évolution ne suffit pas à identifier une cause. '+trendContextSentence
+        detail:`La médiane des ${trendWindowDays} derniers jours échantillonnés dépasse de ${trendChange.toFixed(1)} g/m³ celle des ${trendWindowDays} premiers jours. Le signal est retrouvé sur ${trendDirectionalDays.rising} des ${trendWindowDays} derniers jours. `+trendContextSentence,
+        recommendation:'Examiner les apports de vapeur d’eau, les extractions et les conditions extérieures. Cette évolution ne suffit pas à identifier une cause.'
       });
     } else if(trendChange<=-trendDelta&&trendDirectionalDays.falling>=2){
       observations.push({
         code:'indoor-moisture-falling',level:'positive',
         basis:trendBasis,
         title:'Tendance durable à la baisse de l’humidité absolue',
-        detail:`La médiane des ${trendWindowDays} derniers jours échantillonnés est inférieure de ${Math.abs(trendChange).toFixed(1)} g/m³ à celle des ${trendWindowDays} premiers jours. Le signal est retrouvé sur ${trendDirectionalDays.falling} des ${trendWindowDays} derniers jours.`,
-        recommendation:'Poursuivre l’observation pour vérifier que cette baisse se maintient sur les prochains jours. '+trendContextSentence
+        detail:`La médiane des ${trendWindowDays} derniers jours échantillonnés est inférieure de ${Math.abs(trendChange).toFixed(1)} g/m³ à celle des ${trendWindowDays} premiers jours. Le signal est retrouvé sur ${trendDirectionalDays.falling} des ${trendWindowDays} derniers jours. `+trendContextSentence,
+        recommendation:'Poursuivre l’observation pour vérifier que cette baisse se maintient sur les prochains jours.'
       });
     } else {
       observations.push({
