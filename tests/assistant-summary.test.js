@@ -51,7 +51,8 @@ test('synthétise les analyses existantes sans inventer de consommation mesurée
   assert.ok(energy.details.some(line => /Aucun index électrique externe enregistré/.test(line)));
   assert.ok(energy.details.some(line => /préchauffage et la consommation totale ne sont pas estimés/.test(line)));
   assert.ok(result.limits.some(line => /Aucune commande/.test(line)));
-  assert.ok(result.recommendations.some(item => /Comparer les vitesses/.test(item.title)));
+  assert.ok(result.recommendations.some(item => /Examiner les comparaisons de vitesses/.test(item.title))); 
+  assert.ok(!result.recommendations.some(item => /consommation réelle/i.test(item.title)));
 });
 
 test('ne confond pas le code brut Vitesse avec les modes manuels 1/2/3', () => {
@@ -61,7 +62,7 @@ test('ne confond pas le code brut Vitesse avec les modes manuels 1/2/3', () => {
 
   assert.match(speedSection.summary, /Aucune annotation de vitesse manuelle/);
   assert.ok(airflowSection.details.some(line => /codes « Vitesse » bruts/i.test(line)));
-  assert.ok(result.recommendations.some(item => /annotation Mode manuel/.test(item.text)));
+  assert.ok(!result.recommendations.some(item => /vitesses/i.test(item.title)));
 });
 
 test('distingue les index externes mesurés de l’estimation du ventilateur', () => {
@@ -79,4 +80,21 @@ test('distingue les index externes mesurés de l’estimation du ventilateur', (
   assert.ok(energy.details.some(line => /2 kWh cumulés/.test(line)));
   assert.ok(energy.details.some(line => /kWh estimés/.test(line)));
   assert.ok(energy.details.some(line => /ne représente pas une mesure électrique/.test(line)));
+});
+
+
+test('ne transforme pas un pic isolé plausible en conseil d’alerte', () => {
+  const rows = makeHistory();
+  rows[80].sh = 95;
+  const result = buildVmiAssistantSummary(rows);
+  assert.ok(!result.recommendations.some(item => /mesures inhabituelles|valeurs hors limites/i.test(item.title)));
+  const quality = result.sections.find(item => item.id === 'quality');
+  assert.ok(quality.details.some(line => /pic\(s\) isolé\(s\)/.test(line)));
+});
+
+test('ne propose pas de comparer les vitesses sans comparaison horaire exploitable', () => {
+  const rows = makeHistory();
+  const oneDay = rows.slice(0, 24);
+  const result = buildVmiAssistantSummary(oneDay);
+  assert.ok(!result.recommendations.some(item => /comparaisons de vitesses/i.test(item.title)));
 });
