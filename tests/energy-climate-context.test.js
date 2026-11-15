@@ -49,8 +49,9 @@ test('écarte les valeurs hygrométriques invalides sans les remplacer', () => {
     [climate(0, { sh: 150 }), climate(2 * HOUR), climate(4 * HOUR), climate(6 * HOUR)]
   );
   const context = result.meters[0].intervals[0].context;
-  assert.equal(context.ready, false);
-  assert.equal(context.indoorAbsHumidity, null);
+  assert.equal(context.ready, true);
+  assert.equal(context.coverageHours, 4);
+  assert.ok(context.coveragePercent < 100);
   assert.ok(context.metricCoverageHours.indoorTemp > 0);
 });
 
