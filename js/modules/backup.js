@@ -50,7 +50,8 @@ export function mergeBackupData({
       else byTime.set(record.t,mergeRecordFields(byTime.get(record.t),record));
     }
     live=[...byTime.values()].sort((a,b)=>a.t-b.t);
-    if(live.length>maxLive) live=live.slice(-maxLive);
+    if(maxLive===0) live=[];
+    else if(live.length>maxLive) live=live.slice(-maxLive);
   }
   const meta={...(currentMeta||{})};
   if(backup.meta&&backup.meta.lastSync&&(!meta.lastSync||backup.meta.lastSync>meta.lastSync)) meta.lastSync=backup.meta.lastSync;
