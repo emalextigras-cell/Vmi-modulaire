@@ -967,7 +967,10 @@ function renderFanEnergyEstimate(data){
   const modeBox=$('fanEnergyByMode');
   if(modeBox){
    const byMode=summarizeFanEnergyByManualMode(data);
-   modeBox.textContent=(modeBox.textContent||'')+' Horodatages de la comparaison par mode : '+byMode.duplicateTimestampCount+' groupe(s) avec doublons, dont '+byMode.conflictingTimestampCount+' contradictoire(s) écarté(s).';
+   const modeStatus=byMode.hasManualModeData
+    ? 'Comparaison par mode non affichée car aucune estimation ventilateur globale exploitable.'
+    : 'Pas de champ « Mode » manuel identifié dans cet historique.';
+   modeBox.textContent=modeStatus+' Horodatages : '+byMode.duplicateTimestampCount+' groupe(s) avec doublons, dont '+byMode.conflictingTimestampCount+' contradictoire(s) écarté(s).';
   }
   return;
  }
