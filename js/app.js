@@ -48,7 +48,7 @@ window.addEventListener('unhandledrejection',e=>recordError('Promesse rejetée :
 
 
 let dev=null,chC=null,chT=null,pollTimer=null,snapTimer=null,reconnectTimer=null;
-let manualDisconnect=false,commandQueue=Promise.resolve(),manualCommandPending=false,polling=false,autoDone=false;
+let manualDisconnect=false,intentionalDisconnect=false,commandQueue=Promise.resolve(),manualCommandPending=false,polling=false,autoDone=false;
 let meta={},cur={},lastSeen={},live=[],hist=[],energyReadings=[],source='hist',selectedDate=null,daysSetting=30;
 let logLines=[],dlFrames=0;
 let download={on:false,rows:[],buf:'',total:0,sigs:new Set(),got:false,lastPacket:0,timeout:null};
@@ -268,7 +268,11 @@ function startPolling(){
 }
 function cleanupConnection(){clearInterval(pollTimer);clearInterval(snapTimer);chC=null;chT=null}
 function onDisconnect(){
- cleanupConnection();setStatus('Déconnecté.');
+ const wasIntentional=intentionalDisconnect;
+ intentionalDisconnect=false;
+ cleanupConnection();
+ if(wasIntentional){setStatus('Synchronisation terminée. Bluetooth déconnecté.');return}
+ setStatus('Déconnecté.');
  if(!manualDisconnect&&dev){setStatus('Connexion perdue, tentative de reconnexion…');clearTimeout(reconnectTimer);reconnectTimer=setTimeout(reconnect,4000)}
 }
 async function connectCharacteristics(server){
@@ -295,11 +299,12 @@ async function connectDevice(device){
  await connectCharacteristics(server);
  setStatus('Connecté à '+(dev.name||'la VMI')+'. Synchronisation des données…',true);
  startPolling();
- autoDone=false;
+ // Une reconnexion ne doit pas relancer la synchronisation automatique déjà effectuée.
  setTimeout(autoHistory,3000);
 }
 async function connectBLE(){
- manualDisconnect=false;clearTimeout(reconnectTimer);showError('');
+ // Un clic explicite démarre une nouvelle session et autorise une synchronisation initiale.
+ autoDone=false;manualDisconnect=false;clearTimeout(reconnectTimer);showError('');
  if(!navigator.bluetooth){showError('Web Bluetooth indisponible. Utilise Chrome sur Android ou un navigateur compatible, en HTTPS.');return}
  try{
   /* requestDevice reste directement dans le geste utilisateur requis par le navigateur. */
@@ -397,7 +402,12 @@ function finishDownload(reachedCut,timeout=false){
  if(download.got){meta.lastSync=Date.now();dbSet('meta',meta);renderFreshness()}
  $('dlh').disabled=false;setCommandsDisabled(false);
  $('dlp').textContent=`Terminé : ${count} nouvelles lignes${reachedCut?' · historique à jour':timeout?(download.got?' · arrêt après une pause de 20 s':' · aucune réponse de la VMI'):(download.sigs.size?' · attention : trou possible avant la dernière ligne mémorisée':' · historique complet')}`;
- if(reachedCut&&dev&&dev.gatt&&dev.gatt.connected)dev.gatt.disconnect();
+ if(reachedCut&&dev&&dev.gatt&&dev.gatt.connected){
+  // La VMI ne sait pas arrêter seule le flux historique : cette coupure est volontaire.
+  // onDisconnect doit la distinguer d'une vraie perte de liaison.
+  intentionalDisconnect=true;
+  dev.gatt.disconnect();
+ }
 }
 async function startDownload(auto=false){
  if(!chC){if(!auto)showError('Connecte-toi d’abord à la VMI.');return}
