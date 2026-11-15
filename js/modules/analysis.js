@@ -682,10 +682,25 @@ export function buildHygrometricDiagnosis(data, {
   const dryShare=periods.observedDurationMs?periods.dryDurationMs/periods.observedDurationMs:null;
   const humidShare=periods.observedDurationMs?periods.humidDurationMs/periods.observedDurationMs:null;
   const daily=summarizeDailyTrends(rows);
-  const first=daily.days.filter(d=>d.sampleCount>=3)[0]||null;
-  const last=[...daily.days].reverse().find(d=>d.sampleCount>=3)||null;
+  // Une tendance durable compare deux fenêtres non chevauchantes de trois jours
+  // suffisamment échantillonnés. Une journée isolée ne peut pas suffire.
+  const eligibleTrendDays=daily.days.filter(day=>day.sampleCount>=3&&Number.isFinite(day.medianAbsoluteHumidity));
+  const trendWindowDays=3;
+  const trendMinimumDays=trendWindowDays*2;
+  const firstTrendWindow=eligibleTrendDays.slice(0,trendWindowDays);
+  const lastTrendWindow=eligibleTrendDays.slice(-trendWindowDays);
+  const trendWindowsAreDistinct=eligibleTrendDays.length>=trendMinimumDays&&
+    firstTrendWindow.at(-1).date<lastTrendWindow[0].date;
+  const first=trendWindowsAreDistinct?firstTrendWindow[0]:null;
+  const last=trendWindowsAreDistinct?lastTrendWindow.at(-1):null;
+  const baselineTrendMedian=trendWindowsAreDistinct?median(firstTrendWindow.map(day=>day.medianAbsoluteHumidity)):null;
+  const recentTrendMedian=trendWindowsAreDistinct?median(lastTrendWindow.map(day=>day.medianAbsoluteHumidity)):null;
   const trendSpanDays=first&&last?(Date.parse(last.date+'T00:00:00Z')-Date.parse(first.date+'T00:00:00Z'))/86400000:0;
-  const trendChange=first&&last&&trendSpanDays>=2?last.medianAbsoluteHumidity-first.medianAbsoluteHumidity:null;
+  const trendChange=trendWindowsAreDistinct?recentTrendMedian-baselineTrendMedian:null;
+  const trendDirectionalDays=trendWindowsAreDistinct?{
+    rising:lastTrendWindow.filter(day=>day.medianAbsoluteHumidity>baselineTrendMedian).length,
+    falling:lastTrendWindow.filter(day=>day.medianAbsoluteHumidity<baselineTrendMedian).length
+  }:null;
 
   const hourly=analyzeHourlyPatterns(rows,5);
   const hourlyDetails=hourly.buckets.map((bucket,index)=>{
@@ -837,22 +852,41 @@ export function buildHygrometricDiagnosis(data, {
     });
   }
 
-  if(trendChange!=null&&trendChange>=trendDelta){
+  if(!trendWindowsAreDistinct){
     observations.push({
-      code:'indoor-moisture-rising',level:'caution',
-      basis:{firstDate:first.date,lastDate:last.date,firstMedianAbsoluteHumidity:first.medianAbsoluteHumidity,lastMedianAbsoluteHumidity:last.medianAbsoluteHumidity,change:trendChange,threshold:trendDelta,unit:'g/m³'},
-      title:'Humidité absolue intérieure en hausse',
-      detail:`L’humidité absolue médiane du logement a augmenté de ${trendChange.toFixed(1)} g/m³ entre le ${first.date} et le ${last.date}.`,
-      recommendation:'Examiner les apports de vapeur d’eau (douches, cuisson, séchage du linge, occupation), les extractions et les conditions extérieures. Cette tendance ne suffit pas à identifier une cause.'
+      code:'trend-insufficient-data',level:'info',
+      basis:{eligibleDays:eligibleTrendDays.length,requiredDays:trendMinimumDays,minimumDailySamples:3,daysPerWindow:trendWindowDays},
+      title:'Tendance hygrométrique à confirmer',
+      detail:`Seulement ${eligibleTrendDays.length} jour(s) disposent d’au moins trois relevés valides. Il en faut au moins ${trendMinimumDays}, répartis en deux fenêtres distinctes de ${trendWindowDays} jours, pour distinguer une évolution durable d’une variation ponctuelle.`,
+      recommendation:'Poursuivre l’import de l’historique sans modifier les réglages sur la base d’une journée isolée.'
     });
-  } else if(trendChange!=null&&trendChange<=-trendDelta){
-    observations.push({
-      code:'indoor-moisture-falling',level:'positive',
-      basis:{firstDate:first.date,lastDate:last.date,firstMedianAbsoluteHumidity:first.medianAbsoluteHumidity,lastMedianAbsoluteHumidity:last.medianAbsoluteHumidity,change:trendChange,threshold:-trendDelta,unit:'g/m³'},
-      title:'Humidité absolue intérieure en baisse',
-      detail:`L’humidité absolue médiane du logement a diminué de ${Math.abs(trendChange).toFixed(1)} g/m³ entre le ${first.date} et le ${last.date}.`,
-      recommendation:'Poursuivre l’observation pour vérifier que cette baisse se maintient sur les prochains jours.'
-    });
+  } else {
+    const trendBasis={firstDate:first.date,lastDate:last.date,baselineMedianAbsoluteHumidity:baselineTrendMedian,recentMedianAbsoluteHumidity:recentTrendMedian,change:trendChange,threshold:trendDelta,eligibleDays:eligibleTrendDays.length,daysPerWindow:trendWindowDays,risingDays:trendDirectionalDays.rising,fallingDays:trendDirectionalDays.falling,minimumDirectionalDays:2,unit:'g/m³'};
+    if(trendChange>=trendDelta&&trendDirectionalDays.rising>=2){
+      observations.push({
+        code:'indoor-moisture-rising',level:'caution',
+        basis:trendBasis,
+        title:'Tendance durable à la hausse de l’humidité absolue',
+        detail:`La médiane des ${trendWindowDays} derniers jours échantillonnés dépasse de ${trendChange.toFixed(1)} g/m³ celle des ${trendWindowDays} premiers jours. Le signal est retrouvé sur ${trendDirectionalDays.rising} des ${trendWindowDays} derniers jours.`,
+        recommendation:'Examiner les apports de vapeur d’eau, les extractions et les conditions extérieures. Cette évolution ne suffit pas à identifier une cause.'
+      });
+    } else if(trendChange<=-trendDelta&&trendDirectionalDays.falling>=2){
+      observations.push({
+        code:'indoor-moisture-falling',level:'positive',
+        basis:trendBasis,
+        title:'Tendance durable à la baisse de l’humidité absolue',
+        detail:`La médiane des ${trendWindowDays} derniers jours échantillonnés est inférieure de ${Math.abs(trendChange).toFixed(1)} g/m³ à celle des ${trendWindowDays} premiers jours. Le signal est retrouvé sur ${trendDirectionalDays.falling} des ${trendWindowDays} derniers jours.`,
+        recommendation:'Poursuivre l’observation pour vérifier que cette baisse se maintient sur les prochains jours.'
+      });
+    } else {
+      observations.push({
+        code:'trend-not-sustained',level:'info',
+        basis:trendBasis,
+        title:'Pas de tendance durable confirmée',
+        detail:`L’écart entre les deux fenêtres de ${trendWindowDays} jours est de ${trendChange>=0?'+':''}${trendChange.toFixed(1)} g/m³, mais les critères de persistance ne sont pas réunis. Une variation ponctuelle n’est donc pas interprétée comme une tendance.`,
+        recommendation:'Continuer à suivre les médianes journalières ; réévaluer lorsque davantage de jours seront disponibles.'
+      });
+    }
   }
 
   if(bestWindow&&bestWindow.medianDelta>dryDelta){
@@ -866,7 +900,7 @@ export function buildHygrometricDiagnosis(data, {
   }
 
   return {
-    methodology:{version:'hygrometric-diagnostic-v6',dryDeltaThreshold:dryDelta,trendDeltaThreshold:trendDelta,minimumSamples:minSamples,minimumDistinctDays:2,minimumObservedHours:3,dominantDurationShare:0.6,maximumGapHours:maxGapHours,hourlyBucketHours:6,hourlyMinimumSamples:5,hourlyMinimumDistinctDays:2,hourlyMinimumSharedDays:2,hourlyMinimumDailySamples:3,minimumDailySamplesForConfidence:3,moderateCoveragePercent:20,highCoveragePercent:50,moderateAcceptedShare:0.7,highAcceptedShare:0.9},
+    methodology:{version:'hygrometric-diagnostic-v7',dryDeltaThreshold:dryDelta,trendDeltaThreshold:trendDelta,trendMinimumDailySamples:3,trendMinimumDays:6,trendWindowDays:3,trendMinimumDirectionalDays:2,minimumSamples:minSamples,minimumDistinctDays:2,minimumObservedHours:3,dominantDurationShare:0.6,maximumGapHours:maxGapHours,hourlyBucketHours:6,hourlyMinimumSamples:5,hourlyMinimumDistinctDays:2,hourlyMinimumSharedDays:2,hourlyMinimumDailySamples:3,minimumDailySamplesForConfidence:3,moderateCoveragePercent:20,highCoveragePercent:50,moderateAcceptedShare:0.7,highAcceptedShare:0.9},
     status:sufficient?'analysis-available':'insufficient-data',
     inputQuality:{
       inputSampleCount:inputRows.length,
