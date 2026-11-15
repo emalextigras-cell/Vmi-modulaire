@@ -10,8 +10,8 @@ const climate = (t, overrides = {}) => ({
 
 test('associe un intervalle électrique aux moyennes climatiques sur son recouvrement', () => {
   const result = summarizeEnergyClimateContext(
-    [reading(0, 10), reading(6 * HOUR, 11)],
-    [climate(0), climate(2 * HOUR), climate(4 * HOUR), climate(6 * HOUR)]
+    [reading(1, 10), reading(6 * HOUR + 1, 11)],
+    [climate(1), climate(2 * HOUR + 1), climate(4 * HOUR + 1), climate(6 * HOUR + 1)]
   );
   const interval = result.meters[0].intervals[0];
   assert.equal(interval.deltaKwh, 1);
@@ -24,8 +24,8 @@ test('associe un intervalle électrique aux moyennes climatiques sur son recouvr
 
 test('ne comble pas les trous de mesures supérieurs à deux heures', () => {
   const result = summarizeEnergyClimateContext(
-    [reading(0, 10), reading(8 * HOUR, 11)],
-    [climate(0), climate(1 * HOUR), climate(7 * HOUR), climate(8 * HOUR)]
+    [reading(1, 10), reading(8 * HOUR + 1, 11)],
+    [climate(1), climate(1 * HOUR + 1), climate(7 * HOUR + 1), climate(8 * HOUR + 1)]
   );
   const context = result.meters[0].intervals[0].context;
   assert.equal(context.coverageHours, 2);
@@ -35,8 +35,8 @@ test('ne comble pas les trous de mesures supérieurs à deux heures', () => {
 
 test('refuse de conclure si les mesures ne recouvrent pas l’intervalle du compteur', () => {
   const result = summarizeEnergyClimateContext(
-    [reading(0, 10), reading(6 * HOUR, 11)],
-    [climate(7 * HOUR), climate(8 * HOUR)]
+    [reading(1, 10), reading(6 * HOUR + 1, 11)],
+    [climate(7 * HOUR + 1), climate(8 * HOUR + 1)]
   );
   assert.equal(result.matchedIntervalCount, 0);
   assert.equal(result.meters[0].intervals[0].context.coverageHours, 0);
@@ -45,8 +45,8 @@ test('refuse de conclure si les mesures ne recouvrent pas l’intervalle du comp
 
 test('écarte les valeurs hygrométriques invalides sans les remplacer', () => {
   const result = summarizeEnergyClimateContext(
-    [reading(0, 10), reading(6 * HOUR, 11)],
-    [climate(0, { sh: 150 }), climate(2 * HOUR), climate(4 * HOUR), climate(6 * HOUR)]
+    [reading(1, 10), reading(6 * HOUR + 1, 11)],
+    [climate(0, { sh: 150 }), climate(2 * HOUR + 1), climate(4 * HOUR + 1), climate(6 * HOUR + 1)]
   );
   const context = result.meters[0].intervals[0].context;
   assert.equal(context.ready, true);
@@ -63,7 +63,7 @@ test('sépare les compteurs et ignore les intervalles électriques non mesurés'
       { id: 'pre:0', meterType: 'preheating', t: 1, kwh: 9 },
       { id: 'pre:1', meterType: 'preheating', t: 6 * HOUR, kwh: 2 }
     ],
-    [climate(1), climate(2 * HOUR), climate(4 * HOUR), climate(6 * HOUR)]
+    [climate(1), climate(2 * HOUR + 1), climate(4 * HOUR + 1), climate(6 * HOUR + 1)]
   );
   assert.deepEqual(result.meters.map(meter => meter.meterType), ['ventilation', 'preheating']);
   assert.equal(result.meters[0].intervals.length, 1);
