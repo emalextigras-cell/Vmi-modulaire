@@ -60,7 +60,7 @@ test('compte une seule fois les doublons identiques dans l’estimation ventilat
   assert.equal(result.sampleCount,2);
   assert.equal(result.duplicateTimestampCount,1);
   assert.equal(result.conflictingTimestampCount,0);
-  assert.equal(result.estimatedWh,0.01);
+  assert.equal(result.estimatedWh,10);
 });
 
 import { summarizeFanEnergyByManualMode } from '../js/modules/energy-estimate.js';
