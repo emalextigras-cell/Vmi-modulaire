@@ -86,3 +86,40 @@ test('la restauration fusionne les index de compteurs sans doublons et garde les
   assert.deepEqual(legacy.energyReadings, current);
   assert.equal(legacy.addedEnergyReadings, 0);
 });
+
+
+test('refuse les paramètres de restauration invalides avant toute fusion', () => {
+  const backup = { app:'vmi-purevent', hist:[], live:[{t:1}] };
+  for (const minValid of [undefined, null, NaN, Infinity, -Infinity, 0, -1]) {
+    assert.throws(
+      () => mergeBackupData({ backup, minValid }),
+      RangeError
+    );
+  }
+  for (const maxLive of [-1, 1.5, NaN, Infinity, -Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.throws(
+      () => mergeBackupData({ backup, minValid:MIN_VALID, maxLive }),
+      RangeError
+    );
+  }
+});
+
+test('accepte une limite live nulle sans comportement de découpage ambigu', () => {
+  const result = mergeBackupData({
+    backup:{ app:'vmi-purevent', hist:[], live:[{t:1},{t:2}] },
+    currentLive:[{t:3}], minValid:MIN_VALID, maxLive:0
+  });
+  assert.deepEqual(result.live, []);
+  assert.equal(result.addedLive, 2);
+});
+
+test('conserve le comportement de restauration avec les limites par défaut', () => {
+  const live = Array.from({length:10002}, (_, index) => ({t:index + 1}));
+  const result = mergeBackupData({
+    backup:{ app:'vmi-purevent', hist:[], live },
+    minValid:MIN_VALID
+  });
+  assert.equal(result.live.length, 10000);
+  assert.equal(result.live[0].t, 3);
+  assert.equal(result.live.at(-1).t, 10002);
+});

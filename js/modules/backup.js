@@ -23,6 +23,12 @@ export function mergeBackupData({
   if (!backup || backup.app !== 'vmi-purevent' || !Array.isArray(backup.hist)) {
     throw new Error('Fichier de sauvegarde non reconnu.');
   }
+  if (!Number.isFinite(minValid) || minValid <= 0) {
+    throw new RangeError('minValid doit être un horodatage fini strictement positif.');
+  }
+  if (!Number.isSafeInteger(maxLive) || maxLive < 0) {
+    throw new RangeError('maxLive doit être un entier sûr positif ou nul.');
+  }
   const history = new Map(currentHist.filter(r => r && Number.isFinite(r.t)).map(r => [r.t, r]));
   let addedHistory = 0, enrichedHistory = 0;
   for (const record of backup.hist) {
@@ -44,7 +50,8 @@ export function mergeBackupData({
       else byTime.set(record.t,mergeRecordFields(byTime.get(record.t),record));
     }
     live=[...byTime.values()].sort((a,b)=>a.t-b.t);
-    if(live.length>maxLive) live=live.slice(-maxLive);
+    if(maxLive===0) live=[];
+    else if(live.length>maxLive) live=live.slice(-maxLive);
   }
   const meta={...(currentMeta||{})};
   if(backup.meta&&backup.meta.lastSync&&(!meta.lastSync||backup.meta.lastSync>meta.lastSync)) meta.lastSync=backup.meta.lastSync;
