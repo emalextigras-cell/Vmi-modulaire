@@ -1,7 +1,7 @@
 /** Rendu SVG des graphiques et infobulles tactiles. */
 import { absoluteHumidity } from './psychrometry.js';
 import { pad, dayStart, shiftDay } from './date-utils.js';
-import { isPlausibleHumidity, isPlausibleTemperature } from './data-quality.js';
+import { isPlausibleHumidity, isPlausibleTemperature, isPlaceholderSensorRecord } from './data-quality.js';
 const COLORS=['#286348','#c16b32','#356da5','#8056a8'];
 const viewStates=new Map();
 export function resetChartViews(){viewStates.clear();}
@@ -79,7 +79,7 @@ function drawChart(id,title,series,selectedDate,$){
  svgEl.addEventListener('pointerleave',e=>{if(e.pointerType==='mouse'){tip.style.display='none';cursor.style.display='none'}});
 }
 function seriesFor(data,key,name,color,derive=null,invalid=null){
- const points=data.map(r=>({t:r.t,v:derive?derive(r):r[key],blocked:invalid?invalid(r):false}));
+ const points=data.map(r=>({t:r.t,v:isPlaceholderSensorRecord(r)?null:(derive?derive(r):r[key]),blocked:isPlaceholderSensorRecord(r)||(invalid?invalid(r):false)}));
  return {name,color,points:fillMissing(points)};
 }
 export function renderCharts(data,selectedDate,$){
