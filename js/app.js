@@ -12,7 +12,7 @@ import { parseCell, recFrom, getColumnMapping, findVmiHeaderRowIndex, parseCsvRo
 import { fixClock } from './modules/clock-correction.js';
 import { absoluteHumidity, psychro, validTemp } from './modules/psychrometry.js';
 import { summarizeDataQuality, isPlausibleHumidity, isPlausibleTemperature } from './modules/data-quality.js';
-import { upsertEnergyReading, summarizeEnergyReadings, summarizeMonthlyEnergyReadings, ENERGY_METER_LABELS } from './modules/energy-meter.js';
+import { upsertEnergyReading, summarizeEnergyReadings, summarizeMonthlyEnergyReadings, summarizeEnergyClimateContext, ENERGY_METER_LABELS } from './modules/energy-meter.js';
 
 
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
@@ -883,6 +883,7 @@ function renderEnergyReadiness(data){
 
 function renderEnergyMeterTracking(){
  const result=summarizeEnergyReadings(energyReadings);
+ const climateSummary=summarizeEnergyClimateContext(energyReadings,hist);
  const summary=$('energyMeterSummary'),history=$('energyMeterHistory');
  if(!result.readingCount){
   summary.className='advice';
@@ -934,8 +935,25 @@ function renderEnergyMeterTracking(){
   if(monthly&&monthly.crossMonthIntervalCount){
    html+='<p class="note"> '+monthly.crossMonthIntervalCount+' intervalle(s), soit '+fmt(monthly.crossMonthKwh)+' kWh, traversent une limite de mois : ils restent dans le total global mais ne sont attribués à aucun mois pour éviter une répartition artificielle.</p>';
   }
+  const climateMeter=climateSummary.meters.find(item=>item.meterType===meter.meterType);
+  html+='<h5>Mise en perspective avec l’historique hygrométrique et thermique</h5>';
+  if(!climateMeter||!climateMeter.intervals.length){
+   html+='<p class="note">Aucun intervalle électrique mesuré à rapprocher des conditions intérieures et extérieures.</p>';
+  }else{
+   html+='<p class="note">Moyennes pondérées dans le temps, calculées uniquement sur les portions d’historique réellement couvertes. Les intervalles insuffisamment couverts restent signalés et ne sont pas interprétés.</p>';
+   html+='<table><thead><tr><th>Période</th><th>Énergie / puissance moyenne</th><th>Conditions moyennes observées</th><th>Couverture</th></tr></thead><tbody>';
+   for(const interval of climateMeter.intervals){
+    const c=interval.context;
+    const value=(v,suffix='')=>v==null?'–':fmt(v)+suffix;
+    const conditions=c.ready
+      ? 'Extérieur : '+value(c.outdoorTemp,' °C')+' · air entrant : '+value(c.incomingTemp,' °C')+' · intérieur : '+value(c.indoorTemp,' °C')+'<br>Humidité relative : intérieur '+value(c.indoorRH,' %')+' · air entrant '+value(c.incomingRH,' %')+'<br>Humidité absolue : intérieur '+value(c.indoorAbsHumidity,' g/m³')+' · air entrant '+value(c.incomingAbsHumidity,' g/m³')+'<br>Écart intérieur − entrant : '+value(c.deltaAbsHumidity,' g/m³')
+      : 'Conditions non interprétées : couverture insuffisante';
+    html+='<tr><td>'+fmtShort(interval.from)+' → '+fmtShort(interval.to)+'</td><td>'+value(interval.deltaKwh,' kWh')+'<br>'+value(interval.averagePowerW,' W')+'</td><td>'+conditions+'</td><td>'+value(c.coveragePercent,' %')+'<br>'+value(c.coverageHours,' h')+'</td></tr>';
+   }
+   html+='</tbody></table>';
+  }
  }
- html+='<details><summary>Limites et méthode</summary><ul>'+result.limits.map(item=>'<li>'+item+'</li>').join('')+'</ul></details>';
+ html+='<details><summary>Limites et méthode</summary><ul>'+result.limits.map(item=>'<li>'+item+'</li>').join('')+'</ul><ul>'+climateSummary.limits.map(item=>'<li>'+item+'</li>').join('')+'</ul></details>';
  const rows=[...energyReadings].filter(item=>item&&Number.isFinite(item.t)).sort((a,b)=>b.t-a.t);
  html+='<h4>Index enregistrés</h4><table><thead><tr><th>Date</th><th>Compteur</th><th>Index</th><th>Note</th><th></th></tr></thead><tbody>';
  for(const reading of rows){
