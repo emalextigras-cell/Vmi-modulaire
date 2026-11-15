@@ -15,6 +15,7 @@ import { summarizeDataQuality, isPlausibleHumidity, isPlausibleTemperature } fro
 import { upsertEnergyReading, summarizeEnergyReadings, summarizeMonthlyEnergyReadings, summarizeEnergyClimateContext, ENERGY_METER_LABELS } from './modules/energy-meter.js';
 import { summarizeFanEnergyEstimate, summarizeFanEnergyByManualMode } from './modules/energy-estimate.js';
 import { chooseAuthorizedDevice } from './modules/bluetooth-autoconnect.js';
+import { buildLiveFreshnessText } from './modules/live-freshness.js';
 
 
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
@@ -192,8 +193,7 @@ function handleNotification(ev){
  updateLiveMetrics();
 }
 function updateLiveMetrics(){
- const freshest=Math.max(lastSeen.salon||0,lastSeen.probes||0);
- $('sampleAge').textContent=lastSeen.salon&&lastSeen.probes?'Dernières mesures reçues : '+Math.max(0,Math.round((Date.now()-freshest)/1000))+' s':'Mesures partielles : en attente des deux trames capteurs.';
+ $('sampleAge').textContent=buildLiveFreshnessText(lastSeen);
  const r={st:cur.sal_t,sh:cur.sal_h,te:cur.s2_t,he:cur.s2_h};
  const p=psychro(r);
  $('haSalon').textContent=fmt(p.haIn);$('haExt').textContent=fmt(p.haOut);$('dew').textContent=fmt(p.dewIn);$('dewExt').textContent=fmt(p.dewOut);
@@ -1103,7 +1103,7 @@ function render(){
 }
 $('targetRH').onchange=render;$('minSamples').onchange=render;
 
-setInterval(()=>{if(cur.sal_t!==undefined)updateLiveMetrics()},5000);
+setInterval(()=>{if(cur.sal_t!==undefined)updateLiveMetrics();else $('sampleAge').textContent=buildLiveFreshnessText(lastSeen)},5000);
 $('copyLog').onclick=()=>navigator.clipboard.writeText(logLines.join('\n')).then(()=>showError('Journal copié.'),showError);
 $('clearLog').onclick=()=>{logLines=[];$('log').textContent=''};
 $('themeBtn').onclick=()=>{
