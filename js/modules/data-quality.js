@@ -6,6 +6,17 @@ export const isPlausibleHumidity = value =>
 export const isPlausibleTemperature = value =>
   !Number.isFinite(value) || (value >= -30 && value <= 60);
 
+/**
+ * Détecte une trame de remplacement probable : les trois sondes renvoient
+ * simultanément exactement 20 °C et 50 %. Les valeurs brutes restent conservées.
+ */
+export function isPlaceholderSensorRecord(record) {
+  if (!record) return false;
+  return record.st === 20 && record.sh === 50 &&
+    record.t1 === 20 && record.h1 === 50 &&
+    record.te === 20 && record.he === 50;
+}
+
 
 const TRANSIENT_SPIKE_FIELDS = [
   { key: 'st', label: 'Température salon', type: 'temperature', spike: 12, stable: 3 },
@@ -105,7 +116,9 @@ export function summarizeDataQuality(records) {
     .filter(field => field.invalidCount > 0)
     .map(field => ({ ...field, count: field.invalidCount }));
   const affected = new Set();
+  let placeholderRecords = 0;
   rows.forEach((row, index) => {
+    if (isPlaceholderSensorRecord(row)) { affected.add(index); placeholderRecords++; }
     for (const field of FIELDS) {
       const value = row?.[field.key];
       if (!Number.isFinite(value)) continue;
@@ -120,12 +133,13 @@ export function summarizeDataQuality(records) {
   // La complétude mesure la présence des quatre valeurs numériques.
   // La plausibilité est suivie séparément dans invalidCount / affectedRecords.
   const completeHygrometricRecords = rows.filter(row =>
-    coreKeys.every(key => Number.isFinite(row?.[key]))
+    !isPlaceholderSensorRecord(row) && coreKeys.every(key => Number.isFinite(row?.[key]))
   ).length;
   return {
     total: rows.length,
     affectedRecords: affected.size,
     invalidRecords: affected.size,
+    placeholderRecords,
     fields,
     fieldCoverage,
     coreSensorKeys: coreKeys,
