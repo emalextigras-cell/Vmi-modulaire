@@ -9,7 +9,7 @@ import { MIN_VALID } from './date-utils.js';
 export function isRawDateEligible(record, minValid = MIN_VALID) {
   if (!record || !Number.isFinite(record.t)) return false;
   if (typeof record.rk === 'string' && record.rk.trim()) {
-    const match = record.rk.trim().match(/^\\d{1,2}\\/\\d{1,2}\\/(\\d{4})\\s/);
+    const match = record.rk.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s/);
     if (match) return Number(match[1]) >= 2025;
   }
   // Un relevé déjà corrigé sans sa date d'origine n'est pas vérifiable.
@@ -21,7 +21,7 @@ export function filterRawDateHistory(records, minValid = MIN_VALID) {
   return (Array.isArray(records) ? records : []).filter(record => isRawDateEligible(record, minValid));
 }
 export function pruneHistory(records, maxRecords) {
-  const valid = filterRawDateHistory(records).filter(record =>
+  const valid = (Array.isArray(records) ? records : []).filter(record =>
     record && (record.st != null || record.sh != null || record.tExt != null || record.te != null ||
       record.he != null || record.rpm != null || record.t1 != null || record.h1 != null ||
       record.debit != null || record.vmiSpeedRaw != null || record.vmiAbsP0 != null || record.vmiAbsP1 != null ||
