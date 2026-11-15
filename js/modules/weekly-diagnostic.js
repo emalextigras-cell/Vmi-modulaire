@@ -3,7 +3,7 @@ import { isPlausibleHumidity, isPlausibleTemperature } from './data-quality.js';
 import { summarizeDailyEnergyClimateContext } from './energy-climate.js';
 
 const assertPositiveInteger = (name,value) => {
-  if(!Number.isInteger(value)||value<1) {
+  if(!Number.isSafeInteger(value)||value<1) {
     throw new RangeError(name+' doit être un entier supérieur ou égal à 1.');
   }
 };
@@ -96,9 +96,15 @@ export function summarizeWeeklyDiagnostic(history,{
   const recentEnd=shiftDate(latest,1);
   const recentStart=shiftDate(recentEnd,-windowDays);
   const previousStart=shiftDate(recentStart,-windowDays);
+  const previousEnd=shiftDate(recentStart,-1);
+  const recentLastDay=shiftDate(recentEnd,-1);
+  if(![recentEnd,recentStart,previousStart,previousEnd,recentLastDay]
+    .every(date=>Number.isFinite(date.getTime()))) {
+    throw new RangeError('windowDays dépasse la plage de dates exploitable.');
+  }
   const periods=[
-    {id:'previous',start:dateKey(previousStart),end:dateKey(shiftDate(recentStart,-1))},
-    {id:'recent',start:dateKey(recentStart),end:dateKey(shiftDate(recentEnd,-1))}
+    {id:'previous',start:dateKey(previousStart),end:dateKey(previousEnd)},
+    {id:'recent',start:dateKey(recentStart),end:dateKey(recentLastDay)}
   ];
 
   const dailyMap=new Map();

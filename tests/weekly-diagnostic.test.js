@@ -113,6 +113,7 @@ test('refuse les paramètres de fenêtre et de couverture invalides',()=>{
   const invalidOptions=[
     {windowDays:0},
     {windowDays:1.5},
+    {windowDays:Number.MAX_VALUE},
     {minSamplesPerDay:0},
     {minDaysPerWindow:0},
     {minEnergyDays:0},
@@ -207,5 +208,17 @@ test('ne considère pas les métadonnées non utilisées comme un conflit de mes
   assert.equal(result.conflictingTimestampCount,0);
   assert.equal(result.periods[0].sampleCount,21);
   assert.equal(result.periods[0].dayCount,7);
+});
+
+test('refuse une fenêtre dont les bornes dépassent la plage de dates JavaScript',()=>{
+  const history=makeDay(0,50,40,{count:3});
+  assert.throws(
+    ()=>summarizeWeeklyDiagnostic(history,{windowDays:Number.MAX_SAFE_INTEGER}),
+    RangeError
+  );
+  assert.throws(
+    ()=>summarizeWeeklyDiagnostic(history,{windowDays:100_000_000}),
+    RangeError
+  );
 });
 
