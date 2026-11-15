@@ -144,3 +144,42 @@ test('un historique non horodaté ne produit aucun pic temporel', () => {
   const result = detectTransientSensorSpikes([{ st: 20 }, { st: 40 }, { st: 20 }]);
   assert.equal(result.count, 0);
 });
+
+
+test('la fenêtre temporelle des pics accepte une valeur personnalisée finie', () => {
+  const start = 1_800_000_000_000;
+  const rows = [
+    { t: start, st: 20 },
+    { t: start + 5 * 60_000, st: 36 },
+    { t: start + 10 * 60_000, st: 21 }
+  ];
+  assert.equal(detectTransientSensorSpikes(rows, { maxGapMinutes: 5 }).count, 1);
+  assert.equal(detectTransientSensorSpikes(rows, { maxGapMinutes: 4.9 }).count, 0);
+});
+
+test('la fenêtre temporelle des pics refuse les paramètres négatifs ou non finis', () => {
+  const rows = [];
+  for (const maxGapMinutes of [-1, NaN, Infinity, -Infinity, Number.MAX_VALUE]) {
+    assert.throws(
+      () => detectTransientSensorSpikes(rows, { maxGapMinutes }),
+      RangeError
+    );
+  }
+});
+
+test('une fenêtre temporelle nulle est acceptée sans détecter de pic', () => {
+  const start = 1_800_000_000_000;
+  const rows = [
+    { t: start, st: 20 },
+    { t: start + 1, st: 36 },
+    { t: start + 2, st: 21 }
+  ];
+  const result = detectTransientSensorSpikes(rows, { maxGapMinutes: 0 });
+  assert.equal(result.count, 0);
+  assert.equal(result.maxGapMinutes, 0);
+});
+
+test('une option nulle conserve la fenêtre temporelle par défaut', () => {
+  const result = detectTransientSensorSpikes([], null);
+  assert.equal(result.maxGapMinutes, 30);
+});
