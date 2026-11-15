@@ -1017,9 +1017,12 @@ function renderWeeklyDiagnostic(data){
  const box=$('weeklyDiagnostic');
  if(!box)return;
  const result=summarizeWeeklyDiagnostic(data);
+ const duplicateSummary=(result.duplicateTimestampCount||result.conflictingTimestampCount)
+  ? '<p class="note">Contrôle des horodatages : '+(result.duplicateTimestampCount||0)+' horodatage(s) répété(s), dont '+(result.conflictingTimestampCount||0)+' avec des valeurs contradictoires. Les doublons identiques ne sont comptés qu’une fois ; les horodatages contradictoires sont exclus des calculs.</p>'
+  : '';
  if(result.status==='no-data'){
   box.className='advice';
-  box.textContent='Aucun historique horodaté disponible pour établir un bilan hebdomadaire.';
+  box.innerHTML='<p>Aucun historique horodaté exploitable pour établir un bilan hebdomadaire.</p>'+duplicateSummary;
   return;
  }
  const formatValue=(number,unit)=>number==null?'–':fmt(number)+' '+unit;
@@ -1032,10 +1035,10 @@ function renderWeeklyDiagnostic(data){
   box.className='advice';
   box.innerHTML='<p>Comparaison hebdomadaire non disponible : il faut au moins '+result.minDaysPerWindow+' journées exploitables dans chacune des deux fenêtres de '+result.windowDays+' jours.</p>'+
    '<ul>'+result.periods.map(period=>'<li><b>'+(period.id==='previous'?'Semaine précédente':'Semaine récente')+'</b> · '+periodLabel(period)+' : '+period.dayCount+' / '+result.minDaysPerWindow+' jours exploitables, '+period.sampleCount+' relevés complets.</li>').join('')+'</ul>'+
-   '<p class="note">Les périodes ne sont pas rapprochées lorsqu’une couverture minimale manque. Les trous de plusieurs jours ne sont pas comblés.</p>';
+   '<p class="note">Les périodes ne sont pas rapprochées lorsqu’une couverture minimale manque. Les trous de plusieurs jours ne sont pas comblés.</p>'+duplicateSummary;
   return;
  }
- let html='<p class="note">Comparaison des deux fenêtres calendaires de '+result.windowDays+' jours, ancrées sur la date du dernier relevé. Chaque journée a le même poids dans les médianes.</p>';
+ let html='<p class="note">Comparaison des deux fenêtres calendaires de '+result.windowDays+' jours, ancrées sur la date du dernier relevé. Chaque journée a le même poids dans les médianes.</p>'+duplicateSummary;
  html+='<div class="table-wrap"><table><thead><tr><th>Période</th><th>Jours / relevés</th><th>HA intérieure</th><th>HA air entrant</th><th>Écart intérieur − entrant</th><th>HR intérieure</th><th>Température</th><th>Ventilateur estimé</th></tr></thead><tbody>';
  for(const period of result.periods){
   const energy=period.estimatedFanKwh==null?'–':fmt(period.estimatedFanKwh)+' kWh ('+period.energyCoveredDays+' j)';
