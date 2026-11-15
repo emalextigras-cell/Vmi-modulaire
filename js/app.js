@@ -17,6 +17,7 @@ import { summarizeFanEnergyEstimate, summarizeFanEnergyByManualMode } from './mo
 import { summarizeDailyEnergyClimateContext } from './modules/energy-climate.js';
 import { summarizeWeeklyDiagnostic } from './modules/weekly-diagnostic.js';
 import { chooseAuthorizedDevice } from './modules/bluetooth-autoconnect.js';
+import { createConnectionGate, shouldReconnectAfterDisconnect } from './modules/ble-connection.js';
 import { buildLiveFreshnessText } from './modules/live-freshness.js';
 import { formatDiagnosisConfidence } from './modules/diagnostic-confidence.js';
 
@@ -48,7 +49,8 @@ window.addEventListener('unhandledrejection',e=>recordError('Promesse rejetée :
 
 
 let dev=null,chC=null,chT=null,pollTimer=null,snapTimer=null,reconnectTimer=null;
-let manualDisconnect=false,commandQueue=Promise.resolve(),manualCommandPending=false,polling=false,autoDone=false;
+let manualDisconnect=false,intentionalDisconnect=false,commandQueue=Promise.resolve(),manualCommandPending=false,polling=false,autoDone=false;
+const runConnection=createConnectionGate();
 let meta={},cur={},lastSeen={},live=[],hist=[],energyReadings=[],source='hist',selectedDate=null,daysSetting=30;
 let logLines=[],dlFrames=0;
 let download={on:false,rows:[],buf:'',total:0,sigs:new Set(),got:false,lastPacket:0,timeout:null};
@@ -267,9 +269,19 @@ function startPolling(){
  snapTimer=setInterval(takeSnapshot,300000);
 }
 function cleanupConnection(){clearInterval(pollTimer);clearInterval(snapTimer);chC=null;chT=null}
+function scheduleReconnect(delay=4000){
+ if(manualDisconnect||!dev)return;
+ clearTimeout(reconnectTimer);
+ reconnectTimer=setTimeout(reconnect,delay);
+}
 function onDisconnect(){
+ const expected=intentionalDisconnect;
+ intentionalDisconnect=false;
  cleanupConnection();setStatus('Déconnecté.');
- if(!manualDisconnect&&dev){setStatus('Connexion perdue, tentative de reconnexion…');clearTimeout(reconnectTimer);reconnectTimer=setTimeout(reconnect,4000)}
+ if(shouldReconnectAfterDisconnect({manualDisconnect,intentionalDisconnect:expected,hasDevice:!!dev})){
+  setStatus('Connexion perdue, tentative de reconnexion…');
+  scheduleReconnect(4000);
+ }
 }
 async function connectCharacteristics(server){
  const serviceC=await server.getPrimaryService(SVC_C);
@@ -285,18 +297,25 @@ function preferredBluetoothDeviceId(){
 function rememberBluetoothDevice(device){
  try{if(device&&device.id)localStorage.setItem('vmi_bluetooth_device_id',device.id)}catch(e){}
 }
-async function connectDevice(device){
- if(!device||!device.gatt)throw new Error('Appareil Bluetooth invalide.');
- dev=device;manualDisconnect=false;
- dev.removeEventListener('gattserverdisconnected',onDisconnect);
- dev.addEventListener('gattserverdisconnected',onDisconnect);
- setStatus('Connexion à '+(dev.name||'la VMI')+'…');
- const server=await dev.gatt.connect();
- await connectCharacteristics(server);
- setStatus('Connecté à '+(dev.name||'la VMI')+'. Synchronisation des données…',true);
- startPolling();
- autoDone=false;
- setTimeout(autoHistory,3000);
+function connectDevice(device){
+ return runConnection(async()=>{
+  if(!device||!device.gatt)throw new Error('Appareil Bluetooth invalide.');
+  dev=device;manualDisconnect=false;intentionalDisconnect=false;
+  dev.removeEventListener('gattserverdisconnected',onDisconnect);
+  dev.addEventListener('gattserverdisconnected',onDisconnect);
+  setStatus('Connexion à '+(dev.name||'la VMI')+'…');
+  try{
+   const server=await dev.gatt.connect();
+   await connectCharacteristics(server);
+   setStatus('Connecté à '+(dev.name||'la VMI')+'. Synchronisation des données…',true);
+   startPolling();
+   setTimeout(autoHistory,3000);
+  }catch(e){
+   cleanupConnection();
+   if(dev&&dev.gatt&&dev.gatt.connected){intentionalDisconnect=true;dev.gatt.disconnect()}
+   throw e;
+  }
+ });
 }
 async function connectBLE(){
  manualDisconnect=false;clearTimeout(reconnectTimer);showError('');
@@ -305,10 +324,11 @@ async function connectBLE(){
   /* requestDevice reste directement dans le geste utilisateur requis par le navigateur. */
   const device=await navigator.bluetooth.requestDevice({acceptAllDevices:true,optionalServices:[SVC_C,SVC_T]});
   rememberBluetoothDevice(device);
-  await connectDevice(device);
+  try{await connectDevice(device)}catch(e){scheduleReconnect(7000);throw e}
  }catch(e){showError(e);setStatus('Connexion impossible.')}
 }
 async function autoConnectAuthorizedDevice(){
+ let selectedDevice=null;
  if(!navigator.bluetooth||typeof navigator.bluetooth.getDevices!=='function'){
   setStatus('Autorisation Bluetooth requise : appuie sur « Se connecter ».');
   return;
@@ -316,6 +336,7 @@ async function autoConnectAuthorizedDevice(){
  try{
   const devices=await navigator.bluetooth.getDevices();
   const device=chooseAuthorizedDevice(devices,preferredBluetoothDeviceId());
+  selectedDevice=device;
   if(!device){
    setStatus(devices.length>1?'Plusieurs appareils sont autorisés. Appuie sur « Se connecter » pour choisir la VMI.':'VMI non encore autorisée. Appuie sur « Se connecter » une première fois.');
    return;
@@ -325,15 +346,16 @@ async function autoConnectAuthorizedDevice(){
  }catch(e){
   log('Reconnexion automatique indisponible : '+(e.message||e));
   setStatus('Reconnexion automatique impossible. Appuie sur « Se connecter ».');
+  if(selectedDevice)scheduleReconnect(7000);
  }
 }
 async function reconnect(){
  if(manualDisconnect||!dev)return;
  try{await connectDevice(dev)}
- catch(e){log('Reconnexion échouée : '+e.message);clearTimeout(reconnectTimer);reconnectTimer=setTimeout(reconnect,7000)}
+ catch(e){log('Reconnexion échouée : '+e.message);scheduleReconnect(7000)}
 }
 $('conn').onclick=connectBLE;
-$('disc').onclick=()=>{manualDisconnect=true;clearTimeout(reconnectTimer);cleanupConnection();if(dev&&dev.gatt&&dev.gatt.connected)dev.gatt.disconnect();setStatus('Déconnexion demandée.')};
+$('disc').onclick=()=>{manualDisconnect=true;clearTimeout(reconnectTimer);cleanupConnection();if(dev&&dev.gatt&&dev.gatt.connected){intentionalDisconnect=true;dev.gatt.disconnect()}else intentionalDisconnect=false;setStatus('Déconnexion demandée.')};
 
 /* Boutons de commande : une commande à la fois, avec vérification de l'état renvoyé par la VMI */
 const EXPECT={24:v=>['vit',v+1,'Vitesse '+(v+1)],25:v=>['boost',v,'Boost '+(v?'activé':'arrêté')],26:v=>['hol',v,'Mode vacances '+(v?'activé':'arrêté')]};
