@@ -62,17 +62,23 @@ function log(s){logLines.push(`${new Date().toLocaleTimeString('fr-FR')} ${s}`);
 $('logDetails').addEventListener('toggle',()=>{if($('logDetails').open)renderLog()});
 function setStatus(s,isConnected=false){$('st').textContent=s;$('bleState').textContent=isConnected?'Connecté':'Déconnecté';$('conn').disabled=isConnected;$('disc').disabled=!isConnected;const overview=$('dashboardConnectionStatus');if(overview)overview.textContent=s}
 
-/* La lecture IndexedDB ancienne reste ici ; la conversion des lignes est isolée. */
+/* La lecture IndexedDB ancienne reste ici ; la conversion des lignes est isolée.
+   Un état "unavailable" interdit de marquer la migration terminée : l'ancienne base
+   n'a alors pas été vérifiée et pourrait encore contenir l'historique à récupérer. */
 async function readOldDatabase(){
+ if(typeof indexedDB==='undefined'||typeof indexedDB.databases!=='function')return {status:'unavailable'};
+ let list;
+ try{list=await indexedDB.databases()}catch(e){return {status:'unavailable',error:e}}
+ if(!Array.isArray(list))return {status:'unavailable'};
+ if(!list.some(d=>d&&d.name==='VMI_DB'))return {status:'absent'};
+ let old=null;
  try{
-  if(!indexedDB.databases)return null;
-  const list=await indexedDB.databases();
-  if(!list.some(d=>d.name==='VMI_DB'))return null;
-  const old=await new Promise((res,rej)=>{const r=indexedDB.open('VMI_DB');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
-  if(!old.objectStoreNames.contains('vmi_store')){old.close();return null}
+  old=await new Promise((res,rej)=>{const r=indexedDB.open('VMI_DB');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+  if(!old.objectStoreNames.contains('vmi_store'))return {status:'read',hist:[],live:[]};
   const get=k=>new Promise((res,rej)=>{const r=old.transaction('vmi_store','readonly').objectStore('vmi_store').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
-  const out={hist:await get('vmi_hist'),live:await get('vmi_live')};old.close();return out;
- }catch(e){return null}
+  return {status:'read',hist:await get('vmi_hist'),live:await get('vmi_live')};
+ }catch(e){return {status:'unavailable',error:e}}
+ finally{if(old)old.close()}
 }
 async function init(){
  let l=await dbGet('live'),h=await dbGet('hist');
@@ -81,25 +87,40 @@ async function init(){
  const storedEnergyReadings=await dbGet('energyReadings');
  energyReadings=Array.isArray(storedEnergyReadings)?storedEnergyReadings:[];
  const migrated=await dbGet('migrated');
- const migrationPending=!migrated&&!hist.length&&!live.length;
+ // Le marqueur est l'unique preuve d'une migration achevée. Des données déjà présentes
+ // ne doivent pas empêcher une nouvelle tentative après une migration interrompue.
+ const migrationPending=migrated!==true;
+ let migrationCompleted=false;
  if(migrationPending){
   const old=await readOldDatabase();
-  if(old){
-   if(Array.isArray(old.hist))hist=old.hist.map(fromOldRow);
-   if(Array.isArray(old.live))live=old.live;
+  if(old.status==='unavailable'){
+   $('importInfo').textContent='Migration de l’ancien historique en attente : le navigateur ne permet pas de vérifier l’ancienne base. Les données actuelles sont conservées ; réessaie avec Chrome à jour ou importe une sauvegarde.';
+  }else{
+   let oldHist=[],oldLive=[];
+   if(old.status==='read'){
+    if(Array.isArray(old.hist))oldHist=old.hist.map(fromOldRow).filter(Boolean);
+    if(Array.isArray(old.live))oldLive=old.live;
+   }
+   if(!oldHist.length){try{const x=JSON.parse(localStorage.getItem('vmi_hist')||'[]');if(Array.isArray(x))oldHist=x.map(fromOldRow).filter(Boolean)}catch(e){}}
+   if(!oldLive.length){try{const x=JSON.parse(localStorage.getItem('vmi_live')||'[]');if(Array.isArray(x))oldLive=x}catch(e){}}
+   // Fusion par horodatage : une nouvelle tentative ne remplace jamais un historique
+   // plus récent déjà enregistré dans la base de préversion.
+   hist=mergeImportedHistory(hist,oldHist);
+   live=mergeImportedHistory(live,oldLive);
+   migrationCompleted=true;
   }
-  if(!hist.length){try{const x=JSON.parse(localStorage.getItem('vmi_hist')||'[]');if(Array.isArray(x))hist=x.map(fromOldRow)}catch(e){}}
-  if(!live.length){try{const x=JSON.parse(localStorage.getItem('vmi_live')||'[]');if(Array.isArray(x))live=x}catch(e){}}
  }
  /* Les relevés datés d'avant 2025 ont une date fausse (horloge de la VMI) et ne peuvent pas être corrigés
     sans leur compteur de jours : on les retire, un nouvel import ou téléchargement les rétablit avec la bonne date. */
  const bad=hist.filter(r=>!(r&&r.t>=MIN_VALID)).length;
  if(bad){hist=hist.filter(r=>r&&r.t>=MIN_VALID);$('importInfo').textContent=`${bad} anciens relevés à date invalide ont été retirés. Réimporte ton export VMI+ ou récupère l’historique : ils reviendront avec la bonne date.`}
  hist.sort((a,b)=>a.t-b.t);
- if(migrationPending){
-  // Les données migrées et le marqueur sont validés ensemble : un échec permet une nouvelle tentative au prochain démarrage.
+ if(migrationPending&&migrationCompleted){
+  // Les données fusionnées et le marqueur sont validés ensemble : un échec permet une nouvelle tentative.
   await dbSetMany([['hist',hist],['live',live],['migrated',true]]);
  }else{
+  // Si l'ancienne base n'a pas pu être vérifiée, conserver les données courantes sans
+  // marquer la migration comme terminée : elle pourra être retentée au prochain démarrage.
   await dbSet('hist',hist);if(live.length)await dbSet('live',live);
  }
  $('liveCount').textContent=live.length;render();
