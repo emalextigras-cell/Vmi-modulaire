@@ -727,6 +727,7 @@ function renderIntelligentDiagnosis(data){
      firstMedianAbsoluteHumidity:'Humidité absolue médiane au départ',
      lastMedianAbsoluteHumidity:'Humidité absolue médiane à la fin',
      change:'Évolution mesurée',timeWindow:'Tranche horaire retenue',
+     aggregationMethod:'Méthode d’agrégation',
      medianDelta:'Écart médian observé',sampleCount:'Nombre de relevés',
      dayCount:'Nombre de jours'
     };
