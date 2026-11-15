@@ -12,6 +12,14 @@ test('saturationVaporPressure augmente avec la température', () => {
   assert.ok(saturationVaporPressure(20) > saturationVaporPressure(10));
 });
 
+test('saturationVaporPressure refuse les températures non finies ou hors domaine', () => {
+  for (const temp of [NaN, Infinity, -Infinity, -243.12, -80, 80, 100]) {
+    assert.equal(saturationVaporPressure(temp), null);
+  }
+  assert.ok(Number.isFinite(saturationVaporPressure(-79.9)));
+  assert.ok(Number.isFinite(saturationVaporPressure(79.9)));
+});
+
 test('absoluteHumidity donne une valeur cohérente à 20 °C et 50 %', () => {
   const value = absoluteHumidity(20, 50);
   assert.ok(Math.abs(value - 8.62) < 0.03);
