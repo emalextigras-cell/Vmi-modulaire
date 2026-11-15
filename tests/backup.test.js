@@ -49,3 +49,40 @@ test('la sauvegarde conserve les champs historiques et les nouveaux champs bruts
   assert.deepEqual(snapshot.hist[0],row);
   assert.deepEqual(Object.keys(snapshot),['app','version','exportedAt','hist','live','meta']);
 });
+
+test('la sauvegarde complète conserve les index de compteurs externes', () => {
+  const energyReadings = [
+    { id:'total:100', meterType:'total', t:100, kwh:12.5, note:'compteur global' }
+  ];
+  const snapshot = createBackupSnapshot({
+    hist:[], live:[], meta:{}, energyReadings,
+    exportedAt:'2026-11-15T05:00:00.000Z'
+  });
+  assert.deepEqual(snapshot.energyReadings, energyReadings);
+});
+
+test('la restauration fusionne les index de compteurs sans doublons et garde les anciennes sauvegardes compatibles', () => {
+  const current = [{ id:'total:100', meterType:'total', t:100, kwh:12 }];
+  const backup = {
+    app:'vmi-purevent', hist:[],
+    energyReadings:[
+      { id:'total:100', meterType:'total', t:100, kwh:99 },
+      { id:'total:200', meterType:'total', t:200, kwh:13 }
+    ]
+  };
+  const result = mergeBackupData({
+    backup, currentEnergyReadings:current, minValid:MIN_VALID
+  });
+  assert.deepEqual(result.energyReadings, [
+    current[0],
+    { id:'total:200', meterType:'total', t:200, kwh:13 }
+  ]);
+  assert.equal(result.addedEnergyReadings, 1);
+
+  const legacy = mergeBackupData({
+    backup:{app:'vmi-purevent',hist:[]},
+    currentEnergyReadings:current, minValid:MIN_VALID
+  });
+  assert.deepEqual(legacy.energyReadings, current);
+  assert.equal(legacy.addedEnergyReadings, 0);
+});
