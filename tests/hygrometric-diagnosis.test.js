@@ -58,6 +58,7 @@ test('diagnostic exposes its thresholds and the measured basis of each finding',
   hourlyMinimumSamples:5,
   hourlyMinimumDistinctDays:2,
   hourlyMinimumSharedDays:2,
+  hourlyMinimumDailySamples:3,
   minimumDailySamplesForConfidence:3,
   moderateCoveragePercent:20,
   highCoveragePercent:50,
@@ -323,4 +324,25 @@ test('une couverture temporelle partielle limite le niveau même avec beaucoup d
  assert.equal(result.status,'analysis-available');
  assert.equal(result.coverageLevel,'modérée');
  assert.ok(result.confidenceBasis.observedCoveragePercent<50);
+});
+
+
+test('hourly comparison excludes shared days with fewer than three samples in either window',()=>{
+ const rows=makeUnevenHourlyRows([
+  {day:0,hour:7,count:6,incomingRH:20},
+  {day:1,hour:7,count:2,incomingRH:80},
+  {day:0,hour:13,count:6,incomingRH:80},
+  {day:1,hour:13,count:2,incomingRH:20}
+ ]);
+ // Ces relevés assurent un historique exploitable sans rendre les deux
+ // créneaux comparés suffisamment échantillonnés sur la deuxième date.
+ for(let day=0;day<2;day++){
+  for(const hour of [18,19,20]){
+   rows.push({t:new Date(2026,10,10+day,hour,0,0).getTime(),st:20,sh:65,te:10,he:40});
+  }
+ }
+ const result=buildHygrometricDiagnosis(rows);
+ assert.equal(result.status,'analysis-available');
+ assert.equal(result.bestWindow,null);
+ assert.ok(!result.observations.some(x=>x.code==='favorable-time-window'));
 });
