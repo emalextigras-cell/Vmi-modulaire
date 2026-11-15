@@ -27,8 +27,10 @@ const modeOf = values => {
  * Les règles de regroupement et le seuil horaire sont volontairement conservés.
  */
 export function fixClock(records, history = [], minValid = MIN_VALID) {
+  records = filterRawDateHistory(records, minValid);
+  history = filterRawDateHistory(history, minValid);
   const known = history.concat(records).filter(record =>
-    record.t >= minValid &&
+    isRawDateEligible(record, minValid) && record.t >= minValid &&
     Number.isFinite(record.d) &&
     new Date(record.t).getHours() >= 10
   );
