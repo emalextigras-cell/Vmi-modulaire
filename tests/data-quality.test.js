@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {
   isPlausibleHumidity,
   isPlausibleTemperature,
-  summarizeDataQuality
+  summarizeDataQuality,
+  detectTransientSensorSpikes
 } from '../js/modules/data-quality.js';
 
 test('les humidités hors de 0 à 100 % sont signalées', () => {
@@ -98,4 +99,48 @@ test('un historique vide ne produit ni couverture ni anomalie', () => {
   assert.equal(result.completeHygrometricRecords, 0);
   assert.equal(result.hygrometricCoveragePercent, 0);
   assert.equal(result.hasAnomalies, false);
+});
+
+
+test('un pic isolé de température suivi d’un retour au niveau initial est signalé à vérifier', () => {
+  const start = 1_800_000_000_000;
+  const result = detectTransientSensorSpikes([
+    { t: start, st: 20 },
+    { t: start + 5 * 60_000, st: 36 },
+    { t: start + 10 * 60_000, st: 21 }
+  ]);
+  assert.equal(result.count, 1);
+  assert.equal(result.candidates[0].key, 'st');
+  assert.equal(result.candidates[0].value, 36);
+  assert.equal(result.candidates[0].unit, '°C');
+});
+
+test('un pic isolé d’humidité est signalé sans être qualifié de panne', () => {
+  const start = 1_800_000_000_000;
+  const result = detectTransientSensorSpikes([
+    { t: start, sh: 50 },
+    { t: start + 5 * 60_000, sh: 85 },
+    { t: start + 10 * 60_000, sh: 52 }
+  ]);
+  assert.equal(result.count, 1);
+  assert.equal(result.candidates[0].key, 'sh');
+  assert.equal(result.candidates[0].unit, '%');
+});
+
+test('les changements durables, les trous horaires et les mesures invalides ne sont pas signalés comme pics isolés', () => {
+  const start = 1_800_000_000_000;
+  const result = detectTransientSensorSpikes([
+    { t: start, st: 20, sh: 50 },
+    { t: start + 5 * 60_000, st: 36, sh: 85 },
+    { t: start + 10 * 60_000, st: 36, sh: 85 },
+    { t: start + 60 * 60_000, st: 20, sh: 50 },
+    { t: start + 65 * 60_000, st: 80, sh: 150 },
+    { t: start + 70 * 60_000, st: 20, sh: 50 }
+  ]);
+  assert.equal(result.count, 0);
+});
+
+test('un historique non horodaté ne produit aucun pic temporel', () => {
+  const result = detectTransientSensorSpikes([{ st: 20 }, { st: 40 }, { st: 20 }]);
+  assert.equal(result.count, 0);
 });
