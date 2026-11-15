@@ -1,5 +1,6 @@
 /** Correction des dates d'historique lorsque l'horloge interne de la VMI est erronée. */
 import { DAY, MIN_VALID } from './date-utils.js';
+import { filterRawDateHistory, isRawDateEligible } from './history.js';
 
 const dayNumber = timestamp => {
   const d = new Date(timestamp);
@@ -26,8 +27,10 @@ const modeOf = values => {
  * Les règles de regroupement et le seuil horaire sont volontairement conservés.
  */
 export function fixClock(records, history = [], minValid = MIN_VALID) {
+  records = filterRawDateHistory(records, minValid);
+  history = filterRawDateHistory(history, minValid);
   const known = history.concat(records).filter(record =>
-    record.t >= minValid &&
+    isRawDateEligible(record, minValid) && record.t >= minValid &&
     Number.isFinite(record.d) &&
     new Date(record.t).getHours() >= 10
   );
@@ -65,5 +68,5 @@ export function fixClock(records, history = [], minValid = MIN_VALID) {
     }
   }
 
-  return { fixed, kept: records.filter(record => record.t >= minValid) };
+  return { fixed, kept: records.filter(record => isRawDateEligible(record, minValid) && record.t >= minValid) };
 }

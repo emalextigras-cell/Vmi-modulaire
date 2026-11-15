@@ -1,5 +1,5 @@
 /** Fonctions pures de création et de restauration des sauvegardes. */
-import { mergeRecordFields } from './history.js';
+import { mergeRecordFields, isRawDateEligible } from './history.js';
 import { isValidEnergyReading } from './energy-meter.js';
 
 export function createBackupSnapshot({ hist, live, meta, energyReadings, exportedAt = new Date().toISOString() }) {
@@ -29,10 +29,10 @@ export function mergeBackupData({
   if (!Number.isSafeInteger(maxLive) || maxLive < 0) {
     throw new RangeError('maxLive doit être un entier sûr positif ou nul.');
   }
-  const history = new Map(currentHist.filter(r => r && Number.isFinite(r.t)).map(r => [r.t, r]));
+  const history = new Map(currentHist.filter(r => isRawDateEligible(r, minValid) && r.t >= minValid).map(r => [r.t, r]));
   let addedHistory = 0, enrichedHistory = 0;
   for (const record of backup.hist) {
-    if (!record || !Number.isFinite(record.t) || record.t < minValid) continue;
+    if (!isRawDateEligible(record, minValid) || record.t < minValid) continue;
     if (!history.has(record.t)) { history.set(record.t, record); addedHistory++; }
     else {
       const previous = history.get(record.t), merged = mergeRecordFields(previous, record);

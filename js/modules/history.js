@@ -1,4 +1,25 @@
 /** Fonctions pures de nettoyage et de conservation de l'historique local. */
+import { MIN_VALID } from './date-utils.js';
+
+/**
+ * La date brute rk fait foi : certains anciens relevés ont reçu une date t
+ * artificielle lors d'une correction d'horloge. Les années brutes antérieures
+ * à 2025 ne doivent jamais entrer dans l'historique exploité.
+ */
+export function isRawDateEligible(record, minValid = MIN_VALID) {
+  if (!record || !Number.isFinite(record.t)) return false;
+  if (typeof record.rk === 'string' && record.rk.trim()) {
+    const match = record.rk.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s/);
+    if (match) return Number(match[3]) >= 2025;
+  }
+  // Sans date brute, conserver le relevé : fixClock doit pouvoir recaler
+  // les anciens horodatages à partir du compteur de jours.
+  return true;
+}
+
+export function filterRawDateHistory(records, minValid = MIN_VALID) {
+  return (Array.isArray(records) ? records : []).filter(record => isRawDateEligible(record, minValid));
+}
 export function pruneHistory(records, maxRecords) {
   const valid = (Array.isArray(records) ? records : []).filter(record =>
     record && (record.st != null || record.sh != null || record.tExt != null || record.te != null ||
@@ -29,10 +50,10 @@ export function mergeRecordFields(existing, incoming) {
 /** Fusionne les imports par horodatage sans perdre les champs déjà renseignés. */
 export function mergeImportedHistory(currentRecords, importedRecords) {
   const byTimestamp = new Map((Array.isArray(currentRecords) ? currentRecords : [])
-    .filter(record => record && Number.isFinite(record.t))
+    .filter(record => isRawDateEligible(record))
     .map(record => [record.t, record]));
   (Array.isArray(importedRecords) ? importedRecords : [])
-    .filter(record => record && Number.isFinite(record.t))
+    .filter(record => isRawDateEligible(record))
     .forEach(record => byTimestamp.set(record.t, mergeRecordFields(byTimestamp.get(record.t), record)));
   return [...byTimestamp.values()].sort((a, b) => a.t - b.t);
 }
