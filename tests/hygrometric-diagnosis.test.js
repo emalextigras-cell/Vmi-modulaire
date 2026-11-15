@@ -34,7 +34,7 @@ function makeUnevenHourlyRows(groups) {
  for(const group of groups){
   for(let i=0;i<group.count;i++){
    rows.push({
-    t:new Date(2026,10,10+group.day,group.hour, i*(300/group.count),0).getTime(),
+    t:new Date(2026,10,10+group.day,group.hour, i*(60/group.count),0).getTime(),
     st:20,sh:65,te:10,he:group.incomingRH
    });
   }
