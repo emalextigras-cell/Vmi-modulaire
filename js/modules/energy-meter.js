@@ -129,6 +129,20 @@ export function summarizeMonthlyEnergyReadings(readings) {
 }
 
 
+const assertValidEnergyClimateOptions = (maxGapHours, minCoveredHours, minCoveragePercent) => {
+  const maxGapMs = maxGapHours * 3600000;
+  if (!Number.isFinite(maxGapHours) || maxGapHours <= 0 ||
+      !Number.isFinite(maxGapMs) || maxGapMs <= 0) {
+    throw new RangeError('maxGapHours doit être un nombre fini strictement positif exploitable en millisecondes.');
+  }
+  if (!Number.isFinite(minCoveredHours) || minCoveredHours < 0) {
+    throw new RangeError('minCoveredHours doit être un nombre fini positif ou nul.');
+  }
+  if (!Number.isFinite(minCoveragePercent) || minCoveragePercent < 0 || minCoveragePercent > 100) {
+    throw new RangeError('minCoveragePercent doit être un pourcentage fini compris entre 0 et 100.');
+  }
+};
+
 /**
  * Met en regard chaque intervalle électrique mesuré avec les observations
  * hygrométriques et thermiques qui le recouvrent réellement.
@@ -137,11 +151,13 @@ export function summarizeMonthlyEnergyReadings(readings) {
  * entre deux relevés espacés d'au plus maxGapHours. Aucun prolongement avant
  * le premier relevé, après le dernier, ni comblement des grands trous.
  */
-export function summarizeEnergyClimateContext(readings, history, {
-  maxGapHours = 2,
-  minCoveredHours = 3,
-  minCoveragePercent = 50
-} = {}) {
+export function summarizeEnergyClimateContext(readings, history, options = {}) {
+  const {
+    maxGapHours = 2,
+    minCoveredHours = 3,
+    minCoveragePercent = 50
+  } = options ?? {};
+  assertValidEnergyClimateOptions(maxGapHours, minCoveredHours, minCoveragePercent);
   const summary = summarizeEnergyReadings(readings);
   const rows = (Array.isArray(history) ? history : [])
     .filter(row => Number.isFinite(row?.t))
