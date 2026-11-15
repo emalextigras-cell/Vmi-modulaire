@@ -16,6 +16,7 @@ import { upsertEnergyReading, summarizeEnergyReadings, summarizeMonthlyEnergyRea
 import { summarizeFanEnergyEstimate, summarizeFanEnergyByManualMode } from './modules/energy-estimate.js';
 import { chooseAuthorizedDevice } from './modules/bluetooth-autoconnect.js';
 import { buildLiveFreshnessText } from './modules/live-freshness.js';
+import { formatDiagnosisConfidence } from './modules/diagnostic-confidence.js';
 
 
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
@@ -673,7 +674,7 @@ function renderIntelligentDiagnosis(data){
   coverageDescription.textContent='Pas assez de relevés datés pour calculer une couverture temporelle.';
   coverageMethod.textContent='Il faut au moins deux horodatages valides distincts. Les intervalles de plus de '+result.maxGapHours+' h sont exclus.';
  }
- const confidence='Robustesse des données : '+result.coverageLevel+' · '+result.sampleCount+' relevés valides · '+result.dayCount+' jour(s) · '+fmt(result.observedHours)+' h exploitables · couverture temporelle '+(result.confidenceBasis.observedCoveragePercent==null?'indisponible':fmt(result.confidenceBasis.observedCoveragePercent)+' %')+' · '+fmt(result.confidenceBasis.acceptedSampleShare*100)+' % des lignes retenues';
+ const confidence=formatDiagnosisConfidence(result,fmt);
  const quality=result.inputQuality;
  const inputSummary='Entrée : '+quality.inputSampleCount+' lignes · '+quality.acceptedSampleCount+' retenues après contrôle et dédoublonnage · '+quality.excludedSampleCount+' écartées ou regroupées ('+quality.missingTimestampCount+' sans horodatage, '+quality.incompleteSensorRecordCount+' incomplètes, '+quality.implausibleSensorRecordCount+' avec valeurs aberrantes, '+quality.duplicateTimestampCount+' doublons). Les catégories peuvent se chevaucher.';
  box.className=available?'advice good':'advice warn';
