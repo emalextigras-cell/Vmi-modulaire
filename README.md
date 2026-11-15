@@ -13,6 +13,7 @@ Copie de travail indépendante du dépôt source `emalextigras-cell/Vmi`. Le dé
 - `js/modules/diagnostic-confidence.js` : explication de la robustesse des données du diagnostic (couverture, relevés retenus et répartition quotidienne), distincte de l'état physique de la VMI.
 - Comparaison horaire du diagnostic : médiane des médianes journalières sur les mêmes dates, chaque journée ayant le même poids indépendamment du nombre de relevés.
 - Une date ne participe à cette comparaison que si chaque créneau comporte au moins 3 relevés ce jour-là.
+- Si aucune comparaison horaire n'est possible, le diagnostic indique la cause : nombre de créneaux exploitables, jours communs ou minimum de relevés par jour.
 - `buildHygrometricDiagnosis()` dans `analysis.js` : diagnostic hygrométrique explicable, avec un indicateur heuristique de couverture des données, des constats argumentés et des limites explicites.
 - `js/modules/legacy-migration.js` : conversion des anciennes lignes historiques, sans modifier le schéma IndexedDB.
 - `js/modules/date-utils.js` : dates, normalisation et constantes partagées.
