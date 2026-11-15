@@ -992,13 +992,17 @@ function renderDailyEnergyClimateContext(data){
  const box=$('dailyEnergyClimateContext');
  if(!box)return;
  const result=summarizeDailyEnergyClimateContext(data);
+ const duplicateNotice=(result.duplicateTimestampCount||result.conflictingTimestampCount)
+  ? 'Contrôle des horodatages : '+result.duplicateTimestampCount+' groupe(s) avec doublons détecté(s), dont '+result.conflictingTimestampCount+' groupe(s) contradictoire(s) écarté(s). Les doublons identiques sont comptés une seule fois.'
+  : 'Aucun doublon d’horodatage détecté dans les données analysées.';
  if(result.status!=='available'){
   box.className='advice';
-  box.textContent='Rapprochement encore insuffisant : '+result.matchedDayCount+' jour(s) disposent à la fois d’au moins '+result.minFanHours+' h de puissance ventilateur estimée et de '+result.minClimateSamples+' relevés hygrométriques valides. Il en faut '+result.minDays+' pour afficher une comparaison journalière.';
+  box.textContent='Rapprochement encore insuffisant : '+result.matchedDayCount+' jour(s) disposent à la fois d’au moins '+result.minFanHours+' h de puissance ventilateur estimée et de '+result.minClimateSamples+' relevés hygrométriques valides. Il en faut '+result.minDays+' pour afficher une comparaison journalière. '+duplicateNotice;
   return;
  }
  const rows=result.matchedDays.slice(-7);
  let html='<p class="note">'+result.matchedDayCount+' jour(s) apparié(s) · seuils : '+result.minFanHours+' h d’estimation ventilateur et '+result.minClimateSamples+' relevés hygrométriques par jour. Derniers jours disponibles :</p>';
+ html+='<p class="note">'+duplicateNotice+'</p>';
  html+='<div class="table-wrap"><table><thead><tr><th>Jour</th><th>Ventilateur estimé</th><th>Puissance moyenne estimée</th><th>HA intérieure médiane</th><th>HA air entrant médiane</th><th>Écart intérieur − entrant</th></tr></thead><tbody>';
  for(const item of rows){
   const dateParts=item.date.split('-').map(Number);
