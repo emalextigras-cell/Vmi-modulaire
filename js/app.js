@@ -744,6 +744,7 @@ function renderIntelligentDiagnosis(data){
      baselineMedianTemperature:'Température intérieure médiane — fenêtre initiale',recentMedianTemperature:'Température intérieure médiane — fenêtre récente',
      baselineIncomingMedianAbsoluteHumidity:'Humidité absolue médiane de l’air entrant — fenêtre initiale',
      recentIncomingMedianAbsoluteHumidity:'Humidité absolue médiane de l’air entrant — fenêtre récente',
+     incomingAbsoluteHumidityChange:'Évolution de l’humidité absolue entrante',indoorMinusIncomingChange:'Évolution de l’écart salon − air entrant',
      baselineIndoorMinusIncomingMedian:'Écart salon − air entrant — fenêtre initiale',
      recentIndoorMinusIncomingMedian:'Écart salon − air entrant — fenêtre récente',
      eligibleDays:'Jours suffisamment échantillonnés',requiredDays:'Jours minimum requis',
@@ -756,7 +757,7 @@ function renderIntelligentDiagnosis(data){
     };
     const percentKeys=new Set(['durationShare','requiredDurationShare','dryDurationShare','humidDurationShare','dominanceThreshold']);
     const hourKeys=new Set(['observedHours','requiredObservedHours']);
-    const humidityKeys=new Set(['medianIndoorMinusIncomingHA','firstMedianAbsoluteHumidity','lastMedianAbsoluteHumidity','baselineMedianAbsoluteHumidity','recentMedianAbsoluteHumidity','baselineIncomingMedianAbsoluteHumidity','recentIncomingMedianAbsoluteHumidity','baselineIndoorMinusIncomingMedian','recentIndoorMinusIncomingMedian','change','medianDelta','threshold']);
+    const humidityKeys=new Set(['medianIndoorMinusIncomingHA','firstMedianAbsoluteHumidity','lastMedianAbsoluteHumidity','baselineMedianAbsoluteHumidity','recentMedianAbsoluteHumidity','baselineIncomingMedianAbsoluteHumidity','recentIncomingMedianAbsoluteHumidity','incomingAbsoluteHumidityChange','baselineIndoorMinusIncomingMedian','recentIndoorMinusIncomingMedian','indoorMinusIncomingChange','change','medianDelta','threshold']);
     const relativeHumidityKeys=new Set(['baselineMedianRelativeHumidity','recentMedianRelativeHumidity']);
     const temperatureKeys=new Set(['baselineMedianTemperature','recentMedianTemperature']);
     Object.entries(item.basis).forEach(([key,value])=>{
