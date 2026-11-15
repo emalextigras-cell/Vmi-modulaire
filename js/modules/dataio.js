@@ -4,7 +4,7 @@ import { DAY, pad, num } from './date-utils.js';
 // Indices de secours du CSV VMI+ réel (en-tête sur la 4e ligne).
 const FALLBACK_COLUMN = Object.freeze({
   date: 0, event: 1, volume: 2, mode: 3, consRes: 4, consHydroR: 5,
-  consTmax: 7, durationDays: 11, systemState: 13, failure: 14,
+  consTmax: 7, durationDays: 11, season: 12, systemState: 13, failure: 14,
   kmoteur: 15, jmoteur: 16, kreseau: 17, jreseau: 18, motorPressure: 19,
   filter: 20, filterIndexPct: 21, speed: 22, airflow: 23,
   consDp: 24, rpm: 25, pwm: 26, offsetPressure: 27, operatingPct: 28,
@@ -55,6 +55,7 @@ const HEADER_ALIASES = {
   operatingPct2: ['% fonct 1'],
   dcint: ['dcint'],
   durationDays: ['duree fonc j', 'duree fonctionnement j'],
+  season: ['saison'],
   systemState: ['etat systeme'],
   failure: ['panne'],
   filter: ['etat filtre'],
@@ -135,6 +136,7 @@ export function recFrom(row, spreadsheet = globalThis.XLSX, mapping = null) {
     operatingPct2Raw: num(row[columns.operatingPct2]),
     dcintRaw: num(row[columns.dcint]),
     d: num(row[columns.durationDays]),
+    seasonRaw: num(row[columns.season]),
     systemStateRaw: num(row[columns.systemState]),
     failureRaw: num(row[columns.failure]),
     st: num(row[columns.salonTemp]),

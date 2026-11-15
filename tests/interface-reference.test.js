@@ -24,3 +24,10 @@ test('la référence Vision’R et les limites constructeur sont documentées', 
   assert.ok(doc.includes('99 W'));
   assert.ok(doc.includes("débit d'air exprimé en m³/h"));
 });
+
+
+test('le module de conseils saisonniers est inclus dans le cache hors ligne', async () => {
+  const sw = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
+  assert.ok(sw.includes("'./js/modules/seasonal-advice.js'"));
+  assert.ok(sw.includes('vmi-modulaire-v14-cache-15'));
+});
