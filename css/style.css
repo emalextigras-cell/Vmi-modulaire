@@ -26,6 +26,10 @@ button{border:1px solid var(--acc);border-radius:8px;padding:9px 12px;background
 button.outline{background:transparent;color:var(--acc)}
 button:disabled{opacity:.45;cursor:not-allowed}
 input[type=date],input[type=file],select{max-width:100%;padding:8px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)}
+input[type=datetime-local],input[type=number],input[type=text]{max-width:100%;min-width:0;padding:8px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--ink)}
+#energyMeterForm{padding:9px 0;border-bottom:1px solid var(--line);margin-bottom:10px}
+#energyMeterForm input[type=text]{flex:1 1 180px}
+#energyMeterFormInfo{min-height:1.2em}
 .row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:7px 0}
 .status{font-size:.88rem;color:var(--mut);margin-top:6px}
 .error{color:var(--warn);font-size:.88rem;white-space:pre-wrap}
