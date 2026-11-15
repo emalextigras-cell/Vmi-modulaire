@@ -114,6 +114,33 @@
  <h3>Comparaison observée selon la vitesse</h3>
  <div id="speedAnalysis" class="status">Pas encore assez de données.</div>
  <div id="energyReadiness" class="status">Inventaire des champs bruts de fonctionnement exportés par VMI+.</div>
+ <h3>Suivi électrique mesuré</h3>
+ <p class="note">Saisis les index en kWh lus sur un compteur externe. Il faut au moins deux relevés du même compteur pour calculer l’énergie consommée et la puissance moyenne sur l’intervalle. Les données VMI+ ne sont pas utilisées pour inventer une consommation.</p>
+ <form id="energyMeterForm">
+  <div class="row">
+   <label for="energyMeterType">Compteur :</label>
+   <select id="energyMeterType" required>
+    <option value="ventilation">Ventilation (compteur dédié)</option>
+    <option value="preheating">Préchauffage (compteur dédié)</option>
+    <option value="total">Total VMI (compteur global)</option>
+   </select>
+  </div>
+  <div class="row">
+   <label for="energyMeterAt">Date et heure :</label>
+   <input type="datetime-local" id="energyMeterAt" required>
+   <label for="energyMeterKwh">Index (kWh) :</label>
+   <input type="number" id="energyMeterKwh" min="0" step="any" inputmode="decimal" placeholder="ex. 125,4" required>
+  </div>
+  <div class="row">
+   <label for="energyMeterNote">Note (facultative) :</label>
+   <input type="text" id="energyMeterNote" maxlength="240" placeholder="ex. relevé après installation">
+   <button type="submit">Enregistrer l’index</button>
+  </div>
+  <div id="energyMeterFormInfo" class="note" role="status" aria-live="polite"></div>
+ </form>
+ <div id="energyMeterSummary" class="advice">Aucun index de compteur externe enregistré.</div>
+ <div id="energyMeterHistory" class="status"></div>
+ <p class="note">Important : un compteur global ne sépare pas ventilation et préchauffage. Si tu disposes de sous-compteurs distincts, saisis-les séparément. Ne cumule pas le compteur global avec ses sous-compteurs. Une baisse d’index est traitée comme une remise à zéro ou un changement de compteur.</p>
  <p class="note">Les libellés d’origine sont conservés. Les champs « Cons ... », les compteurs et les valeurs de pression ne sont pas assimilés à des consommations ou à des mesures physiques tant que leur signification et leur unité ne sont pas établies.</p>
  <p class="note">Les comparaisons sont descriptives : elles ne désignent pas une vitesse optimale et ne calculent pas de rendement sans mesure électrique et débit documentés.</p>
  <p class="note">Les recommandations sont indicatives. Pour conclure sur l'efficacité d'une vitesse, il faut comparer des périodes suffisamment longues et comparables (occupation, météo, cuisson, douches, fenêtres ouvertes). Sans mesure de débit et de consommation électrique, l'application ne peut pas calculer un optimum énergétique réel.</p>
