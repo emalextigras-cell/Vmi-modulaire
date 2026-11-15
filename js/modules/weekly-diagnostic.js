@@ -72,11 +72,12 @@ export function summarizeWeeklyDiagnostic(history,{
   let conflictingTimestampCount=0;
   for(const group of groups){
     if(group.rows.length>1)duplicateTimestampCount++;
+    // Seules les valeurs réellement utilisées par ce bilan définissent
+    // un conflit : hygrométrie, températures, horodatage et débit estimé.
+    // Les métadonnées brutes sans effet sur ce calcul ne doivent pas écarter
+    // un relevé autrement identique.
     const fingerprints=new Set(group.rows.map(row=>JSON.stringify(
-      Object.keys(row).sort().reduce((result,key)=>{
-        result[key]=row[key];
-        return result;
-      },{})
+      [row.t,row.debit,row.st,row.sh,row.te,row.he]
     )));
     if(fingerprints.size>1){
       conflictingTimestampCount++;
