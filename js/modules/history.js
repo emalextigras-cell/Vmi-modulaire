@@ -10,7 +10,7 @@ export function isRawDateEligible(record, minValid = MIN_VALID) {
   if (!record || !Number.isFinite(record.t)) return false;
   if (typeof record.rk === 'string' && record.rk.trim()) {
     const match = record.rk.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s/);
-    if (match) return Number(match[1]) >= 2025;
+    if (match) return Number(match[3]) >= 2025;
   }
   // Un relevé déjà corrigé sans sa date d'origine n'est pas vérifiable.
   if (record.fixed === true) return false;
