@@ -12,6 +12,7 @@ import { parseCell, recFrom, getColumnMapping, findVmiHeaderRowIndex, parseCsvRo
 import { fixClock } from './modules/clock-correction.js';
 import { absoluteHumidity, psychro, validTemp } from './modules/psychrometry.js';
 import { summarizeDataQuality, isPlausibleHumidity, isPlausibleTemperature } from './modules/data-quality.js';
+import { upsertEnergyReading, summarizeEnergyReadings, ENERGY_METER_LABELS } from './modules/energy-meter.js';
 
 
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
@@ -42,7 +43,7 @@ window.addEventListener('unhandledrejection',e=>recordError('Promesse rejetée :
 
 let dev=null,chC=null,chT=null,pollTimer=null,snapTimer=null,reconnectTimer=null;
 let manualDisconnect=false,commandQueue=Promise.resolve(),manualCommandPending=false,polling=false,autoDone=false;
-let meta={},cur={},lastSeen={},live=[],hist=[],source='hist',selectedDate=null,daysSetting=30;
+let meta={},cur={},lastSeen={},live=[],hist=[],energyReadings=[],source='hist',selectedDate=null,daysSetting=30;
 let logLines=[],dlFrames=0;
 let download={on:false,rows:[],buf:'',total:0,sigs:new Set(),got:false,lastPacket:0,timeout:null};
 const DB='VMI_PUREVENT_DB_TEST',STORE='data';
@@ -71,6 +72,8 @@ async function init(){
  let l=await dbGet('live'),h=await dbGet('hist');
  live=Array.isArray(l)?l:[];hist=Array.isArray(h)?h:[];
  meta=(await dbGet('meta'))||{};
+ const storedEnergyReadings=await dbGet('energyReadings');
+ energyReadings=Array.isArray(storedEnergyReadings)?storedEnergyReadings:[];
  const migrated=await dbGet('migrated');
  if(!migrated&&!hist.length&&!live.length){
   const old=await readOldDatabase();
@@ -419,16 +422,16 @@ function histToCsv(rows){
  }
  return lines.join('\r\n');
 }
-function makeBackup(){return createBackupSnapshot({hist,live,meta})}
+function makeBackup(){return createBackupSnapshot({hist,live,meta,energyReadings})}
 async function restoreBackup(obj){
- const result=mergeBackupData({backup:obj,currentHist:hist,currentLive:live,currentMeta:meta,minValid:MIN_VALID});
+ const result=mergeBackupData({backup:obj,currentHist:hist,currentLive:live,currentMeta:meta,currentEnergyReadings:energyReadings,minValid:MIN_VALID});
  const nextHist=pruneHistory(result.hist,HIST_MAX).records;
- const entries=[['hist',nextHist],['live',result.live]];
+ const entries=[['hist',nextHist],['live',result.live],['energyReadings',result.energyReadings]];
  if(result.meta.lastSync!==meta.lastSync)entries.push(['meta',result.meta]);
  // Ne modifier l'état en mémoire qu'après validation atomique du stockage local.
  await dbSetMany(entries);
- hist=nextHist;live=result.live;meta=result.meta;
- return {add:result.addedHistory,enriched:result.enrichedHistory,addL:result.addedLive};
+ hist=nextHist;live=result.live;meta=result.meta;energyReadings=result.energyReadings;
+ return {add:result.addedHistory,enriched:result.enrichedHistory,addL:result.addedLive,addEnergy:result.addedEnergyReadings};
 }
 $('expHist').onclick=()=>{
  const rows=hist.filter(r=>r.t>=MIN_VALID);
@@ -440,12 +443,41 @@ $('expBackup').onclick=()=>{
  downloadText(JSON.stringify(makeBackup()),`vmi-sauvegarde-${localDay()}.json`,'application/json',false);
  $('backupInfo').textContent=`Sauvegarde créée : ${hist.length} relevés d’historique, ${live.length} relevés en direct.`;
 };
+$('energyMeterForm').addEventListener('submit',async event=>{
+ event.preventDefault();
+ const meterType=$('energyMeterType').value;
+ const timestamp=new Date($('energyMeterAt').value).getTime();
+ const rawKwh=$('energyMeterKwh').value.trim();
+ const kwh=rawKwh===''?NaN:Number(rawKwh);
+ const note=$('energyMeterNote').value;
+ const id=meterType+':'+timestamp;
+ try{
+  energyReadings=upsertEnergyReading(energyReadings,{id,meterType,t:timestamp,kwh,note});
+  await dbSet('energyReadings',energyReadings);
+  $('energyMeterFormInfo').textContent='Index enregistré. Si un index existait déjà pour ce compteur à cette date, il a été remplacé.';
+  $('energyMeterKwh').value='';
+  $('energyMeterNote').value='';
+  $('energyMeterAt').value=localDateTimeValue();
+  renderEnergyMeterTracking();
+ }catch(error){
+  $('energyMeterFormInfo').textContent=error.message;
+ }
+});
+$('energyMeterAt').value=localDateTimeValue();
+$('energyMeterHistory').addEventListener('click',async event=>{
+ const button=event.target.closest('[data-energy-delete]');
+ if(!button)return;
+ const id=button.getAttribute('data-energy-delete');
+ energyReadings=energyReadings.filter(reading=>reading.id!==id);
+ await dbSet('energyReadings',energyReadings);
+ renderEnergyMeterTracking();
+});
 $('restoreFile').onchange=async e=>{
  const file=e.target.files&&e.target.files[0];if(!file)return;
  try{
   const obj=JSON.parse(await file.text());
-  const {add,enriched,addL}=await restoreBackup(obj);
-  $('backupInfo').textContent=`Sauvegarde restaurée : ${add} relevés d’historique ajoutés, ${enriched} complétés et ${addL} relevés en direct ajoutés.`;
+  const {add,enriched,addL,addEnergy}=await restoreBackup(obj);
+  $('backupInfo').textContent='Sauvegarde restaurée : '+add+' relevés d’historique ajoutés, '+enriched+' complétés, '+addL+' relevés en direct et '+addEnergy+' index de compteur ajoutés.';
   render();
  }catch(err){$('backupInfo').textContent='Restauration impossible : '+err.message}
  e.target.value='';
@@ -846,6 +878,60 @@ function renderEnergyReadiness(data){
  referenceHtml+='<div class="advice">La notice indique également une puissance maximale de 169 W sans préchauffage et une puissance maximale de préchauffage de 1 800 W. Ces repères ne permettent pas de reconstituer la consommation réelle de ton historique : le CSV ne fournit pas de mesure électrique vérifiée, et l’état/temps de fonctionnement du préchauffage n’est pas confirmé par les champs disponibles. Ne pas assimiler « Cons Res » à des watts.</div>';
  referenceHtml+='<p class="note">Source : <a href="https://www.vmi-technologies.com/wp-content/uploads/2024/11/FR-VMI%C2%AE-Purevent-Notice-dinstallation-et-de-maintenance-1.pdf" target="_blank" rel="noopener">notice officielle VMI PUREVENT, §2.2–2.3, pages 7–8</a>. Il s’agit d’une référence constructeur, pas d’une mesure de cette installation.</p>';
  $('energyReadiness').innerHTML=volumeHtml+html+temperatureLimitHtml+operatingHtml+modeHtml+rawHtml+referenceHtml+'<div class="advice">'+result.message+' Les valeurs brutes sont conservées ; aucune conversion des champs non documentés en watts, kWh ou rendement n’est appliquée. Le débit confirmé reste affiché en m³/h.</div>';
+ renderEnergyMeterTracking();
+}
+
+function renderEnergyMeterTracking(){
+ const result=summarizeEnergyReadings(energyReadings);
+ const summary=$('energyMeterSummary'),history=$('energyMeterHistory');
+ if(!result.readingCount){
+  summary.className='advice';
+  summary.textContent='Aucun relevé de compteur externe. Le CSV VMI+ ne fournit pas de mesure électrique vérifiée.';
+  history.innerHTML='<p class="note">Ajoute deux index successifs du même compteur pour calculer l’énergie consommée entre ces deux dates.</p>';
+  return;
+ }
+ summary.className='advice';
+ summary.textContent=result.meters.map(meter=>{
+  const latest=[...meter.intervals].reverse().find(interval=>interval.status==='measured');
+  const amount=meter.measuredIntervalCount
+    ? ' · '+fmt(meter.totalKwh)+' kWh cumulés sur les intervalles calculables'
+    : ' · en attente d’un deuxième index';
+  const recent=latest
+    ? ' · dernier intervalle : '+fmt(latest.deltaKwh)+' kWh, puissance moyenne '+fmt(latest.averagePowerW)+' W'
+    : '';
+  return meter.label+' : '+meter.readingCount+' index'+amount+recent;
+ }).join(' | ');
+ let html='';
+ for(const meter of result.meters){
+  html+='<h4>'+meter.label+'</h4>';
+  if(!meter.intervals.length){
+   html+='<p class="note">Un seul index : ajoute un relevé ultérieur pour obtenir un écart.</p>';
+   continue;
+  }
+  html+='<table><thead><tr><th>Du</th><th>Au</th><th>Énergie</th><th>Puissance moyenne</th></tr></thead><tbody>';
+  for(const interval of meter.intervals){
+   if(interval.status==='counter-decreased'){
+    html+='<tr><td>'+fmtShort(interval.from)+'</td><td>'+fmtShort(interval.to)+'</td><td colspan="2">Index en baisse : remise à zéro ou changement de compteur. Écart non calculé.</td></tr>';
+   }else{
+    html+='<tr><td>'+fmtShort(interval.from)+'</td><td>'+fmtShort(interval.to)+'</td><td>'+fmt(interval.deltaKwh)+' kWh</td><td>'+fmt(interval.averagePowerW)+' W</td></tr>';
+   }
+  }
+  html+='</tbody></table>';
+ }
+ html+='<details><summary>Limites et méthode</summary><ul>'+result.limits.map(item=>'<li>'+item+'</li>').join('')+'</ul></details>';
+ const rows=[...energyReadings].filter(item=>item&&Number.isFinite(item.t)).sort((a,b)=>b.t-a.t);
+ html+='<h4>Index enregistrés</h4><table><thead><tr><th>Date</th><th>Compteur</th><th>Index</th><th></th></tr></thead><tbody>';
+ for(const reading of rows){
+  const label=ENERGY_METER_LABELS[reading.meterType]||reading.meterType;
+  const id=String(reading.id).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  html+='<tr><td>'+fmtShort(reading.t)+'</td><td>'+label+'</td><td>'+fmt(reading.kwh)+' kWh</td><td><button type="button" class="outline" data-energy-delete="'+id+'">Supprimer</button></td></tr>';
+ }
+ html+='</tbody></table>';
+ history.innerHTML=html;
+}
+function localDateTimeValue(timestamp=Date.now()){
+ const date=new Date(timestamp);
+ return date.getFullYear()+'-'+pad(date.getMonth()+1)+'-'+pad(date.getDate())+'T'+pad(date.getHours())+':'+pad(date.getMinutes());
 }
 
 function renderRecommendation(data){
