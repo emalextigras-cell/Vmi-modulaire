@@ -174,4 +174,4 @@ L'énergie consommée entre deux index successifs d'un même compteur est calcul
 
 Une baisse d'index est signalée comme une remise à zéro ou un changement de compteur ; aucun delta n'est calculé sur cet intervalle. Les index sont conservés dans IndexedDB et inclus dans les sauvegardes JSON. Les anciennes sauvegardes v13 sans index électriques restent restaurables.
 
-Aucun kWh n'est déduit de \`Cons Res\`, \`Cons HydroR\`, du PWM, du débit ou des courbes constructeur. Aucune commande Bluetooth ni régulation automatique n'est modifiée.
+Aucun kWh n'est déduit de `Cons Res`, `Cons HydroR`, du PWM, du débit ou des courbes constructeur. Aucune commande Bluetooth ni régulation automatique n'est modifiée.
