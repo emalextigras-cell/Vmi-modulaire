@@ -716,6 +716,14 @@ function renderIntelligentDiagnosis(data){
     proofTitle.textContent='Voir les mesures et les critères';
     const list=document.createElement('dl');
     const labels={
+     candidateWindowCount:'Tranches horaires exploitables',
+     candidatePairCount:'Paires de tranches examinées',
+     pairsWithTwoCommonDays:'Paires avec au moins deux jours communs',
+     pairsMeetingDailyMinimum:'Paires respectant le minimum quotidien',
+     minimumSamplesPerWindow:'Minimum de relevés par tranche',
+     minimumDistinctDaysPerWindow:'Minimum de jours par tranche',
+     minimumSharedDays:'Minimum de jours communs',
+     minimumSamplesPerWindowAndDay:'Minimum de relevés par tranche et par jour',
      validSamples:'Relevés valides',requiredSamples:'Minimum de relevés requis',
      distinctDays:'Jours distincts',requiredDays:'Minimum de jours requis',
      observedHours:'Durée exploitable',requiredObservedHours:'Durée minimale requise',
