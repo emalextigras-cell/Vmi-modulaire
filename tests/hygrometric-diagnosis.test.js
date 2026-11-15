@@ -345,4 +345,33 @@ test('hourly comparison excludes shared days with fewer than three samples in ei
  assert.equal(result.status,'analysis-available');
  assert.equal(result.bestWindow,null);
  assert.ok(!result.observations.some(x=>x.code==='favorable-time-window'));
+ const limitation=result.observations.find(x=>x.code==='hourly-comparison-limited');
+ assert.ok(limitation);
+ assert.equal(result.hourlyComparisonDiagnostics.pairsWithTwoCommonDays,1);
+ assert.equal(result.hourlyComparisonDiagnostics.pairsMeetingDailyMinimum,0);
+ assert.match(limitation.detail,/minimum de trois relevés/);
+});
+
+
+test('diagnostic explains when hourly comparison lacks two eligible windows',()=>{
+ const rows=makeHourlyRows([{day:0,hour:7},{day:1,hour:7}]);
+ const result=buildHygrometricDiagnosis(rows);
+ const finding=result.observations.find(item=>item.code==='hourly-comparison-limited');
+ assert.ok(finding);
+ assert.equal(result.hourlyComparisonDiagnostics.candidateWindowCount,1);
+ assert.equal(result.hourlyComparisonDiagnostics.candidatePairCount,0);
+ assert.match(finding.detail,/Moins de deux tranches horaires/);
+});
+
+test('diagnostic explains when eligible hourly windows have no common days',()=>{
+ const rows=makeHourlyRows([
+  {day:0,hour:7},{day:1,hour:7},
+  {day:2,hour:13},{day:3,hour:13}
+ ]);
+ const result=buildHygrometricDiagnosis(rows);
+ const finding=result.observations.find(item=>item.code==='hourly-comparison-limited');
+ assert.ok(finding);
+ assert.equal(result.hourlyComparisonDiagnostics.candidatePairCount,1);
+ assert.equal(result.hourlyComparisonDiagnostics.pairsWithTwoCommonDays,0);
+ assert.match(finding.detail,/ne partagent pas au moins deux/);
 });
