@@ -1,3 +1,5 @@
+import { absoluteHumidity } from './psychrometry.js';
+
 /** Suivi des index kWh relevés sur des compteurs électriques externes. */
 export const ENERGY_METER_TYPES = Object.freeze(['ventilation', 'preheating', 'total']);
 
