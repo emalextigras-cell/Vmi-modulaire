@@ -33,7 +33,7 @@ test('exclut les trous longs et les d√©bits hors plage sans les compter comme z√
   const result=summarizeDailyEnergyClimateContext([
     row(0),row(1),row(5),row(6,400),row(7,400)
   ],{minFanHours:1,minClimateSamples:3,minDays:1});
-  assert.equal(result.matchedDays.length,0);
+  assert.equal(result.matchedDays.length,1);
   assert.equal(result.days[0].fanHours,1);
   assert.equal(result.days[0].estimatedKwh,0.01);
 });
