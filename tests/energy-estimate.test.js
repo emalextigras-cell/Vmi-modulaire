@@ -111,3 +111,18 @@ test('exclut les grands trous et les débits hors plage dans la comparaison par 
   assert.equal(mode1.invalidFlowIntervalCount, 1);
   assert.equal(mode1.coveragePercent, 16.666666666666664);
 });
+
+
+test('associe aux modes les conditions hygrométriques réellement couvertes', () => {
+  const rows = [
+    { ...row(0, 50), vmiModeRaw: 1, st: 20, sh: 60, te: 10, he: 80, tExt: 8 },
+    { ...row(1, 50), vmiModeRaw: 1, st: 22, sh: 60, te: 12, he: 80, tExt: 9 }
+  ];
+  const result = summarizeFanEnergyByManualMode(rows);
+  const mode1 = result.groups[0];
+  assert.equal(mode1.climate.indoorTemp, 21);
+  assert.equal(mode1.climate.outdoorTemp, 8.5);
+  assert.ok(Number.isFinite(mode1.climate.deltaAbsHumidity));
+  assert.equal(mode1.climateCoverageHours.deltaAbsHumidity, 1);
+  assert.equal(result.groups[1].climate.deltaAbsHumidity, null);
+});

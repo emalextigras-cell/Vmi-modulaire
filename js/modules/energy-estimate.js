@@ -1,3 +1,5 @@
+import { absoluteHumidity } from './psychrometry.js';
+
 /**
  * Estimation indicative de l'énergie électrique du ventilateur PUREVENT.
  * Les puissances proviennent des points de mesure constructeur TÜV SÜD.
@@ -106,6 +108,7 @@ export function summarizeFanEnergyByManualMode(history, { maxGapHours = 2, minDa
   const groups = [1, 2, 3].map(mode => ({
     mode, energyWh: 0, coveredMs: 0, candidateMs: 0,
     intervalCount: 0, longGapCount: 0, invalidFlowIntervalCount: 0,
+    climate: Object.fromEntries(['indoorTemp','outdoorTemp','incomingTemp','indoorAbsHumidity','incomingAbsHumidity','deltaAbsHumidity'].map(key => [key, { sum: 0, hours: 0 }])),
     daily: new Map()
   }));
   const byMode = new Map(groups.map(group => [group.mode, group]));
@@ -131,6 +134,27 @@ export function summarizeFanEnergyByManualMode(history, { maxGapHours = 2, minDa
     group.energyWh += wh;
     group.coveredMs += elapsedMs;
     group.intervalCount++;
+    const climateValues = row => {
+      const temp = value => Number.isFinite(value) && value >= -30 && value <= 60;
+      const rh = value => Number.isFinite(value) && value >= 0 && value <= 100;
+      const indoorAbsHumidity = temp(row.st) && rh(row.sh) ? absoluteHumidity(row.st, row.sh) : null;
+      const incomingAbsHumidity = temp(row.te) && rh(row.he) ? absoluteHumidity(row.te, row.he) : null;
+      return {
+        indoorTemp: temp(row.st) ? row.st : null,
+        outdoorTemp: temp(row.tExt) ? row.tExt : null,
+        incomingTemp: temp(row.te) ? row.te : null,
+        indoorAbsHumidity,
+        incomingAbsHumidity,
+        deltaAbsHumidity: indoorAbsHumidity != null && incomingAbsHumidity != null ? indoorAbsHumidity - incomingAbsHumidity : null
+      };
+    };
+    const climateA = climateValues(a), climateB = climateValues(b);
+    for (const key of Object.keys(group.climate)) {
+      if (Number.isFinite(climateA[key]) && Number.isFinite(climateB[key])) {
+        group.climate[key].sum += ((climateA[key] + climateB[key]) / 2) * hours;
+        group.climate[key].hours += hours;
+      }
+    }
     const midpoint = new Date(a.t + elapsedMs / 2);
     const dayKey = [midpoint.getFullYear(), String(midpoint.getMonth() + 1).padStart(2, '0'), String(midpoint.getDate()).padStart(2, '0')].join('-');
     const daily = group.daily.get(dayKey) || { wh: 0, hours: 0 };
@@ -151,6 +175,8 @@ export function summarizeFanEnergyByManualMode(history, { maxGapHours = 2, minDa
       coveragePercent: candidateHours > 0 ? coveredHours / candidateHours * 100 : 0,
       weightedAveragePowerW: coveredHours > 0 ? group.energyWh / coveredHours : null,
       medianDailyAveragePowerW: medianEstimate(dailyPowers),
+      climate: Object.fromEntries(Object.entries(group.climate).map(([key, item]) => [key, item.hours > 0 ? item.sum / item.hours : null])),
+      climateCoverageHours: Object.fromEntries(Object.entries(group.climate).map(([key, item]) => [key, item.hours])),
       dayCount, intervalCount: group.intervalCount,
       longGapCount: group.longGapCount,
       invalidFlowIntervalCount: group.invalidFlowIntervalCount
