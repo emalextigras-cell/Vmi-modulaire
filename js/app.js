@@ -1054,8 +1054,11 @@ function render(){
  const invalidText=invalidDetails.length
   ? ` ${quality.affectedRecords} relevé(s) contiennent des valeurs physiquement improbables (${invalidDetails.join(' · ')}). Ces valeurs sont conservées dans l’historique et les exports, mais écartées des calculs concernés.`
   : ' Aucune valeur physiquement aberrante détectée sur les capteurs contrôlés.';
- qualityBox.className=quality.hasAnomalies?'advice warn':'advice';
- qualityBox.textContent='Contrôle qualité de l’historique analysé : '+coverageText+missingText+invalidText+' Les données manquantes réduisent la couverture ; elles ne sont pas considérées comme des anomalies.';
+ const spikeText=quality.transientSpikes.count
+  ? ' '+quality.transientSpikes.count+' pic(s) isolé(s) à vérifier : '+quality.transientSpikes.candidates.slice(0,5).map(item=>item.label+' ('+fmt(item.value)+' '+item.unit+', '+new Date(item.timestamp).toLocaleString('fr-FR')+')').join(' · ')+'. Un pic isolé est un indice de variation brusque, pas une preuve de panne.'
+  : ' Aucun pic isolé répondant aux critères temporels n’a été détecté.';
+ qualityBox.className=quality.hasAnomalies||quality.transientSpikes.count?'advice warn':'advice';
+ qualityBox.textContent='Contrôle qualité de l’historique analysé : '+coverageText+missingText+invalidText+spikeText+' Les données manquantes réduisent la couverture ; elles ne sont pas considérées comme des anomalies.';
  renderCharts(data,selectedDate,$);
  renderRecommendation(analysisData);renderHygrometricPeriods(analysisData);renderIntelligentDiagnosis(analysisData);
  renderTemporalAnalysis(analysisData);analyzeSpeeds(analysisData);renderEnergyReadiness(analysisData);renderFanEnergyEstimate(analysisData);renderFreshness();
