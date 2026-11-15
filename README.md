@@ -51,10 +51,10 @@ Fermer VMI+ avant de se connecter : la VMI n'accepte qu'une seule connexion simu
 - Les commandes sont envoyées séquentiellement et leur état est vérifié par retour de la VMI.
 - Aucun pilotage automatique par IA n'est activé.
 - Les données sont conservées localement dans IndexedDB.
-- Les indicateurs hygrométriques sont indicatifs. La valeur « Debit » exportée par VMI+ est conservée comme valeur brute. L'en-tête CSV ne précise pas son unité ; son interprétation en m³/h reste une hypothèse à confirmer.
+- Les indicateurs hygrométriques sont indicatifs. La valeur « Debit » exportée par VMI+ correspond au débit d'air en m³/h.
 - Les comparaisons de niveaux manuels utilisent exclusivement le champ d'annotation `Mode` (`vmiModeRaw`) (1/2/3). Le champ historique `vit` et le code `Vitesse` VMI+ restent des données brutes et ne sont jamais assimilés à un niveau manuel. Les exports CSV VMI+ ne fournissent pas, à eux seuls, cette annotation.
 - Le régime moteur est présenté en tr/min lorsqu'il est disponible. Les valeurs Débit, PWM et Cons DP restent brutes tant que leur signification/unité n'est pas confirmée.
-- L'application ne calcule aucune consommation électrique mesurée, aucun rendement ni optimum énergétique réel. L'estimation du ventilateur reste indicative et conditionnelle à l'hypothèse que `Debit` soit en m³/h, unité non confirmée.
+- L'application ne calcule aucune consommation électrique mesurée ni optimum énergétique réel. L'estimation du ventilateur reste indicative et repose sur le débit exporté en m³/h.
 
 ## Tests locaux
 
@@ -174,7 +174,7 @@ L'interface construit désormais, à partir de l'historique affiché, un profil 
 ## Comparaison de l'évolution du fonctionnement
 - Une nouvelle lecture compare deux périodes calendaires successives de 7 jours, en conservant le même champ `Mode` (`vmiModeRaw`) et la même tranche horaire locale de 6 heures.
 - Chaque période doit contenir au moins 12 relevés répartis sur au moins 3 jours distincts pour le même Mode et la même tranche horaire.
-- Les médianes de la valeur Debit brute (unité non confirmée) et du régime moteur (tr/min confirmé) sont comparées. Toute conversion de la valeur Debit en m³/h doit être considérée comme une hypothèse tant que la documentation VMI+ ne l'établit pas. PWM et Pression moteur sont présentés uniquement comme valeurs brutes, avec unité non confirmée.
+- Les médianes du débit exporté (m³/h) et du régime moteur (tr/min confirmé) sont comparées. PWM et Pression moteur sont présentés uniquement comme valeurs brutes, avec unité non confirmée.
 - Les écarts absolus et relatifs sont descriptifs. Aucun seuil ne déclenche un diagnostic automatique de filtre encrassé ou de panne.
 - Les comparaisons ne neutralisent pas les changements de météo, d'occupation, de réglage, d'entretien ou d'installation. Elles servent à repérer une évolution à examiner, pas à en établir la cause.
 - Les données sans champ `Mode` exploitable, ou sans couverture suffisante sur les deux périodes, ne sont pas comparées. Les champs `Vitesse`, `vit` et `vmiSpeedRaw` ne servent jamais à identifier un niveau manuel.
