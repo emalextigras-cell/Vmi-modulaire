@@ -809,7 +809,7 @@ export function buildHygrometricDiagnosis(data, {
   if(bestWindow&&bestWindow.medianDelta>dryDelta){
     observations.push({
       code:'favorable-time-window',level:'positive',
-      basis:{timeWindow:bestWindow.label,comparisonWindow:bestWindow.comparisonWindow,medianDelta:bestWindow.medianDelta,comparisonMedianDelta:bestWindow.comparisonMedianDelta,advantage:bestWindow.advantage,unit:'g/m³',sampleCount:bestWindow.sampleCount,comparisonSampleCount:bestWindow.comparisonSampleCount,dayCount:bestWindow.dayCount,sharedDayCount:bestWindow.sharedDayCount,sharedDayKeys:bestWindow.sharedDayKeys},
+      basis:{timeWindow:bestWindow.label,comparisonWindow:bestWindow.comparisonWindow,medianDelta:bestWindow.medianDelta,comparisonMedianDelta:bestWindow.comparisonMedianDelta,advantage:bestWindow.advantage,unit:'g/m³',sampleCount:bestWindow.sampleCount,comparisonSampleCount:bestWindow.comparisonSampleCount,dayCount:bestWindow.dayCount,sharedDayCount:bestWindow.sharedDayCount,sharedDayKeys:bestWindow.sharedDayKeys,aggregationMethod:bestWindow.aggregationMethod},
       title:'Période horaire plus favorable repérée',
       detail:`Sur les deux créneaux comparés, ${bestWindow.label} présente un écart médian plus favorable (${bestWindow.medianDelta.toFixed(1)} g/m³) que ${bestWindow.comparisonWindow} (${bestWindow.comparisonMedianDelta.toFixed(1)} g/m³). Comparaison limitée aux mêmes ${bestWindow.sharedDayCount} jours calendaires, chaque jour ayant le même poids dans les médianes, avec ${bestWindow.sampleCount} et ${bestWindow.comparisonSampleCount} relevés respectivement.`,
       recommendation:'Vérifier si ce créneau se retrouve sur d’autres semaines et saisons avant d’en tirer une règle de réglage.'
@@ -817,7 +817,7 @@ export function buildHygrometricDiagnosis(data, {
   }
 
   return {
-    methodology:{version:'hygrometric-diagnostic-v5',dryDeltaThreshold:dryDelta,trendDeltaThreshold:trendDelta,minimumSamples:minSamples,minimumDistinctDays:2,minimumObservedHours:3,dominantDurationShare:0.6,maximumGapHours:maxGapHours,hourlyBucketHours:6,hourlyMinimumSamples:5,hourlyMinimumDistinctDays:2,hourlyMinimumSharedDays:2,minimumDailySamplesForConfidence:3,moderateCoveragePercent:20,highCoveragePercent:50,moderateAcceptedShare:0.7,highAcceptedShare:0.9},
+    methodology:{version:'hygrometric-diagnostic-v6',dryDeltaThreshold:dryDelta,trendDeltaThreshold:trendDelta,minimumSamples:minSamples,minimumDistinctDays:2,minimumObservedHours:3,dominantDurationShare:0.6,maximumGapHours:maxGapHours,hourlyBucketHours:6,hourlyMinimumSamples:5,hourlyMinimumDistinctDays:2,hourlyMinimumSharedDays:2,minimumDailySamplesForConfidence:3,moderateCoveragePercent:20,highCoveragePercent:50,moderateAcceptedShare:0.7,highAcceptedShare:0.9},
     status:sufficient?'analysis-available':'insufficient-data',
     inputQuality:{
       inputSampleCount:inputRows.length,
