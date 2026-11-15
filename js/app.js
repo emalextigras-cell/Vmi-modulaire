@@ -1259,7 +1259,8 @@ function renderVmiAssistant(data){
   const result=buildVmiAssistantSummary(data,{
    targetRH:Number($('targetRH').value),
    minSamples:Number($('minSamples').value),
-   energyReadings
+   energyReadings,
+   meterHistory:hist
   });
   status.className=result.status==='available'?'advice good':result.status==='no-data'?'advice warn':'advice';
   status.textContent=result.title+' · '+result.confidence;
