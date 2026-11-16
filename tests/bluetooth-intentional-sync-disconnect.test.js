@@ -6,7 +6,7 @@ const source = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
 
 test('la fin de synchronisation marque la déconnexion comme volontaire avant disconnect()', () => {
   const finish = source.slice(source.indexOf('function finishDownload('), source.indexOf('async function startDownload('));
-  assert.match(finish, /if\\(\\(reachedCut\\|\\|reachedTotal\\)&&dev&&dev\\.gatt&&dev\\.gatt\\.connected\\)\s*\{[\s\S]*?intentionalDisconnect=true;[\s\S]*?dev\.gatt\.disconnect\(\);/);
+  assert.match(finish, /if\(\(reachedCut\|\|reachedTotal\)&&dev&&dev\.gatt&&dev\.gatt\.connected\)\s*\{[\s\S]*?intentionalDisconnect=true;[\s\S]*?dev\.gatt\.disconnect\(\);/);
 });
 
 test('onDisconnect absorbe une déconnexion volontaire sans programmer de reconnexion', () => {
