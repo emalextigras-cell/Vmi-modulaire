@@ -20,7 +20,7 @@ import { chooseAuthorizedDevice } from './modules/bluetooth-autoconnect.js';
 import { buildLiveFreshnessText } from './modules/live-freshness.js';
 import { formatDiagnosisConfidence } from './modules/diagnostic-confidence.js';
 import { analyzeSeasonalVentilation } from './modules/seasonal-advice.js';
-import { buildVmiAssistantSummary } from './modules/assistant-summary.js';
+import { renderVmiAssistant } from './modules/assistant-renderer.js';
 
 
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
@@ -1251,70 +1251,6 @@ function renderRecommendation(data){
  }
  box.textContent=msg;
 }
-function renderVmiAssistant(data){
- const status=$('assistantStatus'),overview=$('assistantOverview');
- const recommendations=$('assistantRecommendations'),sections=$('assistantSections'),limits=$('assistantLimits');
- if(!status||!overview||!recommendations||!sections||!limits)return;
- try{
-  const result=buildVmiAssistantSummary(data,{
-   targetRH:Number($('targetRH').value),
-   minSamples:Number($('minSamples').value),
-   energyReadings,
-   meterHistory:hist
-  });
-  status.className=result.status==='available'?'advice good':result.status==='no-data'?'advice warn':'advice';
-  status.textContent=result.title+' · '+result.confidence;
-  overview.textContent=result.overview;
-  recommendations.replaceChildren();
-  result.recommendations.forEach(item=>{
-   const article=document.createElement('article');
-   const tag=document.createElement('span');
-   const heading=document.createElement('h4');
-   const detail=document.createElement('p');
-   const reason=document.createElement('p');
-   article.className='diagnosis-item '+(item.priority==='prioritaire'?'diagnosis-caution':item.priority==='favorable'?'diagnosis-positive':'');
-   tag.className='diagnosis-tag';
-   tag.textContent=item.priority;
-   heading.textContent=item.title;
-   detail.textContent=item.text;
-   reason.className='diagnosis-action';
-   reason.textContent='Pourquoi : '+item.reason;
-   article.append(tag,heading,detail,reason);
-   recommendations.append(article);
-  });
-  sections.replaceChildren();
-  result.sections.forEach(item=>{
-   const details=document.createElement('details');
-   const summary=document.createElement('summary');
-   const paragraph=document.createElement('p');
-   const list=document.createElement('ul');
-   details.className='assistant-detail';
-   summary.textContent=item.title+' · '+item.status;
-   paragraph.textContent=item.summary;
-   item.details.forEach(line=>{
-    const li=document.createElement('li');
-    li.textContent=line;
-    list.append(li);
-   });
-   details.append(summary,paragraph,list);
-   sections.append(details);
-  });
-  limits.replaceChildren();
-  result.limits.forEach(line=>{
-   const li=document.createElement('li');
-   li.textContent=line;
-   limits.append(li);
-  });
- }catch(error){
-  status.className='advice warn';
-  status.textContent='L’assistant n’a pas pu terminer la synthèse. Les autres analyses de l’application restent disponibles.';
-  overview.textContent='Erreur de synthèse : '+String(error?.message||error);
-  recommendations.replaceChildren();
-  sections.replaceChildren();
-  limits.replaceChildren();
-  log('Assistant VMI : '+String(error?.message||error));
- }
-}
 
 function render(){
  const data=selectedData();
@@ -1330,7 +1266,7 @@ function render(){
  const lastRpm=[...hist].reverse().find(r=>Number.isFinite(r.rpm));
  $('rpm').textContent=lastRpm?lastRpm.rpm:'–';
  const quality=summarizeDataQuality(analysisData);
- renderVmiAssistant(analysisData);
+ renderVmiAssistant(analysisData,{targetRH:Number($('targetRH').value),minSamples:Number($('minSamples').value),energyReadings,meterHistory:hist,onError:log});
  const qualityBox=$('dataQuality');
  const coreCoverage=quality.fieldCoverage.filter(field=>quality.coreSensorKeys.includes(field.key));
  const missingDetails=coreCoverage.filter(field=>field.missingCount>0)
