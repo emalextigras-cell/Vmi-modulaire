@@ -47,6 +47,11 @@ export function mergeRecordFields(existing, incoming) {
   for (const [key, value] of Object.entries(incoming)) {
     if (value != null) merged[key] = value;
   }
+  // Un transfert partiel ne doit jamais dégrader un relevé déjà complet.
+  // Un relevé sans marqueur (CSV/import historique) est considéré comme complet.
+  if (Object.hasOwn(existing, 'syncPartial') || Object.hasOwn(incoming, 'syncPartial')) {
+    merged.syncPartial = existing.syncPartial === true && incoming.syncPartial === true;
+  }
   return merged;
 }
 
