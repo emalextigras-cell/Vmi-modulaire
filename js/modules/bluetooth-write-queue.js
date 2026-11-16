@@ -1,0 +1,49 @@
+/**
+ * File d'écriture BLE séquentielle.
+ * Les commandes conservent le délai historique de 350 ms et l'ordre d'arrivée.
+ */
+export function createBleWriteQueue({
+  isConnected,
+  getCharacteristic,
+  sleep,
+  onSuccess = () => {},
+  onError = () => {},
+  delayMs = 350
+}) {
+  let tail = Promise.resolve();
+
+  function write(bytes) {
+    const task = tail.then(async () => {
+      if (!isConnected()) throw new Error('VMI non connectée');
+      const characteristic = getCharacteristic();
+      if (!characteristic) throw new Error('Caractéristique Bluetooth indisponible.');
+
+      if (characteristic.properties?.write &&
+          typeof characteristic.writeValueWithResponse === 'function') {
+        await characteristic.writeValueWithResponse(bytes);
+      } else if (characteristic.properties?.writeWithoutResponse &&
+                 typeof characteristic.writeValueWithoutResponse === 'function') {
+        await characteristic.writeValueWithoutResponse(bytes);
+      } else if (typeof characteristic.writeValue === 'function') {
+        // Repli historique conservé pour les navigateurs exposant l'ancienne API.
+        await characteristic.writeValue(bytes);
+      } else {
+        throw new Error('Cette caractéristique Bluetooth ne permet pas l’écriture.');
+      }
+
+      onSuccess(bytes);
+      await sleep(delayMs);
+      return true;
+    });
+
+    const result = task.catch(error => {
+      onError(error);
+      return false;
+    });
+    // La file reste utilisable même après un échec d'écriture.
+    tail = result.then(() => undefined, () => undefined);
+    return result;
+  }
+
+  return { write };
+}
