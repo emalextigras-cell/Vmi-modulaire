@@ -10,6 +10,7 @@ Copie de travail indépendante du dépôt source `emalextigras-cell/Vmi`. Le dé
 - `js/modules/bluetooth-protocol.js` : UUID, CRC et construction des trames Bluetooth VMI.
 - `js/modules/bluetooth-decoder.js` : décodage pur des notifications VMI, avec conservation des offsets historiques.
 - `js/modules/bluetooth-write-queue.js` : file d'écriture BLE séquentielle, gestion des erreurs et délai historique.
+- `js/modules/bluetooth-session.js` : exécution de séquences BLE uniquement dans la session de connexion qui les a démarrées.
 - `js/modules/psychrometry.js` : humidité absolue, point de rosée et indicateurs hygrométriques.
 - `js/modules/analysis.js` : tendances temporelles, comparaison descriptive des niveaux manuels et inventaire des champs énergétiques bruts.
 - `js/modules/diagnostic-confidence.js` : explication de la robustesse des données du diagnostic (couverture, relevés retenus et répartition quotidienne), distincte de l'état physique de la VMI.
@@ -288,7 +289,8 @@ Le moteur Bluetooth est progressivement isolé en modules testables :
 - `bluetooth-protocol.js` reste la source des UUID, du CRC et des trames sortantes. Aucun octet ni registre n'a été modifié.
 - `bluetooth-decoder.js` extrait le décodage des notifications dans une fonction pure. Les offsets, longueurs minimales et valeurs brutes reprennent exactement le traitement existant ; les champs inconnus ne sont pas réinterprétés.
 - `bluetooth-write-queue.js` centralise les écritures et les sérialise. Il conserve la priorité à `writeValueWithResponse`, le repli historique et le délai de 350 ms. Un échec est signalé et n'empêche pas la file de traiter une opération ultérieure.
+- `bluetooth-session.js` empêche une séquence de synchronisation de continuer après une déconnexion ou un changement de session ; les données partielles reçues sont conservées sans être marquées comme synchronisation terminée.
 - `app.js` conserve la gestion de connexion, les commandes, la synchronisation et l'interface ; il délègue désormais le décodage et les écritures à ces modules.
-- Le service worker précharge les deux nouveaux modules et son cache est incrémenté.
+- Le service worker précharge les modules Bluetooth et son cache est incrémenté à chaque évolution de ces ressources.
 
 Les tests unitaires couvrent les offsets de décodage, les trames historiques, les écritures ordonnées, les déconnexions et la reprise après échec. Ces tests logiciels ne remplacent pas un essai sur la VMI réelle. Les commandes de vitesse, Boost, vacances, les registres interrogés et la mise à l'heure ne sont pas modifiés ni déclarés validés par cette évolution.
