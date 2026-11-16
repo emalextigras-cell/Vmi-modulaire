@@ -111,7 +111,8 @@ export function isHistorySyncBaseline(record) {
 export function markHistoryRows(records, complete) {
   return (Array.isArray(records) ? records : []).map(record => ({
     ...record,
-    syncPartial: !complete
+    syncPartial: !complete,
+    syncValid: true
   }));
 }
 
