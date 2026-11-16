@@ -2,6 +2,12 @@ import { median, analyzeHygrometricPeriods, summarizeDailyTrends, analyzeHourlyP
 import { absoluteHumidity, dewPoint } from './psychrometry.js';
 import { isPlausibleHumidity, isPlausibleTemperature } from './data-quality.js';
 
+function fmtHours(hours) {
+  if (!Number.isFinite(hours)) return '0 h';
+  if (hours < 1) return `${Math.round(hours*60)} min`;
+  return `${hours.toFixed(1)} h`;
+}
+
 /**
  * Diagnostic hygrométrique explicable.
  * Les constats reposent sur les mesures disponibles, sans inférer le débit réel,
