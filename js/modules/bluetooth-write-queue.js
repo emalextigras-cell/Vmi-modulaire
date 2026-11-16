@@ -18,7 +18,9 @@ export function createBleWriteQueue({
     const connectionToken = getConnectionToken();
     const task = tail.then(async () => {
       if (getConnectionToken() !== connectionToken) {
-        throw new Error('Commande annulée : la session Bluetooth a changé.');
+        const error = new Error('Commande annulée : la session Bluetooth a changé.');
+        error.code = 'BLE_SESSION_CHANGED';
+        throw error;
       }
       if (!isConnected()) throw new Error('VMI non connectée');
       const characteristic = getCharacteristic();
