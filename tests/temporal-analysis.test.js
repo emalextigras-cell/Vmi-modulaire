@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { summarizeDailyTrends, analyzeHourlyPatterns, detectRapidChanges } from '../js/modules/analysis.js';
+import { summarizeDailyTrends, analyzeHourlyPatterns, detectRapidChanges } from '../js/modules/temporal-analysis.js';
 
 const day = (n,h=12) => new Date(2026,10,n,h,0,0).getTime();
 const row = (t,st=20,sh=60,te=10,he=40) => ({t,st,sh,te,he});
