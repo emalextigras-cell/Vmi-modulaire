@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - work/modularisation-phase-1
-      - audit/bluetooth-hardening
   pull_request:
     branches:
       - main
