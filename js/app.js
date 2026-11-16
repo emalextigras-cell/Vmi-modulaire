@@ -33,6 +33,7 @@ import { summarizeWeeklyDiagnostic } from './modules/weekly-diagnostic.js';
 import { analyzeSeasonalVentilation } from './modules/seasonal-advice.js';
 import { createImportController } from './modules/import-controller.js';
 import { createHistoryExportController } from './modules/history-export-controller.js';
+import { buildDiagnosticReport } from './modules/diagnostic-report.js';
 
 
 
@@ -522,40 +523,16 @@ setInterval(renderFreshness,60000);
 
 /* ---------- Diagnostic ---------- */
 function buildDiagnostic(){
- const L=[];
- const ago=t=>t?Math.round((Date.now()-t)/1000)+' s':'jamais';
- L.push(`VMI Purevent – diagnostic – version ${APP_VERSION} – ${new Date().toLocaleString('fr-FR')}`);
- L.push('Navigateur : '+navigator.userAgent);
- L.push(`Bluetooth : ${navigator.bluetooth?'disponible':'indisponible'} · connecté : ${connected()?'oui':'non'} · service worker : ${'serviceWorker' in navigator?(navigator.serviceWorker.controller?'actif':'non actif'):'absent'} · SheetJS : ${window.XLSX?'chargé':'non chargé'}`);
- const valid=hist.filter(r=>r.t>=MIN_VALID);
- L.push(`Historique : ${hist.length} relevés dont ${valid.length} valides`);
- if(valid.length){
-  const ts=valid.map(r=>r.t);
-  L.push(`  période : ${fmtLocal(ts[0])} → ${fmtLocal(ts[ts.length-1])}`);
-  const gaps=[];for(let i=1;i<ts.length;i++)if(ts[i]-ts[i-1]>2*3600e3)gaps.push(`${fmtShort(ts[i-1])} → ${fmtShort(ts[i])} (${((ts[i]-ts[i-1])/3600e3).toFixed(1)} h)`);
-  L.push(`  trous > 2 h : ${gaps.length}${gaps.length?' : '+gaps.slice(0,8).join(' ; '):''}`);
-  const miss=k=>valid.filter(r=>r[k]==null).length;
-  L.push(`  valeurs manquantes : salon T ${miss('st')}, ext. VMI+ T ${miss('tExt')}, salon HR ${miss('sh')}, sonde 1 T ${miss('t1')}, air entrant T ${miss('te')}, air entrant HR ${miss('he')}, régime ${miss('rpm')}`);
-  for(const [key,label] of [['st','Salon'],['t1','Sonde résistances'],['te','Air entrant']]){
-   const extreme=valid.filter(r=>Number.isFinite(r[key])&&r[key]>40);
-   L.push(`  Température >40°C – ${label} : ${extreme.length}${extreme.length?' · '+extreme.slice(0,8).map(r=>fmtLocal(r.t)+' = '+r[key]+'°C').join(' ; '):''}`);
-  }
-  for(const [tk,hk,label] of [['st','sh','Salon'],['t1','h1','Sonde résistances'],['te','he','Air entrant']]){
-   const extreme=valid.map(r=>({r,v:Number.isFinite(r[tk])&&Number.isFinite(r[hk])?absoluteHumidity(r[tk],r[hk]):null})).filter(x=>Number.isFinite(x.v)&&x.v>35);
-   L.push(`  Humidité absolue calculée >35 g/m³ – ${label} : ${extreme.length}${extreme.length?' · '+extreme.slice(0,8).map(x=>fmtLocal(x.r.t)+' = '+x.v.toFixed(1)).join(' ; '):''}`);
-  }
-  L.push(`  relevés avec compteur de jours : ${valid.filter(r=>Number.isFinite(r.d)).length} · avec date brute : ${valid.filter(r=>r.rk).length}`);
- }
- L.push(`Direct : ${live.length} relevés${live.length?` (du ${fmtShort(live[0].t)} au ${fmtShort(live[live.length-1].t)})`:''}`);
- L.push(`Synchro : dernière ${meta.lastSync?fmtLocal(meta.lastSync):'jamais'} · mesures reçues : salon ${ago(lastSeen.salon)}, sondes ${ago(lastSeen.probes)}, état ${ago(lastSeen.state)}`);
- L.push(`Affichage : source ${source}, jour ${selectedDate||'aucun'}, période ${daysSetting?daysSetting+' j':'tout'}`);
- L.push('Graphiques : '+['chartRH','chartHA','chartTemp','chartRPM'].map(id=>`${id} ${(($(id).innerHTML.match(/<path/g))||[]).length} courbe(s)`).join(' · '));
- L.push('Téléchargement : '+(download.on?'en cours':'inactif')+` · ${$('dlp').textContent||'—'}`);
- L.push('Commandes : '+($('cmdResult').textContent||'—'));
- L.push('Erreurs : '+(errors.length?'\n  '+errors.join('\n  '):'aucune'));
- L.push('Journal (25 dernières lignes) :');
- logLines.slice(-25).forEach(x=>L.push('  '+x));
- return L.join('\n');
+ const chartPaths = Object.fromEntries(['chartRH','chartHA','chartTemp','chartRPM'].map(id => [id, ((($(id).innerHTML.match(/<path/g))||[]).length)]));
+ return buildDiagnosticReport({
+  appVersion: APP_VERSION, now: Date.now(), userAgent: navigator.userAgent,
+  bluetoothAvailable: !!navigator.bluetooth, connected: connected(),
+  serviceWorkerStatus: !('serviceWorker' in navigator) ? 'absent' : (navigator.serviceWorker.controller ? 'actif' : 'non actif'),
+  sheetJsLoaded: !!window.XLSX, hist, live, minValid: MIN_VALID, fmtLocal, fmtShort,
+  absoluteHumidity, lastSeen, lastSync: meta.lastSync, source, selectedDate, daysSetting, chartPaths,
+  downloadOn: download.on, downloadProgress: $('dlp').textContent || '—',
+  commandResult: $('cmdResult').textContent || '—', errors, logLines
+ });
 }
 $('diagBtn').onclick=()=>{$('diagOut').textContent=buildDiagnostic()};
 $('diagCopy').onclick=async()=>{
