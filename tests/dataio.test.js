@@ -308,35 +308,42 @@ import { fixClock } from '../js/modules/clock-correction.js';
 import { mergeBackupData } from '../js/modules/backup.js';
 import { MIN_VALID } from '../js/modules/date-utils.js';
 
-test('exclut une date brute de 2018 même si sa date corrigée pointe en 2026', () => {
-  const old = { t: new Date(2026, 10, 10, 12).getTime(), rk: '10/11/2018 12:00:00', fixed: true, sh: 50 };
-  const recent = { t: new Date(2026, 10, 10, 12, 5).getTime(), rk: '10/11/2026 12:05:00', sh: 51 };
-  assert.equal(isRawDateEligible(old), false);
-  assert.equal(isRawDateEligible(recent), true);
-  assert.deepEqual(filterRawDateHistory([old, recent]), [recent]);
+test('conserve une date brute ancienne uniquement après correction validée', () => {
+  const corrected = { t: new Date(2026, 9, 10, 12).getTime(), rk: '09/04/2018 12:00:00', fixed: true, sh: 50 };
+  const uncorrected = { t: new Date(2018, 3, 9, 12).getTime(), rk: '09/04/2018 12:00:00', sh: 49 };
+  const recent = { t: new Date(2026, 9, 18, 12, 5).getTime(), rk: '18/10/2026 12:05:00', sh: 51 };
+  assert.equal(isRawDateEligible(corrected), true);
+  assert.equal(isRawDateEligible(uncorrected), false);
+  assert.deepEqual(filterRawDateHistory([corrected, uncorrected, recent]), [corrected, recent]);
 });
 
-test('la fusion des imports ne réintroduit pas les dates brutes antérieures à 2025', () => {
-  const old = { t: new Date(2026, 10, 10).getTime(), rk: '10/11/2018 12:00:00', fixed: true, sh: 50 };
-  const recent = { t: new Date(2026, 10, 11).getTime(), rk: '11/11/2026 12:00:00', sh: 51 };
-  assert.deepEqual(mergeImportedHistory([old], [old, recent]), [recent]);
+test('la fusion des imports conserve les anciennes dates déjà corrigées et rejette les dates non corrigées', () => {
+  const corrected = { t: new Date(2026, 9, 10).getTime(), rk: '09/04/2018 12:00:00', fixed: true, sh: 50 };
+  const uncorrected = { t: new Date(2018, 3, 9).getTime(), rk: '09/04/2018 12:00:00', sh: 49 };
+  const recent = { t: new Date(2026, 9, 11).getTime(), rk: '11/10/2026 12:00:00', sh: 51 };
+  assert.deepEqual(mergeImportedHistory([uncorrected], [uncorrected, corrected, recent]), [corrected, recent]);
 });
 
-test('fixClock écarte les dates brutes antérieures à 2025 avant toute correction', () => {
-  const old = { t: new Date(2018, 3, 10, 12).getTime(), rk: '10/04/2018 12:00:00', d: 100, sh: 50 };
-  const recent = { t: new Date(2026, 10, 10, 12).getTime(), rk: '10/11/2026 12:00:00', d: 300, sh: 51 };
+test('fixClock reconstruit une date brute de 2018 grâce au compteur de jours', () => {
+  const old = { t: new Date(2018, 3, 9, 12).getTime(), rk: '09/04/2018 12:00:00', d: 155, sh: 50 };
+  const recent = { t: new Date(2026, 9, 18, 12).getTime(), rk: '18/10/2026 12:00:00', d: 163, sh: 51 };
   const result = fixClock([old, recent], []);
-  assert.deepEqual(result.kept, [recent]);
-  assert.equal(result.fixed, 0);
+  assert.equal(result.fixed, 1);
+  assert.equal(new Date(old.t).getFullYear(), 2026);
+  assert.equal(new Date(old.t).getMonth(), 9);
+  assert.equal(new Date(old.t).getDate(), 10);
+  assert.equal(old.fixed, true);
+  assert.deepEqual(result.kept, [old, recent]);
 });
 
-test('la restauration ignore les dates brutes anciennes dans la sauvegarde et dans la base courante', () => {
-  const old = { t: MIN_VALID + 1000, rk: '10/04/2018 12:00:00', fixed: true, sh: 50 };
+test('la restauration conserve les dates anciennes déjà corrigées mais ignore celles sans correction', () => {
+  const corrected = { t: MIN_VALID + 1000, rk: '10/04/2018 12:00:00', fixed: true, sh: 50 };
+  const uncorrected = { t: new Date(2018, 3, 10, 12).getTime(), rk: '10/04/2018 12:00:00', sh: 49 };
   const recent = { t: MIN_VALID + 2000, rk: '10/11/2026 12:00:00', sh: 51 };
   const result = mergeBackupData({
-    backup: { app: 'vmi-purevent', hist: [old, recent] },
-    currentHist: [old], minValid: MIN_VALID
+    backup: { app: 'vmi-purevent', hist: [corrected, uncorrected, recent] },
+    currentHist: [corrected, uncorrected], minValid: MIN_VALID
   });
-  assert.deepEqual(result.hist, [recent]);
+  assert.deepEqual(result.hist, [corrected, recent]);
   assert.equal(result.addedHistory, 1);
 });
