@@ -67,23 +67,26 @@ test('un échec ne bloque pas les écritures suivantes', async () => {
 test('annule les commandes en attente après un changement de session Bluetooth', async () => {
   let generation = 1;
   let releaseFirstWrite;
-  let firstWriteStarted;
-  const started = new Promise(resolve => { firstWriteStarted = resolve; });
-  const blockedSleep = () => new Promise(resolve => { releaseFirstWrite = resolve; });
+  let firstSleepStarted;
+  const sleeping = new Promise(resolve => { firstSleepStarted = resolve; });
+  const blockedSleep = () => new Promise(resolve => {
+    releaseFirstWrite = resolve;
+    firstSleepStarted();
+  });
   const sent = [];
   const queue = createBleWriteQueue({
     isConnected: () => true,
     getConnectionToken: () => generation,
     getCharacteristic: () => ({
       properties: { write: true },
-      async writeValueWithResponse(bytes) { sent.push(bytes[0]); if (bytes[0] === 1) firstWriteStarted(); }
+      async writeValueWithResponse(bytes) { sent.push(bytes[0]); }
     }),
     sleep: blockedSleep
   });
 
   const first = queue.write(new Uint8Array([1]));
   const second = queue.write(new Uint8Array([2]));
-  await started;
+  await sleeping;
   generation++;
   releaseFirstWrite();
 
