@@ -45,3 +45,13 @@ test('détecte un index de ligne manquant sans concaténer les données', () => 
   assert.equal(result.resetBuffer, true);
   assert.equal(state.gapCount, 1);
 });
+
+test('les lignes d’un transfert partiel ne deviennent pas une borne d’arrêt', async () => {
+  const { isHistorySyncBaseline, markHistoryRows } = await import('../js/modules/bluetooth-history-stream.js');
+  const partial = markHistoryRows([{ rk: '01/01/2026 00:00:00', d: 1 }], false);
+  assert.equal(partial[0].syncPartial, true);
+  assert.equal(isHistorySyncBaseline(partial[0]), false);
+  const completed = markHistoryRows(partial, true);
+  assert.equal(completed[0].syncPartial, false);
+  assert.equal(isHistorySyncBaseline(completed[0]), true);
+});
