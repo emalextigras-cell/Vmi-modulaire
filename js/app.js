@@ -34,6 +34,7 @@ import { analyzeSeasonalVentilation } from './modules/seasonal-advice.js';
 import { createImportController } from './modules/import-controller.js';
 import { createHistoryExportController } from './modules/history-export-controller.js';
 import { buildDiagnosticReport } from './modules/diagnostic-report.js';
+import { createHistoryDownloadController } from './modules/history-download-controller.js';
 
 
 
@@ -417,48 +418,18 @@ function ingest(recs,label){
  render();
 }
 
-/* Téléchargement de l’historique : on s'arrête au premier relevé déjà connu, puis on coupe la connexion
-   pour interrompre le flux de la VMI (elle ne sait pas s'arrêter seule). */
-const sigOf=r=>r.rk+'|'+r.d;
-function parseDownloadLine(line){
- if(!download.on||!/^\d{1,2}\/\d{1,2}\/\d{4} \d{1,2}:\d{2}:\d{2};/.test(line))return;
- const f=line.split(';'),p=parseCell(f[0]);if(!p)return;
- if(download.sigs.size&&download.sigs.has(p.rk+'|'+num(f[11]))){finishDownload(true);return}
- const rec=recFrom(f);if(rec)download.rows.push(rec);
-}
-function armTimer(){armDownloadTimeout(download,finishDownload)}
-function finishDownload(reachedCut,timeout=false){
- if(!download.on)return;
- download.on=false;clearTimeout(download.timeout);
- const count=download.rows.length;
- if(count)ingest(download.rows,'Téléchargement');
- if(download.got){meta.lastSync=Date.now();dbSet('meta',meta);renderFreshness()}
- $('dlh').disabled=false;setCommandsDisabled(false);
- $('dlp').textContent=`Terminé : ${count} nouvelles lignes${reachedCut?' · historique à jour':timeout?(download.got?' · arrêt après une pause de 20 s':' · aucune réponse de la VMI'):(download.sigs.size?' · attention : trou possible avant la dernière ligne mémorisée':' · historique complet')}`;
- if(reachedCut&&dev&&dev.gatt&&dev.gatt.connected){
-  // La VMI ne sait pas arrêter seule le flux historique : cette coupure est volontaire.
-  // onDisconnect doit la distinguer d'une vraie perte de liaison.
-  intentionalDisconnect=true;
-  dev.gatt.disconnect();
- }
-}
-async function startDownload(auto=false){
- if(!chC){if(!auto)showError('Connecte-toi d’abord à la VMI.');return}
- if(download.on)return;
- showError('');dlFrames=0;
- download={on:true,rows:[],buf:'',total:0,sigs:new Set(hist.filter(r=>r.rk&&Number.isFinite(r.d)).map(sigOf)),got:false,lastPacket:Date.now(),timeout:null};
- $('dlh').disabled=true;setCommandsDisabled(true);
- $('dlp').textContent=auto?'Téléchargement automatique de l’historique…':'Démarrage du téléchargement…';
- const ok=await setClock();
- if(!ok){download.on=false;$('dlh').disabled=false;setCommandsDisabled(false);return}
- await send(0x2c,0);await send(0x20,0);await send(0x22,0);armTimer();
-}
+/* Téléchargement de l'historique délégué au contrôleur dédié.
+   Le décodage des trames BLE reste dans handleNotification. */
+const historyDownloadController = createHistoryDownloadController({
+ $, getDownload: () => download, setDownload: value => { download = value; },
+ getHistory: () => hist, parseCell, num, recFrom, ingest, armDownloadTimeout,
+ setClock, send, setCommandsDisabled, connected,
+ markSync: () => { meta.lastSync = Date.now(); dbSet('meta', meta); renderFreshness(); },
+ disconnectIntentionally: () => { intentionalDisconnect = true; if (dev && dev.gatt && dev.gatt.connected) dev.gatt.disconnect(); },
+ showError, log, getAutoDone: () => autoDone, setAutoDone: value => { autoDone = value; }
+});
+const { parseDownloadLine, armTimer, finishDownload, startDownload, autoHistory } = historyDownloadController;
 $('dlh').onclick=()=>startDownload(false);
-function autoHistory(){
- if(autoDone||download.on||!connected())return;
- autoDone=true; /* une seule fois par connexion : pas de boucle déconnexion/reconnexion */
- startDownload(true).catch(e=>log('Téléchargement automatique impossible : '+(e.message||e)));
-}
 
 /* Import CSV/Excel délégué au contrôleur dédié. */
 /* ---------- Export, sauvegarde et fraîcheur de l’historique ---------- */
