@@ -23,6 +23,7 @@ import { analyzeSeasonalVentilation } from './modules/seasonal-advice.js';
 import { renderVmiAssistant } from './modules/assistant-renderer.js';
 import { selectDataRange } from './modules/history-selection.js';
 import { formatDuration, localDateTimeValue } from './modules/format-utils.js';
+import { estimateHistoryRetention } from './modules/history-freshness.js';
 
 
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
@@ -571,15 +572,11 @@ $('restoreFile').onchange=async e=>{
    et on prévient avant que des relevés non téléchargés soient écrasés. */
 function renderFreshness(){
  const box=$('fresh');
- const rows=hist.filter(r=>r.t>=MIN_VALID);
- if(!rows.length){box.className='advice';box.textContent='Aucun historique mémorisé. Connecte la VMI pour le télécharger : elle ne garde que ses 800 derniers relevés (environ 4 semaines).';return}
- const newest=rows[rows.length-1].t,age=(Date.now()-newest)/DAY;
- const spanDays=Math.max(1,Math.min(14,(newest-rows[0].t)/DAY));
- const perDay=rows.filter(r=>r.t>=newest-14*DAY).length/spanDays;
- const cap=perDay>0?Math.min(60,Math.max(7,800/perDay)):28;
- const left=cap-age;
+ const estimate=estimateHistoryRetention(hist,{now:Date.now(),minValid:MIN_VALID,dayMs:DAY,capacity:800});
+ if(!estimate){box.className='advice';box.textContent='Aucun historique mémorisé. Connecte la VMI pour le télécharger : elle ne garde que ses 800 derniers relevés (environ 4 semaines).';return}
+ const {newest,ageDays:age,capacityDays:cap,daysRemaining:left,deadline}=estimate;
  let cls='advice good';
- let msg=`Historique à jour jusqu’au ${fmtShort(newest)} (il y a ${age<1?Math.max(0,Math.round(age*24))+' h':age.toFixed(1)+' j'}). La VMI garde environ ${Math.round(cap)} jours de relevés : télécharge avant le ${fmtShort(newest+cap*DAY)}.`;
+ let msg=`Historique à jour jusqu’au ${fmtShort(newest)} (il y a ${age<1?Math.max(0,Math.round(age*24))+' h':age.toFixed(1)+' j'}). La VMI garde environ ${Math.round(cap)} jours de relevés : télécharge avant le ${fmtShort(deadline)}.`;
  if(left<=1){cls='advice warn';msg+=' ⚠ Des relevés ont peut-être déjà été écrasés : connecte-toi maintenant.'}
  else if(age>=14||left<7){cls='advice warn';msg+=' Pense à te connecter bientôt.'}
  if(meta.lastSync)msg+=` Dernière synchronisation : ${fmtShort(meta.lastSync)}.`;
