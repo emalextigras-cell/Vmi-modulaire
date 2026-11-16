@@ -90,5 +90,8 @@ export function markHistoryRows(records, complete) {
 /** Signale une notification d'historique tronquée dont les index ne sont pas lisibles. */
 export function markHistoryStreamInvalid(state) {
   state.gapCount++;
+  // Sans index lisible, on ne peut pas savoir quel fragment manque : abandonner
+  // toute la ligne courante et ignorer ses éventuels fragments restants.
+  if (state.sequence !== null) state.skippedSequence = state.sequence;
   return { accepted: false, duplicate: false, gap: true, resetBuffer: true };
 }

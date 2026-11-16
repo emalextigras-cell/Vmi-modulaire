@@ -96,11 +96,17 @@ test('un doublon avec un contenu différent invalide la ligne concernée', () =>
   assert.equal(next.accepted, true);
 });
 
-test('une notification tronquée invalide le transfert historique', async () => {
+test('une notification tronquée abandonne la ligne courante jusqu’à la suivante', async () => {
   const { markHistoryStreamInvalid } = await import('../js/modules/bluetooth-history-stream.js');
   const state = createHistoryStreamState();
-  const result = markHistoryStreamInvalid(state);
-  assert.equal(result.gap, true);
-  assert.equal(result.resetBuffer, true);
+  acceptHistoryFragment(state, { sequence: 0, chunkIndex: 0, payload: 'entête' });
+  acceptHistoryFragment(state, { sequence: 1, chunkIndex: 0, payload: 'début de ligne' });
+  const invalid = markHistoryStreamInvalid(state);
+  const remaining = acceptHistoryFragment(state, { sequence: 1, chunkIndex: 10, payload: 'suite tronquée' });
+  const next = acceptHistoryFragment(state, { sequence: 2, chunkIndex: 0, payload: 'ligne suivante' });
+  assert.equal(invalid.gap, true);
+  assert.equal(invalid.resetBuffer, true);
+  assert.equal(remaining.accepted, false);
+  assert.equal(next.accepted, true);
   assert.equal(state.gapCount, 1);
 });
