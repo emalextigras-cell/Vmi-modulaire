@@ -45,9 +45,17 @@ test('décode le compteur historique et le flux de données sans interpréter so
   history.set([65, 66, 0], 14);
   const decoded = decodeVmiNotification(history);
   assert.equal(decoded.kind, 'history');
+  assert.equal(decoded.sequence, 263);
+  assert.equal(decoded.chunkIndex, 0);
   assert.equal(decoded.received, 263);
   assert.equal(decoded.final, true);
   assert.deepEqual([...decoded.payload], [65, 66]);
+  const fragment = frame(0x30, 18); fragment[9] = 25; fragment[12] = 10;
+  fragment.set([65, 66, 0], 14);
+  const decodedFragment = decodeVmiNotification(fragment);
+  assert.equal(decodedFragment.sequence, 25);
+  assert.equal(decodedFragment.chunkIndex, 10);
+  assert.equal(decodedFragment.final, false);
 });
 
 test('signale une trame historique trop courte et conserve les types inconnus', () => {
