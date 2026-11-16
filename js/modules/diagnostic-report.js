@@ -4,7 +4,7 @@ export function buildDiagnosticReport({
  serviceWorkerStatus = 'absent', sheetJsLoaded = false, hist = [], live = [], minValid = 0,
  fmtLocal, fmtShort, absoluteHumidity, lastSeen = {}, source = 'hist', selectedDate = null,
  daysSetting = 30, chartPaths = {}, downloadOn = false, downloadProgress = '—',
- commandResult = '—', errors = [], logLines = []
+ commandResult = '—', errors = [], logLines = [], lastSync = null
 }) {
  const L = [];
  const ago = timestamp => timestamp ? Math.round((now - timestamp) / 1000) + ' s' : 'jamais';
@@ -32,7 +32,7 @@ export function buildDiagnosticReport({
   L.push(`  relevés avec compteur de jours : ${valid.filter(row => Number.isFinite(row.d)).length} · avec date brute : ${valid.filter(row => row.rk).length}`);
  }
  L.push(`Direct : ${live.length} relevés${live.length ? ` (du ${fmtShort(live[0].t)} au ${fmtShort(live[live.length - 1].t)})` : ''}`);
- L.push(`Synchro : dernière ${lastSeen.sync ? fmtLocal(lastSeen.sync) : 'jamais'} · mesures reçues : salon ${ago(lastSeen.salon)}, sondes ${ago(lastSeen.probes)}, état ${ago(lastSeen.state)}`);
+ L.push(`Synchro : dernière ${lastSync ? fmtLocal(lastSync) : 'jamais'} · mesures reçues : salon ${ago(lastSeen.salon)}, sondes ${ago(lastSeen.probes)}, état ${ago(lastSeen.state)}`);
  L.push(`Affichage : source ${source}, jour ${selectedDate || 'aucun'}, période ${daysSetting ? daysSetting + ' j' : 'tout'}`);
  L.push('Graphiques : ' + ['chartRH', 'chartHA', 'chartTemp', 'chartRPM'].map(id => `${id} ${chartPaths[id] || 0} courbe(s)`).join(' · '));
  L.push('Téléchargement : ' + (downloadOn ? 'en cours' : 'inactif') + ` · ${downloadProgress}`);
