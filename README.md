@@ -273,3 +273,7 @@ Il s'agit d'une comparaison descriptive de médianes ; elle ne démontre aucune 
 Lorsqu'une hausse ou une baisse durable est signalée, le texte principal rappelle aussi les médianes de l'humidité absolue entrante et de l'écart salon − air entrant sur les fenêtres comparées. La réserve d'absence de lien causal est affichée dans le texte lui-même, sans obliger à ouvrir les preuves détaillées.
 
 Le résumé ne transforme pas ces concomitances en explication de la cause.
+
+## Maintenance sans changement fonctionnel
+
+Les règles de maintenance prudente et les contrôles statiques du dépôt sont décrits dans [docs/maintenance-sans-changement-fonctionnel.md](docs/maintenance-sans-changement-fonctionnel.md). Les contrôles sont exécutés avec `npm test`.
