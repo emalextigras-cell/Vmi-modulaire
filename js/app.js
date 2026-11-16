@@ -68,6 +68,10 @@ const bleWriteQueue=createBleWriteQueue({
  sleep,
  onSuccess:bytes=>log('> '+hex(bytes)),
  onError:e=>{
+  if(e&&e.code==='BLE_SESSION_CHANGED'){
+   log('Commande Bluetooth en attente annulée après changement de session.');
+   return;
+  }
   showError('Échec de l’envoi Bluetooth : '+(e.message||e));
   log('Erreur commande : '+(e.message||e));
  }
