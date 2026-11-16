@@ -62,4 +62,8 @@ test('les scrutations et notifications sont liées à leur session BLE', async (
   assert.ok(source.includes('manualCommandPending=false;\n document.querySelectorAll(\'[data-r]\').forEach(control=>control.disabled=download.on)'));
   assert.ok(source.includes('if(commandToken===bleConnectionGeneration){manualCommandPending=false;controls.forEach(x=>x.disabled=download.on)}'));
   assert.ok(source.includes('removeEventListener(\'characteristicvaluechanged\',bleNotificationHandler)'));
+  assert.ok(source.includes('if(connectionRequestPending)return;'));
+  assert.ok(source.includes('const intent=++connectionIntentGeneration;'));
+  assert.ok(source.includes('if(intent!==connectionIntentGeneration||connectionRequestPending)return;'));
+  assert.ok(source.includes('if(intent===connectionIntentGeneration){\n   connectionRequestPending=false;'));
 });
