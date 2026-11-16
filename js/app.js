@@ -10,6 +10,7 @@ import { SVC_C, CH_C, SVC_T, CH_T, frame, timeFrame, hex } from './modules/ble.j
 import { decodeVmiNotification } from './modules/bluetooth-decoder.js';
 import { createBleWriteQueue } from './modules/bluetooth-write-queue.js';
 import { runBleSessionSequence } from './modules/bluetooth-session.js';
+import { acceptHistoryFragment, createHistoryStreamState } from './modules/bluetooth-history-stream.js';
 import { armDownloadTimeout } from './modules/sync.js';
 import { parseCell, recFrom, getColumnMapping, findVmiHeaderRowIndex, parseCsvRows, isCsvFile } from './modules/dataio.js';
 import { fixClock } from './modules/clock-correction.js';
@@ -59,7 +60,7 @@ let manualDisconnect=false,intentionalDisconnect=false,manualCommandPending=fals
 let bleNotificationHandler=null,bleDisconnectHandler=null;
 let meta={},cur={},lastSeen={},live=[],hist=[],energyReadings=[],source='hist',selectedDate=null,daysSetting=30;
 let logLines=[],dlFrames=0;
-let download={on:false,rows:[],buf:'',total:0,sigs:new Set(),got:false,lastPacket:0,timeout:null};
+let download={on:false,rows:[],buf:'',total:0,sigs:new Set(),got:false,lastPacket:0,timeout:null,historyStream:createHistoryStreamState(),integrityGap:false};
 const DB='VMI_PUREVENT_DB_TEST',STORE='data';
 const { get: dbGet, set: dbSet, setMany: dbSetMany } = createStore({ databaseName: DB, storeName: STORE, onError: message => log(message) });
 const connected=()=>!!(chC&&dev&&dev.gatt&&dev.gatt.connected);
@@ -190,12 +191,17 @@ function handleNotification(ev){
  if(decoded.kind==='history'){
   if(!download.on)return;
   if(!decoded.valid){log('Trame d’historique trop courte, ignorée.');return}
+  const payload=new TextDecoder('latin1').decode(decoded.payload);
+  const integrity=acceptHistoryFragment(download.historyStream,{sequence:decoded.sequence,chunkIndex:decoded.chunkIndex,payload});
+  if(integrity.duplicate)return;
+  if(integrity.gap){download.integrityGap=true;if(integrity.resetBuffer)download.buf='';log('Lacune ou désordre dans le flux historique : fragment incomplet écarté.');}
+  if(!integrity.accepted)return;
   dlFrames++;if(dlFrames%200===1)log(`< trames d’historique reçues : ${dlFrames}`);
   download.got=true;download.lastPacket=now;
-  download.buf+=new TextDecoder('latin1').decode(decoded.payload);
+  download.buf+=payload;
   const lines=download.buf.split('\n');download.buf=lines.pop();lines.forEach(parseDownloadLine);
   if(download.on){
-   $('dlp').textContent=`${download.rows.length} nouvelles lignes (${decoded.received} / ${download.total||'?'} lues)`;
+   $('dlp').textContent=`${download.rows.length} nouvelles lignes (index historique ${decoded.sequence+1} / ${download.total||'?'})`;
    armTimer();
    if(decoded.final){if(download.buf.trim())parseDownloadLine(download.buf);finishDownload(false)}
   }
@@ -493,9 +499,9 @@ function finishDownload(reachedCut,timeout=false,interrupted=false){
  download.on=false;clearTimeout(download.timeout);
  const count=download.rows.length;
  if(count)ingest(download.rows,'Téléchargement');
- if(download.got&&!timeout){meta.lastSync=Date.now();dbSet('meta',meta);renderFreshness()}
+ if(download.got&&!timeout&&!interrupted&&!download.integrityGap){meta.lastSync=Date.now();dbSet('meta',meta);renderFreshness()}
  $('dlh').disabled=false;setCommandsDisabled(false);
- $('dlp').textContent=`Terminé : ${count} nouvelles lignes${interrupted?(download.got?' · transfert interrompu, données partielles conservées ; relance la synchronisation':' · transfert interrompu avant réception') :reachedCut?' · historique à jour':timeout?(download.got?' · arrêt après une pause de 20 s':' · aucune réponse de la VMI'):(download.sigs.size?' · attention : trou possible avant la dernière ligne mémorisée':' · historique complet')}`;
+ $('dlp').textContent=`Terminé : ${count} nouvelles lignes${download.integrityGap?' · lacune détectée : synchronisation non certifiée, relance nécessaire':interrupted?(download.got?' · transfert interrompu, données partielles conservées ; relance la synchronisation':' · transfert interrompu avant réception') :reachedCut?' · historique à jour':timeout?(download.got?' · arrêt après une pause de 20 s':' · aucune réponse de la VMI'):(download.sigs.size?' · attention : trou possible avant la dernière ligne mémorisée':' · historique complet')}`;
  if(reachedCut&&dev&&dev.gatt&&dev.gatt.connected){
   // La VMI ne sait pas arrêter seule le flux historique : cette coupure est volontaire.
   // onDisconnect doit la distinguer d'une vraie perte de liaison.
@@ -511,7 +517,7 @@ async function startDownload(auto=false){
   if(download.on)finishDownload(false,true,true);
  };
  showError('');dlFrames=0;
- download={on:true,rows:[],buf:'',total:0,sigs:new Set(hist.filter(r=>r.rk&&Number.isFinite(r.d)).map(sigOf)),got:false,lastPacket:Date.now(),timeout:null};
+ download={on:true,rows:[],buf:'',total:0,sigs:new Set(hist.filter(r=>r.rk&&Number.isFinite(r.d)).map(sigOf)),got:false,lastPacket:Date.now(),timeout:null,historyStream:createHistoryStreamState(),integrityGap:false};
  $('dlh').disabled=true;setCommandsDisabled(true);
  $('dlp').textContent=auto?'Téléchargement automatique de l’historique…':'Démarrage du téléchargement…';
  const sequenceOk=await runBleSessionSequence({
