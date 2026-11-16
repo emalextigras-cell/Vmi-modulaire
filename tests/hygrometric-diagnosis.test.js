@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildHygrometricDiagnosis, analyzeHygrometricPeriods } from '../js/modules/analysis.js';
+import { analyzeHygrometricPeriods } from '../js/modules/analysis.js';
+import { buildHygrometricDiagnosis } from '../js/modules/hygrometric-diagnosis.js';
 import { absoluteHumidity } from '../js/modules/psychrometry.js';
 
 function makeRows({days=3,perDay=10,indoorRH=65,incomingRH=40,indoorTemp=20,incomingTemp=10}={}) {
