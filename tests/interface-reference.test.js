@@ -37,7 +37,7 @@ test('le module de conseils saisonniers est inclus dans le cache hors ligne', as
   assert.ok(sw.includes("'./js/modules/temporal-analysis.js'"));
   assert.ok(sw.includes("'./js/modules/statistics.js'"));
   assert.ok(sw.includes("'./js/modules/operating-reference.js'"));
-  assert.ok(sw.includes('vmi-modulaire-v14-cache-28'));
+  assert.ok(sw.includes('vmi-modulaire-v14-cache-29'));
 });
 
 
@@ -63,4 +63,21 @@ test('l’assistant reste local et ne modifie aucune commande Bluetooth', async 
   assert.ok(assistant.includes('analyzeSeasonalVentilation'));
   assert.ok(assistant.includes('Aucune commande de vitesse'));
   assert.ok(!assistant.includes('fetch('));
+});
+
+
+test('les rendus des bilans hebdomadaires et des conseils sont isolés du contrôleur principal', async () => {
+  const app = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
+  const renderer = await readFile(new URL('../js/modules/history-insight-renderers.js', import.meta.url), 'utf8');
+  const sw = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
+  assert.ok(app.includes("from './modules/history-insight-renderers.js'"));
+  assert.ok(app.includes('historyInsightRenderers.renderWeeklyDiagnostic(analysisData)'));
+  assert.ok(app.includes('historyInsightRenderers.renderSeasonalAdvice(analysisData)'));
+  assert.ok(app.includes('historyInsightRenderers.renderRecommendation(analysisData)'));
+  assert.ok(!app.includes('function renderWeeklyDiagnostic(data)'));
+  assert.ok(!app.includes('function renderSeasonalAdvice(data)'));
+  assert.ok(!app.includes('function renderRecommendation(data)'));
+  assert.ok(renderer.includes('export function createHistoryInsightRenderers'));
+  assert.ok(sw.includes("'./js/modules/history-insight-renderers.js'"));
+  assert.ok(sw.includes('vmi-modulaire-v14-cache-29'));
 });
