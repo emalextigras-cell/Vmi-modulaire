@@ -31,9 +31,14 @@ import { createEnergyRenderers } from './modules/energy-renderers.js';
 import { createHygrometricRenderers } from './modules/hygrometric-renderers.js';
 import { summarizeWeeklyDiagnostic } from './modules/weekly-diagnostic.js';
 import { analyzeSeasonalVentilation } from './modules/seasonal-advice.js';
+import { createImportController } from './modules/import-controller.js';
 
 
 
+
+const importController = createImportController({
+ $, showError, log, isCsvFile, parseCsvRows, findVmiHeaderRowIndex, getColumnMapping, recFrom, ingest
+});
 
 const hygrometricRenderers = createHygrometricRenderers({
  $, fmt, formatDuration, analyzeHygrometricPeriods, summarizeDailyTrends, analyzeHourlyPatterns,
@@ -446,62 +451,7 @@ function autoHistory(){
  startDownload(true).catch(e=>log('Téléchargement automatique impossible : '+(e.message||e)));
 }
 
-/* Import tableur */
-const XLSX_URLS=['https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js','https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'];
-function loadScript(url,ms=15000){
- return new Promise((res,rej)=>{
-  const sc=document.createElement('script');
-  const t=setTimeout(()=>{sc.remove();rej(new Error('délai dépassé'))},ms);
-  sc.src=url;sc.onload=()=>{clearTimeout(t);res()};sc.onerror=()=>{clearTimeout(t);sc.remove();rej(new Error('échec du chargement'))};
-  document.head.appendChild(sc);
- });
-}
-let xlsxPromise=null;
-function loadXLSX(){
- if(window.XLSX)return Promise.resolve();
- if(!xlsxPromise)xlsxPromise=(async()=>{
-  for(const u of XLSX_URLS){try{await loadScript(u);if(window.XLSX)return}catch(e){log('SheetJS : '+e.message+' ('+u+')')}}
-  throw new Error('Impossible de charger la bibliothèque de lecture : l’import CSV/Excel demande une connexion internet (une seule fois). Le téléchargement par Bluetooth n’en a pas besoin.');
- })().catch(e=>{xlsxPromise=null;throw e});
- return xlsxPromise;
-}
-$('fx').onchange=async e=>{
- const file=e.target.files&&e.target.files[0];if(!file)return;showError('');
- try{
-  let rows,spreadsheet=null;
-  if(isCsvFile(file.name)){
-   $('importInfo').textContent='Lecture du CSV…';
-   rows=parseCsvRows(await file.text());
-  }else{
-   $('importInfo').textContent='Chargement de la bibliothèque Excel…';
-   await loadXLSX();spreadsheet=XLSX;
-   const wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});
-   const sheet=wb.Sheets[wb.SheetNames[0]];
-   if(!sheet)throw new Error('Aucune feuille trouvée.');
-   rows=XLSX.utils.sheet_to_json(sheet,{header:1,raw:true,defval:''});
-  }
-  const headerIndex=findVmiHeaderRowIndex(rows);
-  if(headerIndex<0)throw new Error('En-tête VMI+ introuvable : les colonnes Date, mode et Debit doivent être présentes dans les 20 premières lignes. Aucun relevé n’a été importé.');
-  const columnMapping=getColumnMapping(rows[headerIndex]);
-  const recs=[];for(let i=headerIndex+1;i<rows.length;i++){const r=recFrom(rows[i],spreadsheet,columnMapping);if(r)recs.push(r)}
-  ingest(recs,'Import');
- }catch(err){showError('Import impossible : '+err.message)}
- e.target.value='';
-};
-$('clearImport').onclick=async()=>{if(confirm('Effacer tout l’historique importé ?')){hist=[];await dbSet('hist',[]);$('importInfo').textContent='';render()}};
-$('histBtn').onclick=()=>{source='hist';render()};
-$('liveBtn').onclick=()=>{source='live';render()};
-$('dayPicker').onchange=e=>{selectedDate=e.target.value||null;resetChartViews();render()};
-$('clearDay').onclick=()=>{selectedDate=null;$('dayPicker').value='';resetChartViews();render()};
-$('prev').onclick=()=>{selectedDate=shiftDay(selectedDate,-1);$('dayPicker').value=selectedDate;resetChartViews();render()};
-$('next').onclick=()=>{selectedDate=shiftDay(selectedDate,1);$('dayPicker').value=selectedDate;resetChartViews();render()};
-document.querySelectorAll('[data-days]').forEach(b=>b.onclick=()=>{daysSetting=Number(b.dataset.days);selectedDate=null;$('dayPicker').value='';resetChartViews();render()});
-$('clearLive').onclick=async()=>{if(confirm('Effacer les relevés en direct ?')){live=[];await dbSet('live',[]);$('liveCount').textContent='0';render()}};
-$('csv').onclick=()=>{
- const keys=['t','st','sh','t1','h1','te','he','rpm','fil','vit','boost','hol'];
- const rows=[keys.join(';'),...live.map(r=>keys.map(k=>k==='t'?new Date(r.t).toISOString():(r[k]!=null?r[k]:'')).join(';'))];
- downloadText(rows.join('\n'),'vmi-purevent-live.csv','text/csv;charset=utf-8');
-};
+/* Import CSV/Excel délégué au contrôleur dédié. */
 function downloadText(content,name,type,bom=true){
  const blob=new Blob(bom?['\ufeff',content]:[content],{type}),url=URL.createObjectURL(blob),a=document.createElement('a');
  a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
