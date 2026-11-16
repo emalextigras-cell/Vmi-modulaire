@@ -1,0 +1,24 @@
+name: Vérifications de l'application VMI
+
+on:
+  push:
+    branches: [main, "agent/**", "fix/**", "feature/**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Tests et vérification syntaxique
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Exécuter les tests du projet
+        run: npm test
