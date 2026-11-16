@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const source = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
+const controller = await readFile(new URL('../js/modules/history-download-controller.js', import.meta.url), 'utf8');
 
 test('la fin de synchronisation marque la déconnexion comme volontaire avant disconnect()', () => {
   const finish = source.slice(source.indexOf('function finishDownload('), source.indexOf('async function startDownload('));
