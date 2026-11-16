@@ -79,7 +79,7 @@ test('les rendus des bilans hebdomadaires et des conseils sont isol√©s du contr√
   assert.ok(!app.includes('function renderRecommendation(data)'));
   assert.ok(renderer.includes('export function createHistoryInsightRenderers'));
   assert.ok(sw.includes("'./js/modules/history-insight-renderers.js'"));
-  assert.ok(sw.includes('vmi-modulaire-v14-cache-29'));
+  assert.ok(sw.includes('vmi-modulaire-v14-cache-30'));
 });
 
 
