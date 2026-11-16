@@ -86,3 +86,9 @@ export function markHistoryRows(records, complete) {
     syncPartial: !complete
   }));
 }
+
+/** Signale une notification d'historique tronquée dont les index ne sont pas lisibles. */
+export function markHistoryStreamInvalid(state) {
+  state.gapCount++;
+  return { accepted: false, duplicate: false, gap: true, resetBuffer: true };
+}

@@ -95,3 +95,12 @@ test('un doublon avec un contenu différent invalide la ligne concernée', () =>
   assert.equal(rest.accepted, false);
   assert.equal(next.accepted, true);
 });
+
+test('une notification tronquée invalide le transfert historique', async () => {
+  const { markHistoryStreamInvalid } = await import('../js/modules/bluetooth-history-stream.js');
+  const state = createHistoryStreamState();
+  const result = markHistoryStreamInvalid(state);
+  assert.equal(result.gap, true);
+  assert.equal(result.resetBuffer, true);
+  assert.equal(state.gapCount, 1);
+});

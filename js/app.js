@@ -10,7 +10,7 @@ import { SVC_C, CH_C, SVC_T, CH_T, frame, timeFrame, hex } from './modules/ble.j
 import { decodeVmiNotification } from './modules/bluetooth-decoder.js';
 import { createBleWriteQueue } from './modules/bluetooth-write-queue.js';
 import { runBleSessionSequence } from './modules/bluetooth-session.js';
-import { acceptHistoryFragment, createHistoryStreamState, isHistorySyncBaseline, markHistoryRows } from './modules/bluetooth-history-stream.js';
+import { acceptHistoryFragment, createHistoryStreamState, isHistorySyncBaseline, markHistoryRows, markHistoryStreamInvalid } from './modules/bluetooth-history-stream.js';
 import { armDownloadTimeout } from './modules/sync.js';
 import { parseCell, recFrom, getColumnMapping, findVmiHeaderRowIndex, parseCsvRows, isCsvFile } from './modules/dataio.js';
 import { fixClock } from './modules/clock-correction.js';
@@ -190,7 +190,13 @@ function handleNotification(ev){
  const now=Date.now();
  if(decoded.kind==='history'){
   if(!download.on)return;
-  if(!decoded.valid){log('Trame d’historique trop courte, ignorée.');return}
+  if(!decoded.valid){
+   markHistoryStreamInvalid(download.historyStream);
+   download.integrityGap=true;
+   download.buf='';
+   log('Trame d’historique trop courte : transfert marqué incomplet, synchronisation à relancer.');
+   return;
+  }
   const payload=new TextDecoder('latin1').decode(decoded.payload);
   const integrity=acceptHistoryFragment(download.historyStream,{sequence:decoded.sequence,chunkIndex:decoded.chunkIndex,payload});
   if(integrity.duplicate)return;
