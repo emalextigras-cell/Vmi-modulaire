@@ -32,7 +32,8 @@ test('le parseur ajoute une ligne reconnue et ignore les lignes hors format', ()
 });
 
 test('un relevé déjà connu arrête le téléchargement et déconnecte volontairement', () => {
- const { controller, calls, getDownload } = setup({ getHistory: () => [{ rk: '2026-11-16', d: 11 }] });
+ const initial = { on: true, rows: [], buf: '', total: 0, sigs: new Set(['2026-11-16|11']), got: false, timeout: null };
+ const { controller, calls, getDownload } = setup({ getHistory: () => [{ rk: '2026-11-16', d: 11 }] }, initial);
  controller.parseDownloadLine('16/11/2026 12:00:00;1;2;3;4;5;6;7;8;9;10;11');
  assert.equal(getDownload().on, false);
  assert.ok(calls.some(call => call[0] === 'disconnect'));
