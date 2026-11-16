@@ -59,6 +59,10 @@ test('les lignes d’un transfert partiel ne deviennent pas une borne d’arrêt
 
 test('accepte les cinq fragments observés dans la capture Bluetooth', () => {
   const state = createHistoryStreamState();
+  for (let sequence = 0; sequence < 25; sequence++) {
+    const result = acceptHistoryFragment(state, { sequence, chunkIndex: 0, payload: 'metadata-' + sequence });
+    assert.equal(result.accepted, true);
+  }
   const accepted = [0, 10, 20, 30, 40].map(chunkIndex =>
     acceptHistoryFragment(state, { sequence: 25, chunkIndex, payload: 'fragment-' + chunkIndex })
   );
