@@ -67,3 +67,13 @@ test('les scrutations et notifications sont liées à leur session BLE', async (
   assert.ok(source.includes('if(intent!==connectionIntentGeneration||connectionRequestPending)return;'));
   assert.ok(source.includes('if(intent===connectionIntentGeneration){\n   connectionRequestPending=false;'));
 });
+
+test('installe les écouteurs de notification avant d’activer les notifications BLE', async () => {
+  const source = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
+  const start = source.indexOf('async function connectCharacteristics(');
+  const end = source.indexOf('\nfunction preferredBluetoothDeviceId()', start);
+  assert.ok(start >= 0 && end > start);
+  const connection = source.slice(start, end);
+  assert.ok(connection.indexOf("addEventListener('characteristicvaluechanged'") < connection.indexOf('await characteristicT.startNotifications()'));
+  assert.ok(connection.indexOf("addEventListener('characteristicvaluechanged'") < connection.indexOf('await characteristicC.startNotifications()'));
+});
