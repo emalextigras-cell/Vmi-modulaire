@@ -20,7 +20,7 @@ test('onDisconnect absorbe une déconnexion volontaire sans programmer de reconn
 test('une reconnexion ne réinitialise pas la synchronisation automatique', () => {
   const connect = source.slice(source.indexOf('async function connectDevice('), source.indexOf('async function connectBLE('));
   assert.doesNotMatch(connect, /autoDone=false/);
-  assert.match(connect, /setTimeout\(autoHistory,3000\)/);
+  assert.match(connect, /setTimeout\(\(\)=>\{if\(sessionIsCurrent\(token,device\)&&connected\(\)\)autoHistory\(\)\},3000\)/);
 });
 
 test('un nouveau clic utilisateur autorise une nouvelle synchronisation initiale', () => {

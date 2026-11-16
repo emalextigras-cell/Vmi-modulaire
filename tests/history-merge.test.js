@@ -30,3 +30,18 @@ test('mergeImportedHistory accepte des entrées absentes ou invalides', () => {
   assert.deepEqual(mergeImportedHistory(null, [{ t: 1 }]), [{ t: 1 }]);
   assert.deepEqual(mergeImportedHistory([{ t: 2 }], null), [{ t: 2 }]);
 });
+
+
+test('un relevé partiel ne dégrade jamais un relevé déjà complet', () => {
+  const complete = { t: 100, sh: 48, syncPartial: false };
+  const partial = { t: 100, sh: 50, syncPartial: true };
+  assert.equal(mergeImportedHistory([complete], [partial])[0].syncPartial, false);
+  assert.equal(mergeImportedHistory([{ t: 100, sh: 48 }], [partial])[0].syncPartial, false);
+});
+
+test('un relevé partiel reste partiel tant qu’aucune source complète ne le confirme', () => {
+  const partial = { t: 100, sh: 48, syncPartial: true };
+  assert.equal(mergeImportedHistory([], [partial])[0].syncPartial, true);
+  assert.equal(mergeImportedHistory([partial], [{ t: 100, sh: 50, syncPartial: true }])[0].syncPartial, true);
+  assert.equal(mergeImportedHistory([partial], [{ t: 100, sh: 50 }])[0].syncPartial, false);
+});
