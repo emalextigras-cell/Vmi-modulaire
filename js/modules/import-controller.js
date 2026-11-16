@@ -37,7 +37,7 @@ export function createImportController({ $, showError, log, isCsvFile, parseCsvR
    rows=parseCsvRows(await file.text());
   }else{
    $('importInfo').textContent='Chargement de la bibliothèque Excel…';
-   await loadXLSX();spreadsheet=XLSX;
+   await loadXLSX();spreadsheet=globalThis.XLSX;
    const wb=globalThis.XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});
    const sheet=wb.Sheets[wb.SheetNames[0]];
    if(!sheet)throw new Error('Aucune feuille trouvée.');
@@ -51,19 +51,5 @@ export function createImportController({ $, showError, log, isCsvFile, parseCsvR
  }catch(err){showError('Import impossible : '+err.message)}
  e.target.value='';
 };
-$('clearImport').onclick=async()=>{if(confirm('Effacer tout l’historique importé ?')){hist=[];await dbSet('hist',[]);$('importInfo').textContent='';render()}};
-$('histBtn').onclick=()=>{source='hist';render()};
-$('liveBtn').onclick=()=>{source='live';render()};
-$('dayPicker').onchange=e=>{selectedDate=e.target.value||null;resetChartViews();render()};
-$('clearDay').onclick=()=>{selectedDate=null;$('dayPicker').value='';resetChartViews();render()};
-$('prev').onclick=()=>{selectedDate=shiftDay(selectedDate,-1);$('dayPicker').value=selectedDate;resetChartViews();render()};
-$('next').onclick=()=>{selectedDate=shiftDay(selectedDate,1);$('dayPicker').value=selectedDate;resetChartViews();render()};
-document.querySelectorAll('[data-days]').forEach(b=>b.onclick=()=>{daysSetting=Number(b.dataset.days);selectedDate=null;$('dayPicker').value='';resetChartViews();render()});
-$('clearLive').onclick=async()=>{if(confirm('Effacer les relevés en direct ?')){live=[];await dbSet('live',[]);$('liveCount').textContent='0';render()}};
-$('csv').onclick=()=>{
- const keys=['t','st','sh','t1','h1','te','he','rpm','fil','vit','boost','hol'];
- const rows=[keys.join(';'),...live.map(r=>keys.map(k=>k==='t'?new Date(r.t).toISOString():(r[k]!=null?r[k]:'')).join(';'))];
- downloadText(rows.join('\n'),'vmi-purevent-live.csv','text/csv;charset=utf-8');
-}
  return { loadXLSX };
 }
