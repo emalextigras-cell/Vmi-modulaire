@@ -22,6 +22,7 @@ import { formatDiagnosisConfidence } from './modules/diagnostic-confidence.js';
 import { analyzeSeasonalVentilation } from './modules/seasonal-advice.js';
 import { renderVmiAssistant } from './modules/assistant-renderer.js';
 import { selectDataRange } from './modules/history-selection.js';
+import { formatDuration, localDateTimeValue } from './modules/format-utils.js';
 
 
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
@@ -634,12 +635,6 @@ $('diagCopy').onclick=async()=>{
 /* Le direct reste une vue facultative ; toutes les analyses utilisent l’historique importé/téléchargé. */
 function selectedData(){return selectDataRange(source==='live'?live:hist,{selectedDate,daysSetting})}
 function selectedHistoricalData(){return selectDataRange(hist,{selectedDate,daysSetting})}
-function formatDuration(ms){
- const minutes=Math.round(ms/60000),hours=Math.floor(minutes/60),days=Math.floor(hours/24);
- if(days)return days+' j '+(hours%24)+' h';
- if(hours)return hours+' h '+(minutes%60)+' min';
- return minutes+' min';
-}
 function renderHygrometricPeriods(data){
  const box=$('hygroPeriods');
  const result=analyzeHygrometricPeriods(data,{threshold:1,maxGapHours:2});
@@ -1198,10 +1193,6 @@ function renderEnergyMeterTracking(){
  }
  html+='</tbody></table>';
  history.innerHTML=html;
-}
-function localDateTimeValue(timestamp=Date.now()){
- const date=new Date(timestamp);
- return date.getFullYear()+'-'+pad(date.getMonth()+1)+'-'+pad(date.getDate())+'T'+pad(date.getHours())+':'+pad(date.getMinutes());
 }
 
 function renderSeasonalAdvice(data){
