@@ -80,6 +80,7 @@ test('installe les écouteurs de notification avant d’activer les notification
 
 
 test('une reconnexion automatique en attente ne démarre pas pendant le sélecteur manuel', async () => {
+  const source = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
   const start = source.indexOf('async function reconnect()');
   const end = source.indexOf("$('conn').onclick=connectBLE", start);
   const reconnect = source.slice(start, end);
