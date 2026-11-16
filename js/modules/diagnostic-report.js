@@ -37,8 +37,8 @@ export function buildDiagnosticReport({
  L.push('Graphiques : ' + ['chartRH', 'chartHA', 'chartTemp', 'chartRPM'].map(id => `${id} ${chartPaths[id] || 0} courbe(s)`).join(' · '));
  L.push('Téléchargement : ' + (downloadOn ? 'en cours' : 'inactif') + ` · ${downloadProgress}`);
  L.push('Commandes : ' + commandResult);
- L.push('Erreurs : ' + (errors.length ? '\\n  ' + errors.join('\\n  ') : 'aucune'));
+ L.push('Erreurs : ' + (errors.length ? '\n  ' + errors.join('\n  ') : 'aucune'));
  L.push('Journal (25 dernières lignes) :');
  logLines.slice(-25).forEach(line => L.push('  ' + line));
- return L.join('\\n');
+ return L.join('\n');
 }
