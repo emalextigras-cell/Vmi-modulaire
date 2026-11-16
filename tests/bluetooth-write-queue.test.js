@@ -62,3 +62,32 @@ test('un échec ne bloque pas les écritures suivantes', async () => {
   assert.equal(calls, 2);
   assert.equal(errors, 1);
 });
+
+
+test('annule les commandes en attente après un changement de session Bluetooth', async () => {
+  let generation = 1;
+  let releaseFirstWrite;
+  let firstWriteStarted;
+  const started = new Promise(resolve => { firstWriteStarted = resolve; });
+  const blockedSleep = () => new Promise(resolve => { releaseFirstWrite = resolve; });
+  const sent = [];
+  const queue = createBleWriteQueue({
+    isConnected: () => true,
+    getConnectionToken: () => generation,
+    getCharacteristic: () => ({
+      properties: { write: true },
+      async writeValueWithResponse(bytes) { sent.push(bytes[0]); if (bytes[0] === 1) firstWriteStarted(); }
+    }),
+    sleep: blockedSleep
+  });
+
+  const first = queue.write(new Uint8Array([1]));
+  const second = queue.write(new Uint8Array([2]));
+  await started;
+  generation++;
+  releaseFirstWrite();
+
+  assert.equal(await first, true);
+  assert.equal(await second, false);
+  assert.deepEqual(sent, [1]);
+});
