@@ -152,7 +152,7 @@ test('les contrôleurs sont initialisés après le store et ne capturent pas un 
  const importIndex = app.indexOf('createImportController({');
  const exportIndex = app.indexOf('createHistoryExportController({');
  assert.ok(storeIndex >= 0 && importIndex > storeIndex && exportIndex > storeIndex);
- assert.doesNotMatch(importer, /\\b(hist|source|selectedDate|daysSetting|dbSet|render|downloadText|shiftDay)\\b/);
+ assert.doesNotMatch(importer, /\b(hist|source|selectedDate|daysSetting|dbSet|render|downloadText|shiftDay)\b/);
  assert.ok(importer.includes('spreadsheet=globalThis.XLSX'));
  assert.ok(exporter.includes("['\\ufeff', content]"));
  assert.ok(exporter.includes("lines.join('\\r\\n')"));
