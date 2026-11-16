@@ -7,4 +7,6 @@ export function saturationVaporPressure(temp){
 export function absoluteHumidity(temp,rh){if(!Number.isFinite(temp)||!Number.isFinite(rh)||rh<0||rh>100||temp<=-80||temp>=80)return null;const e=(rh/100)*saturationVaporPressure(temp);const value=216.7*e/(temp+273.15);return Number.isFinite(value)?value:null}
 export function dewPoint(temp,rh){if(!Number.isFinite(temp)||!Number.isFinite(rh)||temp<=-80||temp>=80||rh<=0||rh>100)return null;const a=17.62,b=243.12,g=Math.log(rh/100)+(a*temp)/(b+temp);const result=b*g/(a-g);return Number.isFinite(result)?result:null}
 export function psychro(r){return {haIn:absoluteHumidity(r.st,r.sh),haOut:absoluteHumidity(r.te,r.he),dewIn:dewPoint(r.st,r.sh),dewOut:dewPoint(r.te,r.he)}}
+/** Écart d'humidité absolue intérieur − air entrant (g/m³). Positif : air entrant plus sec. */
+export function absoluteHumidityDelta(record){if(!record)return null;const indoor=absoluteHumidity(record.st,record.sh),inlet=absoluteHumidity(record.te,record.he);return Number.isFinite(indoor)&&Number.isFinite(inlet)?indoor-inlet:null}
 export function validTemp(v){return Number.isFinite(v)&&v>-40&&v<80}
