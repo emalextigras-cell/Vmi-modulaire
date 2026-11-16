@@ -7,13 +7,15 @@ import {
   median,
   analyzeHygrometricPeriods,
   analyzeSpeedLevels,
-  analyzeSpeedTimeContext,
+  analyzeSpeedTimeContext
+} from './analysis.js';
+import {
   summarizeEnergyReadiness,
   summarizeOperatingReference,
   summarizeRawVmiMode,
   summarizeRawVmiSpeed,
   summarizeTemperatureLimit
-} from './analysis.js';
+} from './operating-reference.js';
 import { buildHygrometricDiagnosis } from './hygrometric-diagnosis.js';
 import { summarizeDailyTrends, analyzeHourlyPatterns, detectRapidChanges } from './temporal-analysis.js';
 import { summarizeDataQuality } from './data-quality.js';

@@ -1,8 +1,8 @@
-const CACHE_NAME = 'vmi-modulaire-v14-cache-26';
+const CACHE_NAME = 'vmi-modulaire-v14-cache-27';
 const CACHE_PREFIX = 'vmi-modulaire-';
 const APP_SHELL = [
   './','./index.html','./manifest.json','./css/style.css','./js/app.js',
-  './js/modules/core.js','./js/modules/store.js','./js/modules/analysis.js',
+  './js/modules/core.js','./js/modules/store.js','./js/modules/analysis.js','./js/modules/statistics.js','./js/modules/operating-reference.js',
   './js/modules/charts.js','./js/modules/ble.js','./js/modules/sync.js',
   './js/modules/dataio.js','./js/modules/clock-correction.js',
   './js/modules/legacy-migration.js','./js/modules/history.js',
