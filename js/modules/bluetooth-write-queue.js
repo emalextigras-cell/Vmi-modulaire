@@ -5,6 +5,7 @@
 export function createBleWriteQueue({
   isConnected,
   getCharacteristic,
+  getConnectionToken = () => null,
   sleep,
   onSuccess = () => {},
   onError = () => {},
@@ -13,7 +14,12 @@ export function createBleWriteQueue({
   let tail = Promise.resolve();
 
   function write(bytes) {
+    // Une écriture appartient à la session active au moment de sa mise en file.
+    const connectionToken = getConnectionToken();
     const task = tail.then(async () => {
+      if (getConnectionToken() !== connectionToken) {
+        throw new Error('Commande annulée : la session Bluetooth a changé.');
+      }
       if (!isConnected()) throw new Error('VMI non connectée');
       const characteristic = getCharacteristic();
       if (!characteristic) throw new Error('Caractéristique Bluetooth indisponible.');
