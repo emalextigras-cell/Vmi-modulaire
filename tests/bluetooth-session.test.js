@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { runBleSessionSequence } from '../js/modules/bluetooth-session.js';
 
 test('arrête la séquence dès que la session BLE change', async () => {
@@ -46,4 +47,14 @@ test('arrête la séquence après un échec d’écriture', async () => {
   });
   assert.equal(result, false);
   assert.deepEqual(sent, [1]);
+});
+
+test('les scrutations et notifications sont liées à leur session BLE', async () => {
+  const source = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
+  assert.ok(source.includes('pollingSessionToken===token'));
+  assert.ok(source.includes('token!==bleConnectionGeneration||!connected()||download.on'));
+  assert.ok(source.includes('if(!sessionIsCurrent(token,device)||!connected())return;'));
+  assert.ok(source.includes('if(ev.target!==chT&&ev.target!==chC)return;'));
+  assert.ok(source.includes('if(sessionIsCurrent(token,device)&&connected())autoHistory()'));
+  assert.ok(source.includes('removeEventListener(\'characteristicvaluechanged\',bleNotificationHandler)'));
 });
