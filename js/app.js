@@ -9,6 +9,7 @@ import { renderCharts, resetChartViews } from './modules/charts.js';
 import { SVC_C, CH_C, SVC_T, CH_T, frame, timeFrame, hex } from './modules/ble.js';
 import { decodeVmiNotification } from './modules/bluetooth-decoder.js';
 import { createBleWriteQueue } from './modules/bluetooth-write-queue.js';
+import { runBleSessionSequence } from './modules/bluetooth-session.js';
 import { armDownloadTimeout } from './modules/sync.js';
 import { parseCell, recFrom, getColumnMapping, findVmiHeaderRowIndex, parseCsvRows, isCsvFile } from './modules/dataio.js';
 import { fixClock } from './modules/clock-correction.js';
@@ -421,13 +422,13 @@ async function startDownload(auto=false){
  download={on:true,rows:[],buf:'',total:0,sigs:new Set(hist.filter(r=>r.rk&&Number.isFinite(r.d)).map(sigOf)),got:false,lastPacket:Date.now(),timeout:null};
  $('dlh').disabled=true;setCommandsDisabled(true);
  $('dlp').textContent=auto?'Téléchargement automatique de l’historique…':'Démarrage du téléchargement…';
- const clockSent=await setClock();
- if(!clockSent||!sessionIsCurrent()){abortDownload();return}
- for(const reg of [0x2c,0x20,0x22]){
-  if(!sessionIsCurrent()){abortDownload();return}
-  const sent=await send(reg,0);
-  if(!sent||!sessionIsCurrent()){abortDownload();return}
- }
+ const sequenceOk=await runBleSessionSequence({
+  token:sessionToken,
+  getToken:()=>bleConnectionGeneration,
+  isActive:()=>download.on&&connected(),
+  steps:[()=>setClock(),()=>send(0x2c,0),()=>send(0x20,0),()=>send(0x22,0)]
+ });
+ if(!sequenceOk){abortDownload();return}
  armTimer();
 }
 $('dlh').onclick=()=>startDownload(false);
