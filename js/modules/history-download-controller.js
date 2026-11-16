@@ -8,7 +8,7 @@ export function createHistoryDownloadController({
  const sigOf = row => row.rk + '|' + row.d;
  function parseDownloadLine(line) {
   const download = getDownload();
-  if (!download.on || !/^\\d{1,2}\\/\\d{1,2}\\/\\d{4} \\d{1,2}:\\d{2}:\\d{2};/.test(line)) return;
+  if (!download.on || !/^\d{1,2}\/\d{1,2}\/\d{4} \d{1,2}:\d{2}:\d{2};/.test(line)) return;
   const fields = line.split(';');
   const parsed = parseCell(fields[0]);
   if (!parsed) return;
