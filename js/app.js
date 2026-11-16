@@ -322,6 +322,16 @@ async function connectCharacteristics(server,token,device){
  if(!sessionIsCurrent(token,device))return false;
  const characteristicT=await serviceT.getCharacteristic(CH_T);
  if(!sessionIsCurrent(token,device))return false;
+ // Installer les écouteurs avant d'activer les notifications : aucune trame initiale
+ // ne doit pouvoir arriver dans la fenêtre entre startNotifications() et addEventListener().
+ chC=characteristicC;chT=characteristicT;
+ bleNotificationHandler=ev=>{
+  if(!sessionIsCurrent(token,device)||!connected())return;
+  if(ev.target!==chT&&ev.target!==chC)return;
+  onNotification(ev);
+ };
+ chT.addEventListener('characteristicvaluechanged',bleNotificationHandler);
+ chC.addEventListener('characteristicvaluechanged',bleNotificationHandler);
  await characteristicT.startNotifications();
  if(!sessionIsCurrent(token,device))return false;
  try{
@@ -331,14 +341,6 @@ async function connectCharacteristics(server,token,device){
   log('Notifications canal commande non disponibles : '+e.message);
  }
  if(!sessionIsCurrent(token,device))return false;
- chC=characteristicC;chT=characteristicT;
- bleNotificationHandler=ev=>{
-  if(!sessionIsCurrent(token,device)||!connected())return;
-  if(ev.target!==chT&&ev.target!==chC)return;
-  onNotification(ev);
- };
- chT.addEventListener('characteristicvaluechanged',bleNotificationHandler);
- chC.addEventListener('characteristicvaluechanged',bleNotificationHandler);
  return true;
 }
 function preferredBluetoothDeviceId(){
