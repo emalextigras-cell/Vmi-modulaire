@@ -94,9 +94,15 @@ export function getColumnMapping(headerRow) {
 export function parseCell(value, spreadsheet = globalThis.XLSX) {
   if (typeof value === 'number' && value > 30000 && spreadsheet) {
     const c = spreadsheet.SSF.parse_date_code(value);
-    if (!c) return null;
-    const swap = c.d <= 12, year = c.y, month = swap ? c.d : c.m, day = swap ? c.m : c.d, second = Math.round(c.S);
-    return { t: new Date(year, month-1, day, c.H, c.M, second).getTime(),
+    if (!c || ![c.y,c.m,c.d,c.H,c.M,c.S].every(Number.isFinite)) return null;
+    // Un numéro de série Excel encode déjà année/mois/jour sans ambiguïté :
+    // ne jamais inverser mois et jour selon leur valeur numérique.
+    const year = c.y, month = c.m, day = c.d, second = Math.round(c.S);
+    if (month < 1 || month > 12 || day < 1 || c.H < 0 || c.H > 23 ||
+        c.M < 0 || c.M > 59 || second < 0 || second > 59) return null;
+    const date = new Date(year, month - 1, day, c.H, c.M, second);
+    if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) return null;
+    return { t: date.getTime(),
       rk: `${pad(day)}/${pad(month)}/${year} ${pad(c.H)}:${pad(c.M)}:${pad(second)}` };
   }
   if (typeof value === 'string') {
