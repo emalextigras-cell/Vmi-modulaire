@@ -54,7 +54,7 @@ window.addEventListener('unhandledrejection',e=>recordError('Promesse rejetée :
 
 
 let dev=null,chC=null,chT=null,pollTimer=null,snapTimer=null,reconnectTimer=null;
-let bleConnectionGeneration=0;
+let bleConnectionGeneration=0,connectionIntentGeneration=0,connectionRequestPending=false;
 let manualDisconnect=false,intentionalDisconnect=false,manualCommandPending=false,pollingSessionToken=null,autoDone=false;
 let bleNotificationHandler=null,bleDisconnectHandler=null;
 let meta={},cur={},lastSeen={},live=[],hist=[],energyReadings=[],source='hist',selectedDate=null,daysSetting=30;
@@ -372,23 +372,38 @@ async function connectDevice(device){
  }
 }
 async function connectBLE(){
- // Un clic explicite démarre une nouvelle session et autorise une synchronisation initiale.
+ // Un seul sélecteur utilisateur à la fois ; son intention prime sur l'auto-connexion en attente.
+ if(connectionRequestPending)return;
+ connectionRequestPending=true;
+ const intent=++connectionIntentGeneration;
+ $('conn').disabled=true;
  autoDone=false;manualDisconnect=false;clearTimeout(reconnectTimer);showError('');
- if(!navigator.bluetooth){showError('Web Bluetooth indisponible. Utilise Chrome sur Android ou un navigateur compatible, en HTTPS.');return}
  try{
+  if(!navigator.bluetooth){showError('Web Bluetooth indisponible. Utilise Chrome sur Android ou un navigateur compatible, en HTTPS.');return}
   /* requestDevice reste directement dans le geste utilisateur requis par le navigateur. */
   const device=await navigator.bluetooth.requestDevice({acceptAllDevices:true,optionalServices:[SVC_C,SVC_T]});
+  if(intent!==connectionIntentGeneration)return;
   rememberBluetoothDevice(device);
   await connectDevice(device);
- }catch(e){showError(e);setStatus('Connexion impossible.')}
+ }catch(e){
+  if(intent===connectionIntentGeneration){showError(e);setStatus('Connexion impossible.')}
+ }finally{
+  if(intent===connectionIntentGeneration){
+   connectionRequestPending=false;
+   $('conn').disabled=connected();
+  }
+ }
 }
 async function autoConnectAuthorizedDevice(){
+ const intent=connectionIntentGeneration;
+ if(connectionRequestPending)return;
  if(!navigator.bluetooth||typeof navigator.bluetooth.getDevices!=='function'){
   setStatus('Autorisation Bluetooth requise : appuie sur « Se connecter ».');
   return;
  }
  try{
   const devices=await navigator.bluetooth.getDevices();
+  if(intent!==connectionIntentGeneration||connectionRequestPending)return;
   const device=chooseAuthorizedDevice(devices,preferredBluetoothDeviceId());
   if(!device){
    setStatus(devices.length>1?'Plusieurs appareils sont autorisés. Appuie sur « Se connecter » pour choisir la VMI.':'VMI non encore autorisée. Appuie sur « Se connecter » une première fois.');
@@ -397,6 +412,7 @@ async function autoConnectAuthorizedDevice(){
   log('VMI déjà autorisée détectée : tentative de reconnexion automatique.');
   await connectDevice(device);
  }catch(e){
+  if(intent!==connectionIntentGeneration)return;
   log('Reconnexion automatique indisponible : '+(e.message||e));
   setStatus('Reconnexion automatique impossible. Appuie sur « Se connecter ».');
  }
