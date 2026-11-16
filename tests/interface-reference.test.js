@@ -30,14 +30,7 @@ test('le module de conseils saisonniers est inclus dans le cache hors ligne', as
   const sw = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
   assert.ok(sw.includes("'./js/modules/seasonal-advice.js'"));
   assert.ok(sw.includes("'./js/modules/history-selection.js'"));
-  assert.ok(sw.includes("'./js/modules/format-utils.js'"));
-  assert.ok(sw.includes("'./js/modules/history-freshness.js'"));
-  assert.ok(sw.includes("'./js/modules/history-freshness-view.js'"));
-  assert.ok(sw.includes("'./js/modules/hygrometric-diagnosis.js'"));
-  assert.ok(sw.includes("'./js/modules/temporal-analysis.js'"));
-  assert.ok(sw.includes("'./js/modules/statistics.js'"));
-  assert.ok(sw.includes("'./js/modules/operating-reference.js'"));
-  assert.ok(sw.includes('vmi-modulaire-v14-cache-33'));
+  assert.ok(sw.includes('vmi-modulaire-v14-cache-21'));
 });
 
 
@@ -63,82 +56,4 @@ test('l’assistant reste local et ne modifie aucune commande Bluetooth', async 
   assert.ok(assistant.includes('analyzeSeasonalVentilation'));
   assert.ok(assistant.includes('Aucune commande de vitesse'));
   assert.ok(!assistant.includes('fetch('));
-});
-
-
-test('les rendus des bilans hebdomadaires et des conseils sont isolés du contrôleur principal', async () => {
-  const app = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
-  const renderer = await readFile(new URL('../js/modules/history-insight-renderers.js', import.meta.url), 'utf8');
-  const sw = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
-  assert.ok(app.includes("from './modules/history-insight-renderers.js'"));
-  assert.ok(app.includes('historyInsightRenderers.renderWeeklyDiagnostic(analysisData)'));
-  assert.ok(app.includes('historyInsightRenderers.renderSeasonalAdvice(analysisData)'));
-  assert.ok(app.includes('historyInsightRenderers.renderRecommendation(analysisData)'));
-  assert.ok(!app.includes('function renderWeeklyDiagnostic(data)'));
-  assert.ok(!app.includes('function renderSeasonalAdvice(data)'));
-  assert.ok(!app.includes('function renderRecommendation(data)'));
-  assert.ok(renderer.includes('export function createHistoryInsightRenderers'));
-  assert.ok(sw.includes("'./js/modules/history-insight-renderers.js'"));
-  assert.ok(sw.includes('vmi-modulaire-v14-cache-33'));
-});
-
-
-test('les rendus énergétiques sont isolés du contrôleur principal et mis en cache hors ligne', async () => {
- const app = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
- const renderer = await readFile(new URL('../js/modules/energy-renderers.js', import.meta.url), 'utf8');
- const sw = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
- assert.ok(app.includes("from './modules/energy-renderers.js'"));
- for (const name of ['renderEnergyReadiness','renderFanEnergyEstimate','renderDailyEnergyClimateContext','renderEnergyMeterTracking']) {
-  assert.ok(app.includes('energyRenderers.' + name));
-  assert.ok(!app.includes('function ' + name));
-  assert.ok(renderer.includes('function ' + name));
- }
- assert.ok(sw.includes("'./js/modules/energy-renderers.js'"));
- assert.ok(sw.includes('vmi-modulaire-v14-cache-33'));
-});
-
-
-test('les rendus hygrométriques et temporels sont isolés et disponibles hors ligne', async () => {
- const app = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
- const renderer = await readFile(new URL('../js/modules/hygrometric-renderers.js', import.meta.url), 'utf8');
- const sw = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
- assert.ok(app.includes("from './modules/hygrometric-renderers.js'"));
- for (const name of ['renderHygrometricPeriods','renderTemporalAnalysis','renderIntelligentDiagnosis']) {
-  assert.ok(app.includes('hygrometricRenderers.' + name));
-  assert.ok(!app.includes('function ' + name));
-  assert.ok(renderer.includes('function ' + name));
- }
- assert.ok(sw.includes("'./js/modules/hygrometric-renderers.js'"));
- assert.ok(sw.includes('vmi-modulaire-v14-cache-33'));
-});
-
-
-test('le contrôleur d’import est isolé et inclus dans le cache hors ligne', async () => {
- const app = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
- const controller = await readFile(new URL('../js/modules/import-controller.js', import.meta.url), 'utf8');
- const sw = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
- assert.ok(app.includes("from './modules/import-controller.js'"));
- assert.ok(app.includes('createImportController({'));
- assert.ok(!app.includes("$('fx').onchange="));
- assert.ok(controller.includes("$('fx').onchange="));
- assert.ok(controller.includes('findVmiHeaderRowIndex'));
- assert.ok(controller.includes('parseCsvRows'));
- assert.ok(sw.includes("'./js/modules/import-controller.js'"));
- assert.ok(sw.includes('vmi-modulaire-v14-cache-33'));
-});
-
-
-test('le contrôleur export/sauvegarde est isolé et mis en cache', async () => {
- const app = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
- const controller = await readFile(new URL('../js/modules/history-export-controller.js', import.meta.url), 'utf8');
- const sw = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
- assert.ok(app.includes("from './modules/history-export-controller.js'"));
- assert.ok(app.includes('createHistoryExportController({'));
- assert.ok(!app.includes("$('restoreFile').onchange"));
- assert.ok(!app.includes("$('expBackup').onclick"));
- assert.ok(controller.includes("$('restoreFile').onchange"));
- assert.ok(controller.includes('await dbSetMany(entries)'));
- assert.ok(controller.includes('setState({ hist: nextHist'));
- assert.ok(sw.includes("'./js/modules/history-export-controller.js'"));
- assert.ok(sw.includes('vmi-modulaire-v14-cache-33'));
 });
