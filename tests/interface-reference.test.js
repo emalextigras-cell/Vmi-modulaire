@@ -30,7 +30,8 @@ test('le module de conseils saisonniers est inclus dans le cache hors ligne', as
   const sw = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
   assert.ok(sw.includes("'./js/modules/seasonal-advice.js'"));
   assert.ok(sw.includes("'./js/modules/history-selection.js'"));
-  assert.ok(sw.includes('vmi-modulaire-v14-cache-21'));
+  assert.ok(sw.includes("'./js/modules/format-utils.js'"));
+  assert.ok(sw.includes('vmi-modulaire-v14-cache-22'));
 });
 
 
