@@ -24,6 +24,7 @@ import { renderVmiAssistant } from './modules/assistant-renderer.js';
 import { selectDataRange } from './modules/history-selection.js';
 import { formatDuration, localDateTimeValue } from './modules/format-utils.js';
 import { estimateHistoryRetention } from './modules/history-freshness.js';
+import { buildHistoryFreshnessView } from './modules/history-freshness-view.js';
 
 
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
@@ -573,14 +574,9 @@ $('restoreFile').onchange=async e=>{
 function renderFreshness(){
  const box=$('fresh');
  const estimate=estimateHistoryRetention(hist,{now:Date.now(),minValid:MIN_VALID,dayMs:DAY,capacity:800});
- if(!estimate){box.className='advice';box.textContent='Aucun historique mémorisé. Connecte la VMI pour le télécharger : elle ne garde que ses 800 derniers relevés (environ 4 semaines).';return}
- const {newest,ageDays:age,capacityDays:cap,daysRemaining:left,deadline}=estimate;
- let cls='advice good';
- let msg=`Historique à jour jusqu’au ${fmtShort(newest)} (il y a ${age<1?Math.max(0,Math.round(age*24))+' h':age.toFixed(1)+' j'}). La VMI garde environ ${Math.round(cap)} jours de relevés : télécharge avant le ${fmtShort(deadline)}.`;
- if(left<=1){cls='advice warn';msg+=' ⚠ Des relevés ont peut-être déjà été écrasés : connecte-toi maintenant.'}
- else if(age>=14||left<7){cls='advice warn';msg+=' Pense à te connecter bientôt.'}
- if(meta.lastSync)msg+=` Dernière synchronisation : ${fmtShort(meta.lastSync)}.`;
- box.className=cls;box.textContent=msg;
+ const view=buildHistoryFreshnessView({estimate,lastSync:meta.lastSync,fmtShort});
+ box.className=view.className;
+ box.textContent=view.text;
 }
 setInterval(renderFreshness,60000);
 
