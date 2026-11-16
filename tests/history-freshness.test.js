@@ -27,7 +27,7 @@ test('respecte les bornes minimales et maximales de la capacité estimée', () =
 test('ignore les horodatages antérieurs au seuil et retourne null si aucun relevé ne reste', () => {
   const result = estimateHistoryRetention(
     [{ t: 99 }, { t: 100 }, { t: 200 }],
-    { now: 300, minValid: 100, dayMs: 1 }
+    { now: 300, minValid: 100, dayMs: 100 }
   );
   assert.equal(result.newest, 200);
   assert.equal(result.recentCount, 2);
