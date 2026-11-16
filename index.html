@@ -48,7 +48,9 @@
  <div class="status" id="sampleAge">En attente des mesures.</div>
 </details>
 
-<details class="card compact" id="modes"><summary>Modes, état de la VMI et commandes</summary>
+<section id="modes" class="mode-section">
+ <h2>Modes et réglages de ventilation</h2>
+<details class="card compact"><summary>État de la VMI et commandes manuelles</summary>
  <div class="grid cols3">
   <div class="metric"><b id="sp">–</b><span>Vitesse</span></div>
   <div class="metric"><b id="bo">–</b><span>Boost</span></div>
@@ -71,6 +73,7 @@
  <div id="cmdResult" class="status"></div>
  <div class="row"><button class="outline" id="clk">Synchroniser l'heure VMI</button><button class="outline" id="dlh">Récupérer l'historique VMI</button><span id="dlp" class="note"></span></div>
 </details>
+</section>
 
 <section class="card" id="analyses">
  <h2>Analyses et diagnostic</h2>
@@ -130,7 +133,7 @@
  </details>
 </section>
 
-<details class="card compact" id="comparaisonModes"><summary>Comparaison des modes et aide au réglage</summary>
+<details class="card compact"><summary>Comparaison des modes et aide au réglage</summary>
  <div id="recommendation" class="advice">Connecte la VMI ou importe un historique pour obtenir une première analyse.</div>
  <h3>Conseils saisonniers et surventilation</h3>
  <div id="seasonalAdvice" class="advice">Les conseils apparaîtront après import d’un historique contenant les températures intérieure et extérieure.</div>
