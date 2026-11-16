@@ -414,7 +414,6 @@ async function startDownload(auto=false){
  if(!chC||!connected()){if(!auto)showError('Connecte-toi d’abord à la VMI.');return}
  if(download.on)return;
  const sessionToken=bleConnectionGeneration;
- const sessionIsCurrent=()=>download.on&&connected()&&bleConnectionGeneration===sessionToken;
  const abortDownload=()=>{
   if(download.on)finishDownload(false,true,true);
  };
