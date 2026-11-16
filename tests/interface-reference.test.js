@@ -37,7 +37,7 @@ test('le module de conseils saisonniers est inclus dans le cache hors ligne', as
   assert.ok(sw.includes("'./js/modules/temporal-analysis.js'"));
   assert.ok(sw.includes("'./js/modules/statistics.js'"));
   assert.ok(sw.includes("'./js/modules/operating-reference.js'"));
-  assert.ok(sw.includes('vmi-modulaire-v14-cache-29'));
+  assert.ok(sw.includes('vmi-modulaire-v14-cache-30'));
 });
 
 
@@ -79,5 +79,20 @@ test('les rendus des bilans hebdomadaires et des conseils sont isolés du contr�
   assert.ok(!app.includes('function renderRecommendation(data)'));
   assert.ok(renderer.includes('export function createHistoryInsightRenderers'));
   assert.ok(sw.includes("'./js/modules/history-insight-renderers.js'"));
-  assert.ok(sw.includes('vmi-modulaire-v14-cache-29'));
+  assert.ok(sw.includes('vmi-modulaire-v14-cache-30'));
+});
+
+
+test('les rendus énergétiques sont isolés du contrôleur principal et mis en cache hors ligne', async () => {
+ const app = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
+ const renderer = await readFile(new URL('../js/modules/energy-renderers.js', import.meta.url), 'utf8');
+ const sw = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
+ assert.ok(app.includes("from './modules/energy-renderers.js'"));
+ for (const name of ['renderEnergyReadiness','renderFanEnergyEstimate','renderDailyEnergyClimateContext','renderEnergyMeterTracking']) {
+  assert.ok(app.includes('energyRenderers.' + name));
+  assert.ok(!app.includes('function ' + name));
+  assert.ok(renderer.includes('function ' + name));
+ }
+ assert.ok(sw.includes("'./js/modules/energy-renderers.js'"));
+ assert.ok(sw.includes('vmi-modulaire-v14-cache-30'));
 });
