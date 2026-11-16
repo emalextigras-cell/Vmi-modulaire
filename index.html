@@ -15,10 +15,12 @@
   <h1>VMI Purevent</h1>
   <p class="sub">Comprendre simplement le fonctionnement de ta VMI</p>
  </div>
- <div class="row"><span class="pill" id="ver">v14</span><button class="outline" id="themeBtn" title="Changer le thème">Thème</button></div>
+ <div class="row"><span class="pill" id="ver">v15</span><button class="outline" id="themeBtn" title="Changer le thème">Thème</button></div>
 </header>
 
-<nav class="main-nav" aria-label="Navigation principale"><a href="#accueil">Accueil</a><a href="#analyses">Analyses</a><a href="#historique">Historique</a><a href="#reglages">Réglages</a></nav>
+<nav class="main-nav" aria-label="Navigation principale">
+ <a href="#accueil">Accueil</a><a href="#analyses">Analyse</a><a href="#modes">Modes</a><a href="#historique">Historique</a><a href="#reglages">Réglages</a>
+</nav>
 <section class="card dashboard-intro" id="accueil"><h2>Vue d'ensemble</h2><p class="sub">Pas besoin de Bluetooth pour consulter les analyses : elles utilisent l'historique VMI+.</p><div class="dashboard-status"><div><b>Connexion VMI</b><p id="dashboardConnectionStatus">Recherche d’une VMI déjà autorisée…</p></div><div><b>Données disponibles</b><p id="dashboardDataStatus">Chargement de l'historique…</p></div><div><b>Analyse</b><p id="dashboardAnalysisStatus">Préparation du diagnostic…</p></div></div></section>
 <div id="errBanner" class="advice warn" style="display:none"></div>
 
@@ -31,7 +33,7 @@
  <div id="err" class="error"></div>
 </details>
 
-<details class="card compact" open><summary>Mesures en direct</summary>
+<details class="card compact"><summary>Mesures détaillées des capteurs</summary>
  <div class="grid cols3">
   <div class="metric"><b id="tp">–</b><span>Salon · température °C</span></div>
   <div class="metric"><b id="hp">–</b><span>Salon · humidité relative %</span></div>
@@ -46,7 +48,9 @@
  <div class="status" id="sampleAge">En attente des mesures.</div>
 </details>
 
-<details class="card compact" open><summary>État de la VMI et commandes manuelles</summary>
+<section id="modes" class="mode-section">
+ <h2>Modes et réglages de ventilation</h2>
+<details class="card compact"><summary>État de la VMI et commandes manuelles</summary>
  <div class="grid cols3">
   <div class="metric"><b id="sp">–</b><span>Vitesse</span></div>
   <div class="metric"><b id="bo">–</b><span>Boost</span></div>
@@ -69,6 +73,7 @@
  <div id="cmdResult" class="status"></div>
  <div class="row"><button class="outline" id="clk">Synchroniser l'heure VMI</button><button class="outline" id="dlh">Récupérer l'historique VMI</button><span id="dlp" class="note"></span></div>
 </details>
+</section>
 
 <section class="card" id="analyses">
  <h2>Analyses et diagnostic</h2>
@@ -93,7 +98,7 @@
   <p id="coverageDescription">La couverture sera calculée à partir des horodatages de l’historique.</p>
   <details><summary>Comment est calculé ce pourcentage ?</summary><p id="coverageMethod">Il compare les intervalles exploitables à la durée entre le premier et le dernier relevé. Les interruptions supérieures à la durée maximale autorisée sont exclues. Ce n’est pas une mesure continue.</p></details>
  </div>
- <section class="card" id="energyEstimateCard">
+ <details class="card compact" id="energyEstimateCard"><summary>Consommation estimée et bilan énergétique</summary>
   <h3>Consommation électrique estimée</h3>
   <p class="note">Estimation du ventilateur PUREVENT à partir du débit exporté en m³/h et des points de puissance de la notice constructeur. Ce n’est pas une mesure au compteur.</p>
   <div id="fanEnergyEstimate" class="advice">Importe ou télécharge un historique VMI+ pour calculer une première estimation.</div>
@@ -103,7 +108,7 @@
   <div id="dailyEnergyClimateContext" class="advice">Le rapprochement apparaîtra lorsque plusieurs journées auront une couverture suffisante en débit et en mesures hygrométriques.</div>
   <h4>Bilan hygrométrique hebdomadaire</h4>
   <div id="weeklyDiagnostic" class="advice">Le bilan comparera deux fenêtres de sept jours lorsque chacune contiendra suffisamment de journées avec des mesures intérieures et entrantes valides.</div>
- </section>
+ </details>
  <div class="grid cols3">
   <div class="metric"><b id="deltaHA">–</b><span>Écart absolu salon − air entrant g/m³</span></div>
   <div class="metric"><b id="deltaT">–</b><span>Écart température salon − air entrant °C</span></div>
@@ -178,7 +183,9 @@
 </details>
 
 <section class="card" id="historique">
- <h2>Historique et graphiques</h2>
+ <h2>Historique</h2>
+ <p class="sub">Consulte les courbes, compare les périodes ou importe un nouvel export VMI+.</p>
+ <details class="history-controls"><summary>Importer et filtrer les données</summary>
  <div class="row">
   <label for="fx">Importer un export VMI+ (.csv/.xlsx/.xls, nécessite internet la première fois) :</label><input type="file" id="fx" accept=".csv,.xlsx,.xls">
  </div>
@@ -195,12 +202,15 @@
  <div id="fresh" class="advice"></div>
  <div id="importInfo" class="note"></div>
  <div id="dataQuality" class="advice" aria-live="polite"></div>
+ </details>
+ <details class="history-charts"><summary>Afficher les graphiques et mesures</summary>
  <h3>Humidité relative (%)</h3><div id="chartRH" class="chart"></div>
  <h3>Humidité absolue exportée par VMI+ (valeurs brutes, unité différente du calcul g/m³ à confirmer)</h3><div id="chartVmiAbs" class="chart"></div>
  <h3>Humidité absolue calculée (g/m³)</h3><div id="chartHA" class="chart"></div>
  <h3>Températures (°C)</h3><div id="chartTemp" class="chart"></div>
  <h3>Régime ventilateur (tr/min)</h3><div id="chartRPM" class="chart"></div>
  <h3>Débit VMI+ (m³/h)</h3><div id="chartDebit" class="chart"></div>
+ </details>
 </section>
 
 <details class="card compact"><summary>Sauvegarde et export des données</summary>
@@ -225,7 +235,7 @@
  <div class="row"><button class="outline" id="diagBtn">Diagnostic</button><button class="outline" id="diagCopy">Copier</button></div>
  <pre id="diagOut"></pre>
 </details>
-<footer>VMI Purevent · version 14 · L’heure de la VMI est synchronisée à la connexion et avant chaque téléchargement, comme le fait VMI+ ; les commandes de réglage ne sont envoyées qu’après une action manuelle. Les calculs sont indicatifs et dépendent de la fiabilité des capteurs.</footer>
+<footer>VMI Purevent · version 15 · L’heure de la VMI est synchronisée à la connexion et avant chaque téléchargement, comme le fait VMI+ ; les commandes de réglage ne sont envoyées qu’après une action manuelle. Les calculs sont indicatifs et dépendent de la fiabilité des capteurs.</footer>
 </main>
 
 <script type="module" src="js/app.js"></script>
