@@ -106,7 +106,7 @@ async function readOldDatabase(){
 }
 async function init(){
  let l=await dbGet('live'),h=await dbGet('hist');
- live=Array.isArray(l)?l:[];hist=Array.isArray(h)?h.filter(row=>row?.syncPartial!==true):[];if(Array.isArray(h)&&hist.length!==h.length)await dbSet('hist',hist);
+ live=Array.isArray(l)?l:[];hist=Array.isArray(h)?h.filter(row=>row?.syncPartial!==true||row?.syncValid===true):[];if(Array.isArray(h)&&hist.length!==h.length)await dbSet('hist',hist);
  meta=(await dbGet('meta'))||{};
  const storedEnergyReadings=await dbGet('energyReadings');
  energyReadings=Array.isArray(storedEnergyReadings)?storedEnergyReadings:[];
@@ -216,7 +216,7 @@ function handleNotification(ev){
     if(download.buf.trim())parseDownloadLine(download.buf);
     if(download.on)finishDownload(false,false,false,true);
    }else if(decoded.final){
-    if(download.buf.trim())parseDownloadLine(download.buf);
+    if(isCurrentHistoryRecordComplete(download.historyStream)&&download.buf.trim())parseDownloadLine(download.buf);
     if(download.on){download.finalSeen=true;finishDownload(false)}
    }
   }
@@ -524,12 +524,13 @@ function finishDownload(reachedCut,timeout=false,interrupted=false,reachedTotal=
  download.on=false;clearTimeout(download.timeout);
  const count=download.rows.length;
  const complete=!timeout&&!interrupted&&!download.integrityGap&&(reachedCut||reachedTotal||download.finalSeen===true);
- // Un transfert non certifié n'est pas injecté : une ligne tronquée peut rester
- // analysable tout en ayant perdu des colonnes en fin de ligne.
- if(complete&&count)ingest(markHistoryRows(download.rows,true),'Téléchargement');
+ // Chaque ligne assemblée jusqu'à son fragment final reste exploitable, même si
+ // le transfert global a connu une lacune. Elle ne sert toutefois pas de borne
+ // d'arrêt avant qu'une synchronisation ultérieure soit certifiée.
+ if(count)ingest(markHistoryRows(download.rows,complete),'Téléchargement');
  if(complete){meta.lastSync=Date.now();dbSet('meta',meta);renderFreshness()}
  $('dlh').disabled=false;setCommandsDisabled(false);
- $('dlp').textContent=`Terminé : ${complete?count:0} nouvelles lignes${complete?' · historique synchronisé':download.integrityGap?' · fragments manquants : aucune donnée partielle conservée, relance nécessaire':interrupted?' · transfert interrompu : aucune donnée partielle conservée':timeout?(download.got?' · délai dépassé : transfert non certifié, relance nécessaire':' · aucune réponse de la VMI'):' · transfert non certifié : relance nécessaire'}`;
+ $('dlp').textContent=`Terminé : ${count} lignes valides${complete?' · synchronisation certifiée':download.integrityGap?' · lacune détectée : lignes valides conservées, relance nécessaire':interrupted?' · transfert interrompu : lignes valides conservées, relance nécessaire':timeout?(download.got?' · délai dépassé : lignes valides conservées, relance nécessaire':' · aucune réponse de la VMI'):' · transfert non certifié : relance nécessaire'}`;
  if((reachedCut||reachedTotal)&&dev&&dev.gatt&&dev.gatt.connected){
   // La VMI ne sait pas arrêter seule le flux historique : cette coupure est volontaire.
   intentionalDisconnect=true;
