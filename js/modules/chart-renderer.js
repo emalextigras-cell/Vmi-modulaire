@@ -1,5 +1,5 @@
 /** Rendu SVG des graphiques et infobulles tactiles. */
-import { absoluteHumidity } from './psychrometry.js';
+import { absoluteHumidity, absoluteHumidityDelta } from './psychrometry.js';
 import { pad, dayStart, shiftDay } from './date-utils.js';
 import { isPlausibleHumidity, isPlausibleTemperature, isPlaceholderSensorRecord } from './data-quality.js';
 const COLORS=['#286348','#c16b32','#356da5','#8056a8'];
@@ -27,11 +27,12 @@ function drawChart(id,title,series,selectedDate,$){
  const view=viewStates.get(id)||{factor:1,center:.5};viewStates.set(id,view);
  const viewSpan=baseSpan/view.factor;
  x0=baseX0+(baseSpan-viewSpan)*view.center;x1=x0+viewSpan;
- const vals=all.map(p=>p.v);let y0=Math.min(...vals),y1=Math.max(...vals);if(y0===y1){y0-=1;y1+=1}
+ const vals=all.map(p=>p.v);if(id==='chartHADelta')vals.push(0);let y0=Math.min(...vals),y1=Math.max(...vals);if(y0===y1){y0-=1;y1+=1}
  const margin=(y1-y0)*.1;y0-=margin;y1+=margin;
  const X=t=>L+(t-x0)/(x1-x0)*(W-L-R),Y=v=>T+(1-(v-y0)/(y1-y0))*(H-T-B);
  let svg='';
  for(let i=0;i<=4;i++){const v=y0+(y1-y0)*i/4,y=Y(v);svg+=`<line class="gridline" x1="${L}" x2="${W-R}" y1="${y}" y2="${y}"/><text x="${L-7}" y="${y+3}" text-anchor="end">${v.toFixed(1)}</text>`}
+ if(id==='chartHADelta'){const zero=Y(0);svg+=`<line x1="${L}" x2="${W-R}" y1="${zero}" y2="${zero}" stroke="currentColor" stroke-width="1.4" stroke-dasharray="5 4" opacity=".8"/>`}
  if(daily){for(let h=0;h<=24;h+=3){const tick=new Date(x0);tick.setHours(h,0,0,0);const x=X(tick.getTime());svg+=`<line class="gridline" x1="${x}" x2="${x}" y1="${T}" y2="${H-B}"/><text x="${x}" y="${H-10}" text-anchor="${h===0?'start':h===24?'end':'middle'}">${pad(h)}h</text>`}}
  else{const span=x1-x0,withHour=span<=3*86400000;for(let i=0;i<=4;i++){const t=x0+span*i/4,x=X(t);svg+=`<text x="${x}" y="${H-10}" text-anchor="${i===0?'start':i===4?'end':'middle'}">${fmtTick(t,withHour)}</text>`}}
  /* seuil de trou calculé série par série : le trait est interrompu quand des relevés manquent */
@@ -94,6 +95,8 @@ export function renderCharts(data,selectedDate,$){
   // mais n'est pas mélangée à cette comparaison psychrométrique.
   seriesFor(data,'sh','Salon',COLORS[0],r=>isPlausibleTemperature(r.st)&&isPlausibleHumidity(r.sh)?absoluteHumidity(r.st,r.sh):null,r=>(Number.isFinite(r.st)&&!isPlausibleTemperature(r.st))||(Number.isFinite(r.sh)&&!isPlausibleHumidity(r.sh))),
   seriesFor(data,'he','Air entrant',COLORS[2],r=>isPlausibleTemperature(r.te)&&isPlausibleHumidity(r.he)?absoluteHumidity(r.te,r.he):null,r=>(Number.isFinite(r.te)&&!isPlausibleTemperature(r.te))||(Number.isFinite(r.he)&&!isPlausibleHumidity(r.he)))],selectedDate,$);
+ drawChart('chartHADelta','Écart humidité absolue (salon − air entrant)',[
+  seriesFor(data,'sh','Écart intérieur − air entrant',COLORS[3],r=>absoluteHumidityDelta(r))],selectedDate,$);
  drawChart('chartTemp','Températures',[
   // Composition historique V13 : salon, P0 et P1. La température extérieure
   // reste conservée dans les données mais n'élargit pas l'échelle de ce graphique.
