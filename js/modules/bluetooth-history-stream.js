@@ -21,6 +21,13 @@ export function acceptHistoryFragment(state, fragment) {
   if (!Number.isInteger(sequence) || sequence < 0 ||
       !Number.isInteger(chunkIndex) || chunkIndex < 0 || chunkIndex % 10 !== 0) {
     state.gapCount++;
+    // Si l'index de ligne reste lisible, condamner cette ligne et ignorer
+    // tous ses fragments suivants jusqu'à la ligne suivante.
+    if (Number.isInteger(sequence) && sequence >= 0 && (state.sequence === null || sequence >= state.sequence)) {
+      state.sequence = sequence;
+      state.expectedChunk = 0;
+      state.skippedSequence = sequence;
+    }
     return { accepted: false, duplicate: false, gap: true, resetBuffer: true };
   }
 

@@ -110,3 +110,17 @@ test('une notification tronquée abandonne la ligne courante jusqu’à la suiva
   assert.equal(next.accepted, true);
   assert.equal(state.gapCount, 1);
 });
+
+
+test('un index de fragment invalide condamne toute la ligne identifiable', () => {
+  const state = createHistoryStreamState();
+  acceptHistoryFragment(state, { sequence: 0, chunkIndex: 0, payload: 'entête' });
+  const invalid = acceptHistoryFragment(state, { sequence: 1, chunkIndex: 7, payload: 'fragment invalide' });
+  const sameLine = acceptHistoryFragment(state, { sequence: 1, chunkIndex: 0, payload: 'reprise incorrecte' });
+  const nextLine = acceptHistoryFragment(state, { sequence: 2, chunkIndex: 0, payload: 'ligne suivante' });
+  assert.equal(invalid.gap, true);
+  assert.equal(invalid.resetBuffer, true);
+  assert.equal(sameLine.accepted, false);
+  assert.equal(nextLine.accepted, true);
+  assert.equal(state.gapCount, 1);
+});
