@@ -3,7 +3,7 @@
 export function createHistoryDownloadController({
  $, getDownload, setDownload, getHistory, parseCell, num, recFrom, ingest,
  armDownloadTimeout, setClock, send, setCommandsDisabled, connected,
- markSync, disconnectIntentionally, showError, log, getAutoDone, setAutoDone
+ markSync, disconnectIntentionally, showError, log, hasCommandChannel, getAutoDone, setAutoDone
 }) {
  const sigOf = row => row.rk + '|' + row.d;
  function parseDownloadLine(line) {
@@ -31,7 +31,7 @@ export function createHistoryDownloadController({
   if (reachedCut && connected()) disconnectIntentionally();
  }
  async function startDownload(auto = false) {
-  if (!connected()) { if (!auto) showError('Connecte-toi d’abord à la VMI.'); return; }
+  if (!hasCommandChannel()) { if (!auto) showError('Connecte-toi d’abord à la VMI.'); return; }
   if (getDownload().on) return;
   showError('');
   setDownload({ on: true, rows: [], buf: '', total: 0, sigs: new Set(getHistory().filter(row => row.rk && Number.isFinite(row.d)).map(sigOf)), got: false, lastPacket: Date.now(), timeout: null });
