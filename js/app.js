@@ -690,14 +690,14 @@ $('clearLive').onclick=async()=>{
  }
 };
 function downloadLiveText(content,name,type){
- const blob=new Blob(['\\ufeff',content],{type});
+ const blob=new Blob(['\ufeff',content],{type});
  const url=URL.createObjectURL(blob),anchor=document.createElement('a');
  anchor.href=url;anchor.download=name;anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 $('csv').onclick=()=>{
  const keys=['t','st','sh','t1','h1','te','he','rpm','fil','vit','boost','hol'];
  const rows=[keys.join(';'),...live.map(row=>keys.map(key=>key==='t'?new Date(row.t).toISOString():(row[key]!=null?row[key]:'')).join(';'))];
- downloadLiveText(rows.join('\\n'),'vmi-purevent-live.csv','text/csv;charset=utf-8');
+ downloadLiveText(rows.join('\n'),'vmi-purevent-live.csv','text/csv;charset=utf-8');
 };
 
 $('targetRH').onchange=render;$('minSamples').onchange=render;
