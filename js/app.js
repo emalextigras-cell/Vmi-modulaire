@@ -57,7 +57,7 @@ window.addEventListener('unhandledrejection',e=>recordError('Promesse rejetée :
 let dev=null,chC=null,chT=null,pollTimer=null,snapTimer=null,reconnectTimer=null;
 let bleConnectionGeneration=0,connectionIntentGeneration=0,connectionRequestPending=false;
 let manualDisconnect=false,intentionalDisconnect=false,manualCommandPending=false,pollingSessionToken=null,autoDone=false;
-let bleNotificationHandler=null,bleDisconnectHandler=null;
+let bleNotificationHandler=null,bleNotificationCharacteristics=[],bleDisconnectHandler=null;
 let meta={},cur={},lastSeen={},live=[],hist=[],energyReadings=[],source='hist',selectedDate=null,daysSetting=30;
 let logLines=[],dlFrames=0;
 let download={on:false,rows:[],buf:'',total:0,sigs:new Set(),got:false,lastPacket:0,timeout:null,historyStream:createHistoryStreamState(),integrityGap:false};
@@ -284,9 +284,8 @@ function startPolling(){
 }
 function detachBleListeners(){
  if(bleNotificationHandler){
-  if(chT)chT.removeEventListener('characteristicvaluechanged',bleNotificationHandler);
-  if(chC)chC.removeEventListener('characteristicvaluechanged',bleNotificationHandler);
-  bleNotificationHandler=null;
+  bleNotificationCharacteristics.forEach(characteristic=>characteristic.removeEventListener('characteristicvaluechanged',bleNotificationHandler));
+  bleNotificationHandler=null;bleNotificationCharacteristics=[];
  }
  if(dev&&bleDisconnectHandler){
   dev.removeEventListener('gattserverdisconnected',bleDisconnectHandler);
@@ -324,14 +323,15 @@ async function connectCharacteristics(server,token,device){
  if(!sessionIsCurrent(token,device))return false;
  // Installer les écouteurs avant d'activer les notifications : aucune trame initiale
  // ne doit pouvoir arriver dans la fenêtre entre startNotifications() et addEventListener().
- chC=characteristicC;chT=characteristicT;
+ // Les caractéristiques ne deviennent disponibles aux commandes qu'après l'initialisation.
  bleNotificationHandler=ev=>{
   if(!sessionIsCurrent(token,device)||!connected())return;
-  if(ev.target!==chT&&ev.target!==chC)return;
+  if(ev.target!==characteristicT&&ev.target!==characteristicC)return;
   onNotification(ev);
  };
- chT.addEventListener('characteristicvaluechanged',bleNotificationHandler);
- chC.addEventListener('characteristicvaluechanged',bleNotificationHandler);
+ bleNotificationCharacteristics=[characteristicT,characteristicC];
+ characteristicT.addEventListener('characteristicvaluechanged',bleNotificationHandler);
+ characteristicC.addEventListener('characteristicvaluechanged',bleNotificationHandler);
  await characteristicT.startNotifications();
  if(!sessionIsCurrent(token,device))return false;
  try{
@@ -341,6 +341,7 @@ async function connectCharacteristics(server,token,device){
   log('Notifications canal commande non disponibles : '+e.message);
  }
  if(!sessionIsCurrent(token,device))return false;
+ chC=characteristicC;chT=characteristicT;
  return true;
 }
 function preferredBluetoothDeviceId(){
