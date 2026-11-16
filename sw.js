@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vmi-modulaire-v14-cache-36';
+const CACHE_NAME = 'vmi-modulaire-v14-cache-21';
 const CACHE_PREFIX = 'vmi-modulaire-';
 const APP_SHELL = [
   './','./index.html','./manifest.json','./css/style.css','./js/app.js',
@@ -7,7 +7,7 @@ const APP_SHELL = [
   './js/modules/dataio.js','./js/modules/clock-correction.js',
   './js/modules/legacy-migration.js','./js/modules/history.js',
   './js/modules/backup.js','./js/modules/date-utils.js',
-  './js/modules/bluetooth-protocol.js','./js/modules/bluetooth-decoder.js','./js/modules/bluetooth-write-queue.js','./js/modules/bluetooth-session.js','./js/modules/bluetooth-history-stream.js','./js/modules/psychrometry.js',
+  './js/modules/bluetooth-protocol.js','./js/modules/psychrometry.js',
   './js/modules/data-quality.js','./js/modules/chart-renderer.js','./js/modules/energy-meter.js','./js/modules/energy-estimate.js','./js/modules/energy-climate.js','./js/modules/weekly-diagnostic.js',
   './js/modules/bluetooth-autoconnect.js','./js/modules/live-freshness.js','./js/modules/diagnostic-confidence.js','./js/modules/seasonal-advice.js','./js/modules/assistant-summary.js','./js/modules/assistant-renderer.js','./js/modules/history-selection.js'
 ];
