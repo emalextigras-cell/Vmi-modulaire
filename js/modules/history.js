@@ -8,6 +8,9 @@ import { MIN_VALID } from './date-utils.js';
  */
 export function isRawDateEligible(record, minValid = MIN_VALID) {
   if (!record || !Number.isFinite(record.t)) return false;
+  // Une date brute ancienne reste exploitable si fixClock l'a reconstruite
+  // à partir du compteur de jours et que l'horodatage corrigé est valide.
+  if (record.fixed === true) return record.t >= minValid;
   if (typeof record.rk === 'string' && record.rk.trim()) {
     const match = record.rk.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s/);
     if (match) return Number(match[3]) >= 2025;

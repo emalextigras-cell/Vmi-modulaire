@@ -27,7 +27,9 @@ const modeOf = values => {
  * Les règles de regroupement et le seuil horaire sont volontairement conservés.
  */
 export function fixClock(records, history = [], minValid = MIN_VALID) {
-  records = filterRawDateHistory(records, minValid);
+  // Les relevés entrants anciens doivent rester disponibles pendant cette
+  // fonction : leur compteur de jours peut permettre de reconstruire leur date.
+  // L'historique déjà stocké, lui, reste filtré pour ne servir que de référence fiable.
   history = filterRawDateHistory(history, minValid);
   const known = history.concat(records).filter(record =>
     isRawDateEligible(record, minValid) && record.t >= minValid &&
