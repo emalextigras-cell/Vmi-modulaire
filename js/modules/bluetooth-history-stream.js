@@ -17,7 +17,7 @@ export function createHistoryStreamState() {
   };
 }
 
-const DATE_PREFIX = /^\\n?\\d{1,2}\\/\\d{1,2}\\/\\d{4} \\d{1,2}:\\d{2}:\\d{2};/;
+const DATE_PREFIX = /^\n?\d{1,2}\/\d{1,2}\/\d{4} \d{1,2}:\d{2}:\d{2};/;
 
 /** Une ligne de données observée est complète après réception du fragment 40. */
 export function isCurrentHistoryRecordComplete(state) {
