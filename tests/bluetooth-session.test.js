@@ -56,5 +56,8 @@ test('les scrutations et notifications sont liées à leur session BLE', async (
   assert.ok(source.includes('if(!sessionIsCurrent(token,device)||!connected())return;'));
   assert.ok(source.includes('if(ev.target!==chT&&ev.target!==chC)return;'));
   assert.ok(source.includes('if(sessionIsCurrent(token,device)&&connected())autoHistory()'));
+  assert.ok(source.includes('const commandIsCurrent=()=>sessionIsCurrent(commandToken,commandDevice)&&connected()'));
+  assert.ok(source.includes('if(!commandIsCurrent()){result.textContent=\'Connexion interrompue : l’état de la commande n’a pas pu être vérifié.\';return}'));
+  assert.ok(source.includes('if(pollingSessionToken===token||!connected()||download.on'));
   assert.ok(source.includes('removeEventListener(\'characteristicvaluechanged\',bleNotificationHandler)'));
 });
