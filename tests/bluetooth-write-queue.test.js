@@ -90,7 +90,55 @@ test('annule les commandes en attente après un changement de session Bluetooth'
   generation++;
   releaseFirstWrite();
 
-  assert.equal(await first, true);
+  assert.equal(await first, false);
   assert.equal(await second, false);
   assert.deepEqual(sent, [1]);
+});
+
+test('ignore une confirmation d’écriture reçue après un changement de session', async () => {
+  let generation = 4;
+  let releaseWrite;
+  let writeStarted;
+  let successes = 0;
+  const started = new Promise(resolve => { writeStarted = resolve; });
+  const queue = createBleWriteQueue({
+    isConnected: () => true,
+    getConnectionToken: () => generation,
+    getCharacteristic: () => ({
+      properties: { write: true },
+      writeValueWithResponse() {
+        writeStarted();
+        return new Promise(resolve => { releaseWrite = resolve; });
+      }
+    }),
+    sleep: immediate,
+    onSuccess: () => successes++
+  });
+  const pending = queue.write(new Uint8Array([9]));
+  await started;
+  generation++;
+  releaseWrite();
+  assert.equal(await pending, false);
+  assert.equal(successes, 0);
+});
+
+test('annule la validation si la connexion tombe pendant le délai de sécurité', async () => {
+  let connected = true;
+  let releaseDelay;
+  let delayStarted;
+  const started = new Promise(resolve => { delayStarted = resolve; });
+  const queue = createBleWriteQueue({
+    isConnected: () => connected,
+    getConnectionToken: () => 12,
+    getCharacteristic: () => ({
+      properties: { write: true },
+      async writeValueWithResponse() {}
+    }),
+    sleep: () => new Promise(resolve => { releaseDelay = resolve; delayStarted(); })
+  });
+  const pending = queue.write(new Uint8Array([10]));
+  await started;
+  connected = false;
+  releaseDelay();
+  assert.equal(await pending, false);
 });
