@@ -4,7 +4,6 @@
  * il réutilise les résultats des modules d'analyse déjà présents.
  */
 import {
-  buildHygrometricDiagnosis,
   median,
   analyzeHygrometricPeriods,
   summarizeDailyTrends,
@@ -18,6 +17,7 @@ import {
   summarizeRawVmiSpeed,
   summarizeTemperatureLimit
 } from './analysis.js';
+import { buildHygrometricDiagnosis } from './hygrometric-diagnosis.js';
 import { summarizeDataQuality } from './data-quality.js';
 import { analyzeSeasonalVentilation } from './seasonal-advice.js';
 import {
