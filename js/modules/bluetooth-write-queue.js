@@ -17,6 +17,13 @@ export function createBleWriteQueue({
     // Une écriture appartient à la session active au moment de sa mise en file.
     const connectionToken = getConnectionToken();
     const task = tail.then(async () => {
+      const ensureSession = () => {
+        if (getConnectionToken() !== connectionToken || !isConnected()) {
+          const error = new Error('Commande annulée : la connexion Bluetooth a changé ou a été interrompue.');
+          error.code = 'BLE_SESSION_CHANGED';
+          throw error;
+        }
+      };
       if (getConnectionToken() !== connectionToken) {
         const error = new Error('Commande annulée : la session Bluetooth a changé.');
         error.code = 'BLE_SESSION_CHANGED';
@@ -39,8 +46,13 @@ export function createBleWriteQueue({
         throw new Error('Cette caractéristique Bluetooth ne permet pas l’écriture.');
       }
 
+      // Une réponse d'écriture tardive ne doit pas valider une ancienne session.
+      ensureSession();
       onSuccess(bytes);
       await sleep(delayMs);
+      // Le délai fait partie de la séquence : ne pas laisser la suite continuer
+      // si la connexion a été perdue pendant cette attente.
+      ensureSession();
       return true;
     });
 
