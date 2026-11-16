@@ -1,7 +1,7 @@
 // Export CSV et sauvegardes JSON de l'historique VMI+.
 // La restauration valide et persiste les données avant de modifier l'état en mémoire.
 function downloadText(content, name, type, bom = true) {
- const blob = new Blob(bom ? ['\\ufeff', content] : [content], { type });
+ const blob = new Blob(bom ? ['\ufeff', content] : [content], { type });
  const url = URL.createObjectURL(blob);
  const anchor = document.createElement('a');
  anchor.href = url; anchor.download = name; anchor.click();
@@ -22,7 +22,7 @@ export function createHistoryExportController({ $, getState, setState, dbSetMany
    const calculated = psychro({ st: row.st, sh: row.sh, te: row.te, he: row.he });
    lines.push([fmtLocal(row.t, pad),decFr(row.st),decFr(row.sh),decFr(row.tExt),decFr(calculated.haIn),decFr(calculated.dewIn),decFr(row.t1),decFr(row.h1),decFr(row.vmiAbsP0),decFr(row.te),decFr(row.he),decFr(row.vmiAbsP1),decFr(calculated.haOut),decFr(row.rpm),decFr(row.fil),decFr(row.filterIndexPct),decFr(row.d),decFr(row.debit),decFr(row.vmiSpeedRaw),decFr(row.vmiPwmRaw),decFr(row.vmiModeRaw),decFr(row.volumeRaw),decFr(row.consDpRaw)].join(';'));
   }
-  return lines.join('\\r\\n');
+  return lines.join('\r\n');
  }
  function makeBackup() {
   const state = getState();
