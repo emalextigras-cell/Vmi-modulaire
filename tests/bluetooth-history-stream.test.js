@@ -55,3 +55,39 @@ test('les lignes d’un transfert partiel ne deviennent pas une borne d’arrêt
   assert.equal(completed[0].syncPartial, false);
   assert.equal(isHistorySyncBaseline(completed[0]), true);
 });
+
+
+test('accepte les cinq fragments observés dans la capture Bluetooth', () => {
+  const state = createHistoryStreamState();
+  const accepted = [0, 10, 20, 30, 40].map(chunkIndex =>
+    acceptHistoryFragment(state, { sequence: 25, chunkIndex, payload: 'fragment-' + chunkIndex })
+  );
+  assert.ok(accepted.every(result => result.accepted));
+  assert.equal(state.expectedChunk, 50);
+  assert.equal(state.gapCount, 0);
+});
+
+test('détecte un fragment reçu dans le désordre et ignore la suite de cette ligne', () => {
+  const state = createHistoryStreamState();
+  acceptHistoryFragment(state, { sequence: 0, chunkIndex: 0, payload: 'entête' });
+  acceptHistoryFragment(state, { sequence: 1, chunkIndex: 0, payload: 'début' });
+  const outOfOrder = acceptHistoryFragment(state, { sequence: 1, chunkIndex: 20, payload: 'fragment tardif' });
+  const later = acceptHistoryFragment(state, { sequence: 1, chunkIndex: 10, payload: 'fragment arrivé après' });
+  const next = acceptHistoryFragment(state, { sequence: 2, chunkIndex: 0, payload: 'ligne suivante' });
+  assert.equal(outOfOrder.gap, true);
+  assert.equal(outOfOrder.resetBuffer, true);
+  assert.equal(later.accepted, false);
+  assert.equal(next.accepted, true);
+});
+
+test('un doublon avec un contenu différent invalide la ligne concernée', () => {
+  const state = createHistoryStreamState();
+  acceptHistoryFragment(state, { sequence: 0, chunkIndex: 0, payload: 'entête' });
+  const conflict = acceptHistoryFragment(state, { sequence: 0, chunkIndex: 0, payload: 'contenu différent' });
+  const rest = acceptHistoryFragment(state, { sequence: 0, chunkIndex: 10, payload: 'suite' });
+  const next = acceptHistoryFragment(state, { sequence: 1, chunkIndex: 0, payload: 'ligne suivante' });
+  assert.equal(conflict.gap, true);
+  assert.equal(conflict.resetBuffer, true);
+  assert.equal(rest.accepted, false);
+  assert.equal(next.accepted, true);
+});
