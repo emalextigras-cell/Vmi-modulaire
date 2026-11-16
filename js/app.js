@@ -265,7 +265,7 @@ function startPolling(){
  setTimeout(takeSnapshot,15000);
  snapTimer=setInterval(takeSnapshot,300000);
 }
-function cleanupConnection(){bleConnectionGeneration++;clearInterval(pollTimer);clearInterval(snapTimer);chC=null;chT=null}
+function cleanupConnection(){bleConnectionGeneration++;if(download.on)finishDownload(false,true,true);clearInterval(pollTimer);clearInterval(snapTimer);chC=null;chT=null}
 function onDisconnect(){
  const wasIntentional=intentionalDisconnect;
  intentionalDisconnect=false;
@@ -394,14 +394,14 @@ function parseDownloadLine(line){
  const rec=recFrom(f);if(rec)download.rows.push(rec);
 }
 function armTimer(){armDownloadTimeout(download,finishDownload)}
-function finishDownload(reachedCut,timeout=false){
+function finishDownload(reachedCut,timeout=false,interrupted=false){
  if(!download.on)return;
  download.on=false;clearTimeout(download.timeout);
  const count=download.rows.length;
  if(count)ingest(download.rows,'Téléchargement');
- if(download.got){meta.lastSync=Date.now();dbSet('meta',meta);renderFreshness()}
+ if(download.got&&!timeout){meta.lastSync=Date.now();dbSet('meta',meta);renderFreshness()}
  $('dlh').disabled=false;setCommandsDisabled(false);
- $('dlp').textContent=`Terminé : ${count} nouvelles lignes${reachedCut?' · historique à jour':timeout?(download.got?' · arrêt après une pause de 20 s':' · aucune réponse de la VMI'):(download.sigs.size?' · attention : trou possible avant la dernière ligne mémorisée':' · historique complet')}`;
+ $('dlp').textContent=`Terminé : ${count} nouvelles lignes${interrupted?(download.got?' · transfert interrompu, données partielles conservées ; relance la synchronisation':' · transfert interrompu avant réception') :reachedCut?' · historique à jour':timeout?(download.got?' · arrêt après une pause de 20 s':' · aucune réponse de la VMI'):(download.sigs.size?' · attention : trou possible avant la dernière ligne mémorisée':' · historique complet')}`;
  if(reachedCut&&dev&&dev.gatt&&dev.gatt.connected){
   // La VMI ne sait pas arrêter seule le flux historique : cette coupure est volontaire.
   // onDisconnect doit la distinguer d'une vraie perte de liaison.
@@ -410,15 +410,25 @@ function finishDownload(reachedCut,timeout=false){
  }
 }
 async function startDownload(auto=false){
- if(!chC){if(!auto)showError('Connecte-toi d’abord à la VMI.');return}
+ if(!chC||!connected()){if(!auto)showError('Connecte-toi d’abord à la VMI.');return}
  if(download.on)return;
+ const sessionToken=bleConnectionGeneration;
+ const sessionIsCurrent=()=>download.on&&connected()&&bleConnectionGeneration===sessionToken;
+ const abortDownload=()=>{
+  if(download.on)finishDownload(false,true,true);
+ };
  showError('');dlFrames=0;
  download={on:true,rows:[],buf:'',total:0,sigs:new Set(hist.filter(r=>r.rk&&Number.isFinite(r.d)).map(sigOf)),got:false,lastPacket:Date.now(),timeout:null};
  $('dlh').disabled=true;setCommandsDisabled(true);
  $('dlp').textContent=auto?'Téléchargement automatique de l’historique…':'Démarrage du téléchargement…';
- const ok=await setClock();
- if(!ok){download.on=false;$('dlh').disabled=false;setCommandsDisabled(false);return}
- await send(0x2c,0);await send(0x20,0);await send(0x22,0);armTimer();
+ const clockSent=await setClock();
+ if(!clockSent||!sessionIsCurrent()){abortDownload();return}
+ for(const reg of [0x2c,0x20,0x22]){
+  if(!sessionIsCurrent()){abortDownload();return}
+  const sent=await send(reg,0);
+  if(!sent||!sessionIsCurrent()){abortDownload();return}
+ }
+ armTimer();
 }
 $('dlh').onclick=()=>startDownload(false);
 function autoHistory(){
