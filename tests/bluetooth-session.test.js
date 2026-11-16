@@ -86,3 +86,17 @@ test('une reconnexion automatique en attente ne démarre pas pendant le sélecte
   const reconnect = source.slice(start, end);
   assert.match(reconnect, /if\(manualDisconnect\|\|!dev\|\|connectionRequestPending\)return/);
 });
+
+
+test('une reconnexion déjà engagée est invalidée par une nouvelle intention utilisateur', async () => {
+  const source = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
+  const connect = source.slice(source.indexOf('async function connectDevice('), source.indexOf('async function connectBLE('));
+  assert.match(connect, /async function connectDevice\(device,intent=connectionIntentGeneration\)/);
+  assert.match(connect, /intent===connectionIntentGeneration/);
+  assert.match(connect, /if\(!connectionIsCurrent\(\)\)\{if\(sessionIsCurrent\(token,device\)\)cleanupConnection\(\);return false\}/);
+  const reconnectStart = source.indexOf('async function reconnect()');
+  const reconnectEnd = source.indexOf("$('conn').onclick=connectBLE", reconnectStart);
+  const reconnect = source.slice(reconnectStart, reconnectEnd);
+  assert.match(reconnect, /const intent=connectionIntentGeneration/);
+  assert.match(reconnect, /connectDevice\(dev,intent\)/);
+});

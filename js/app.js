@@ -350,10 +350,11 @@ function preferredBluetoothDeviceId(){
 function rememberBluetoothDevice(device){
  try{if(device&&device.id)localStorage.setItem('vmi_bluetooth_device_id',device.id)}catch(e){}
 }
-async function connectDevice(device){
+async function connectDevice(device,intent=connectionIntentGeneration){
  if(!device||!device.gatt)throw new Error('Appareil Bluetooth invalide.');
  bleConnectionGeneration++;
  const token=bleConnectionGeneration;
+ const connectionIsCurrent=()=>sessionIsCurrent(token,device)&&intent===connectionIntentGeneration;
  clearTimeout(reconnectTimer);
  detachBleListeners();
  chC=null;chT=null;
@@ -366,9 +367,9 @@ async function connectDevice(device){
  setStatus('Connexion à '+(dev.name||'la VMI')+'…');
  try{
   const server=await dev.gatt.connect();
-  if(!sessionIsCurrent(token,device))return false;
+  if(!connectionIsCurrent()){if(sessionIsCurrent(token,device))cleanupConnection();return false}
   const characteristicsReady=await connectCharacteristics(server,token,device);
-  if(!characteristicsReady||!sessionIsCurrent(token,device))return false;
+  if(!characteristicsReady||!connectionIsCurrent()){if(sessionIsCurrent(token,device))cleanupConnection();return false}
   setStatus('Connecté à '+(dev.name||'la VMI')+'. Synchronisation des données…',true);
   startPolling();
   // Une reconnexion ne doit pas relancer la synchronisation automatique déjà effectuée.
@@ -377,6 +378,7 @@ async function connectDevice(device){
  }catch(e){
   if(!sessionIsCurrent(token,device))return false;
   cleanupConnection();
+  if(intent!==connectionIntentGeneration)return false;
   throw e;
  }
 }
@@ -393,7 +395,7 @@ async function connectBLE(){
   const device=await navigator.bluetooth.requestDevice({acceptAllDevices:true,optionalServices:[SVC_C,SVC_T]});
   if(intent!==connectionIntentGeneration)return;
   rememberBluetoothDevice(device);
-  await connectDevice(device);
+  await connectDevice(device,intent);
  }catch(e){
   if(intent===connectionIntentGeneration){showError(e);setStatus('Connexion impossible.')}
  }finally{
@@ -419,7 +421,7 @@ async function autoConnectAuthorizedDevice(){
    return;
   }
   log('VMI déjà autorisée détectée : tentative de reconnexion automatique.');
-  await connectDevice(device);
+  await connectDevice(device,intent);
  }catch(e){
   if(intent!==connectionIntentGeneration)return;
   log('Reconnexion automatique indisponible : '+(e.message||e));
@@ -429,8 +431,12 @@ async function autoConnectAuthorizedDevice(){
 async function reconnect(){
  // Une reconnexion automatique ne doit jamais démarrer pendant le sélecteur manuel.
  if(manualDisconnect||!dev||connectionRequestPending)return;
- try{await connectDevice(dev)}
- catch(e){log('Reconnexion échouée : '+e.message);clearTimeout(reconnectTimer);reconnectTimer=setTimeout(reconnect,7000)}
+ const intent=connectionIntentGeneration;
+ try{await connectDevice(dev,intent)}
+ catch(e){
+  if(intent!==connectionIntentGeneration||connectionRequestPending)return;
+  log('Reconnexion échouée : '+e.message);clearTimeout(reconnectTimer);reconnectTimer=setTimeout(reconnect,7000);
+ }
 }
 $('conn').onclick=connectBLE;
 $('disc').onclick=()=>{manualDisconnect=true;cleanupConnection();if(dev&&dev.gatt&&dev.gatt.connected)dev.gatt.disconnect();setStatus('Déconnexion demandée.')};
