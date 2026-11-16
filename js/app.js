@@ -53,6 +53,7 @@ window.addEventListener('unhandledrejection',e=>recordError('Promesse rejetée :
 
 
 let dev=null,chC=null,chT=null,pollTimer=null,snapTimer=null,reconnectTimer=null;
+let bleConnectionGeneration=0;
 let manualDisconnect=false,intentionalDisconnect=false,manualCommandPending=false,polling=false,autoDone=false;
 let meta={},cur={},lastSeen={},live=[],hist=[],energyReadings=[],source='hist',selectedDate=null,daysSetting=30;
 let logLines=[],dlFrames=0;
@@ -63,6 +64,7 @@ const connected=()=>!!(chC&&dev&&dev.gatt&&dev.gatt.connected);
 const bleWriteQueue=createBleWriteQueue({
  isConnected:connected,
  getCharacteristic:()=>chC,
+ getConnectionToken:()=>bleConnectionGeneration,
  sleep,
  onSuccess:bytes=>log('> '+hex(bytes)),
  onError:e=>{
@@ -259,7 +261,7 @@ function startPolling(){
  setTimeout(takeSnapshot,15000);
  snapTimer=setInterval(takeSnapshot,300000);
 }
-function cleanupConnection(){clearInterval(pollTimer);clearInterval(snapTimer);chC=null;chT=null}
+function cleanupConnection(){bleConnectionGeneration++;clearInterval(pollTimer);clearInterval(snapTimer);chC=null;chT=null}
 function onDisconnect(){
  const wasIntentional=intentionalDisconnect;
  intentionalDisconnect=false;
@@ -284,6 +286,7 @@ function rememberBluetoothDevice(device){
 }
 async function connectDevice(device){
  if(!device||!device.gatt)throw new Error('Appareil Bluetooth invalide.');
+ bleConnectionGeneration++;
  dev=device;manualDisconnect=false;
  dev.removeEventListener('gattserverdisconnected',onDisconnect);
  dev.addEventListener('gattserverdisconnected',onDisconnect);
