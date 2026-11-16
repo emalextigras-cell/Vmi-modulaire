@@ -37,7 +37,7 @@ test('le module de conseils saisonniers est inclus dans le cache hors ligne', as
   assert.ok(sw.includes("'./js/modules/temporal-analysis.js'"));
   assert.ok(sw.includes("'./js/modules/statistics.js'"));
   assert.ok(sw.includes("'./js/modules/operating-reference.js'"));
-  assert.ok(sw.includes('vmi-modulaire-v14-cache-34'));
+  assert.ok(sw.includes('vmi-modulaire-v14-cache-33'));
 });
 
 
@@ -79,7 +79,7 @@ test('les rendus des bilans hebdomadaires et des conseils sont isolés du contr�
   assert.ok(!app.includes('function renderRecommendation(data)'));
   assert.ok(renderer.includes('export function createHistoryInsightRenderers'));
   assert.ok(sw.includes("'./js/modules/history-insight-renderers.js'"));
-  assert.ok(sw.includes('vmi-modulaire-v14-cache-34'));
+  assert.ok(sw.includes('vmi-modulaire-v14-cache-33'));
 });
 
 
@@ -94,7 +94,7 @@ test('les rendus énergétiques sont isolés du contrôleur principal et mis en 
   assert.ok(renderer.includes('function ' + name));
  }
  assert.ok(sw.includes("'./js/modules/energy-renderers.js'"));
- assert.ok(sw.includes('vmi-modulaire-v14-cache-34'));
+ assert.ok(sw.includes('vmi-modulaire-v14-cache-33'));
 });
 
 
@@ -109,7 +109,7 @@ test('les rendus hygrométriques et temporels sont isolés et disponibles hors l
   assert.ok(renderer.includes('function ' + name));
  }
  assert.ok(sw.includes("'./js/modules/hygrometric-renderers.js'"));
- assert.ok(sw.includes('vmi-modulaire-v14-cache-34'));
+ assert.ok(sw.includes('vmi-modulaire-v14-cache-33'));
 });
 
 
@@ -124,7 +124,7 @@ test('le contrôleur d’import est isolé et inclus dans le cache hors ligne', 
  assert.ok(controller.includes('findVmiHeaderRowIndex'));
  assert.ok(controller.includes('parseCsvRows'));
  assert.ok(sw.includes("'./js/modules/import-controller.js'"));
- assert.ok(sw.includes('vmi-modulaire-v14-cache-34'));
+ assert.ok(sw.includes('vmi-modulaire-v14-cache-33'));
 });
 
 
@@ -140,5 +140,5 @@ test('le contrôleur export/sauvegarde est isolé et mis en cache', async () => 
  assert.ok(controller.includes('await dbSetMany(entries)'));
  assert.ok(controller.includes('setState({ hist: nextHist'));
  assert.ok(sw.includes("'./js/modules/history-export-controller.js'"));
- assert.ok(sw.includes('vmi-modulaire-v14-cache-34'));
+ assert.ok(sw.includes('vmi-modulaire-v14-cache-33'));
 });
