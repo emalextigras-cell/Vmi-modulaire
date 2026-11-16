@@ -29,7 +29,7 @@ test('la référence Vision’R et les limites constructeur sont documentées', 
 test('le module de conseils saisonniers est inclus dans le cache hors ligne', async () => {
   const sw = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
   assert.ok(sw.includes("'./js/modules/seasonal-advice.js'"));
-  assert.ok(sw.includes('vmi-modulaire-v14-cache-18'));
+  assert.ok(sw.includes('vmi-modulaire-v14-cache-19'));
 });
 
 
@@ -40,9 +40,12 @@ test('le panneau assistant est présent et son moteur est mis en cache hors lign
   assert.ok(html.includes('id="assistantRecommendations"'));
   const sw = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
   assert.ok(sw.includes("'./js/modules/assistant-summary.js'"));
+  assert.ok(sw.includes("'./js/modules/assistant-renderer.js'"));
   const app = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
-  assert.ok(app.includes("from './modules/assistant-summary.js'"));
-  assert.ok(app.includes('renderVmiAssistant(analysisData)'));
+  assert.ok(app.includes("from './modules/assistant-renderer.js'"));
+  assert.ok(app.includes('renderVmiAssistant(analysisData,'));
+  const renderer = await readFile(new URL('../js/modules/assistant-renderer.js', import.meta.url), 'utf8');
+  assert.ok(renderer.includes("from './assistant-summary.js'"));
 });
 
 test('l’assistant reste local et ne modifie aucune commande Bluetooth', async () => {
