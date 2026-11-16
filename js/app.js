@@ -31,10 +31,6 @@ import { summarizeWeeklyDiagnostic } from './modules/weekly-diagnostic.js';
 import { analyzeSeasonalVentilation } from './modules/seasonal-advice.js';
 
 
-const historyInsightRenderers = createHistoryInsightRenderers({
- $, fmt, fmtShort, median, absoluteHumidity, isPlausibleHumidity, isPlausibleTemperature,
- summarizeWeeklyDiagnostic, analyzeSeasonalVentilation
-});
 
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
 
@@ -506,6 +502,11 @@ function downloadText(content,name,type,bom=true){
 /* ---------- Export, sauvegarde et fraîcheur de l’historique ---------- */
 const fmtLocal=t=>{const d=new Date(t);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`};
 const fmtShort=t=>{const d=new Date(t);return `${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`};
+
+const historyInsightRenderers = createHistoryInsightRenderers({
+ $, fmt, fmtShort, median, absoluteHumidity, isPlausibleHumidity, isPlausibleTemperature,
+ summarizeWeeklyDiagnostic, analyzeSeasonalVentilation
+});
 const decFr=v=>(v==null||!Number.isFinite(v))?'':String(Math.round(v*100)/100).replace('.',',');
 function histToCsv(rows){
  const head=['date_heure','salon_temp_C','salon_HR_pct','temperature_exterieure_vmi_plus_C','salon_HA_calculee_g_m3','salon_rosee_C','sonde1_temp_C','sonde1_HR_pct','vmi_plus_P0_Hum_abs_brute','air_entrant_temp_C','air_entrant_HR_pct','vmi_plus_P1_Hum_abs_brute','air_entrant_HA_calculee_g_m3','regime_tr_min','etat_filtre_brut','indice_encrassement_pct','duree_fonctionnement_j','debit_vmi_plus_brut','vitesse_vmi_plus_code_brut','pwm_vmi_plus_brut','mode_vmi_plus_brut','volume_vmi_plus_m3_brut','cons_dp_vmi_plus_brut'];
