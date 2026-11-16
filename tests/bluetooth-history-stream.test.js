@@ -129,11 +129,11 @@ test('un index de fragment invalide condamne toute la ligne identifiable', () =>
 test('détecte un fragment final manquant au passage à la ligne suivante', () => {
   const state = createHistoryStreamState();
   acceptHistoryFragment(state, { sequence: 0, chunkIndex: 0, payload: 'metadata' });
-  acceptHistoryFragment(state, { sequence: 1, chunkIndex: 0, payload: '\\n10/11/2026 16:43:57;' });
+  acceptHistoryFragment(state, { sequence: 1, chunkIndex: 0, payload: '\n10/11/2026 16:43:57;' });
   acceptHistoryFragment(state, { sequence: 1, chunkIndex: 10, payload: 'fragment10' });
   acceptHistoryFragment(state, { sequence: 1, chunkIndex: 20, payload: 'fragment20' });
   acceptHistoryFragment(state, { sequence: 1, chunkIndex: 30, payload: 'fragment30' });
-  const next = acceptHistoryFragment(state, { sequence: 2, chunkIndex: 0, payload: '\\n10/11/2026 16:43:13;' });
+  const next = acceptHistoryFragment(state, { sequence: 2, chunkIndex: 0, payload: '\n10/11/2026 16:43:13;' });
   assert.equal(next.accepted, true);
   assert.equal(next.gap, true);
   assert.equal(next.resetBuffer, true);
@@ -142,7 +142,7 @@ test('détecte un fragment final manquant au passage à la ligne suivante', () =
 
 test('certifie une ligne datée seulement après le fragment 40', () => {
   const state = createHistoryStreamState();
-  const payloads = ['\\n10/11/2026 16:43:57;', 'fragment10', 'fragment20', 'fragment30', 'fragment40'];
+  const payloads = ['\n10/11/2026 16:43:57;', 'fragment10', 'fragment20', 'fragment30', 'fragment40'];
   payloads.forEach((payload, index) => {
     acceptHistoryFragment(state, { sequence: 0, chunkIndex: index * 10, payload });
     assert.equal(isCurrentHistoryRecordComplete(state), index === 4);
