@@ -1,9 +1,9 @@
 /**
- * Contrôle l'ordre des fragments d'historique observés dans les notifications VMI.
- * La capture confirme l'index de ligne (octets 9-10) et l'index de fragment
- * (octet 12, par pas de 10). Le parseur historique interprète l'octet 13
- * comme indicateur de fin, mais la capture fournie n'observe aucune valeur 1.
- * Cette garde détecte uniquement les répétitions, trous et désordres observés.
+ * Contrôle l'ordre et la complétude des fragments d'historique VMI.
+ * La capture observée montre des fragments indexés 0, 10, 20, 30 et 40
+ * pour les lignes de données. Les blocs de métadonnées initiaux peuvent
+ * n'avoir qu'un fragment : le contrôle de fin ne s'applique qu'aux payloads
+ * qui commencent effectivement par une date VMI.
  */
 export function createHistoryStreamState() {
   return {
@@ -11,8 +11,17 @@ export function createHistoryStreamState() {
     expectedChunk: 0,
     skippedSequence: null,
     fragments: new Map(),
-    gapCount: 0
+    gapCount: 0,
+    linePrefix: '',
+    lineHasDate: false
   };
+}
+
+const DATE_PREFIX = /^\n?\d{1,2}\/\d{1,2}\/\d{4} \d{1,2}:\d{2}:\d{2};/;
+
+/** Une ligne de données observée est complète après réception du fragment 40. */
+export function isCurrentHistoryRecordComplete(state) {
+  return !!state && state.lineHasDate === true && state.expectedChunk >= 50;
 }
 
 export function acceptHistoryFragment(state, fragment) {
@@ -22,12 +31,12 @@ export function acceptHistoryFragment(state, fragment) {
   if (!Number.isInteger(sequence) || sequence < 0 ||
       !Number.isInteger(chunkIndex) || chunkIndex < 0 || chunkIndex % 10 !== 0) {
     state.gapCount++;
-    // Si l'index de ligne reste lisible, condamner cette ligne et ignorer
-    // tous ses fragments suivants jusqu'à la ligne suivante.
     if (Number.isInteger(sequence) && sequence >= 0 && (state.sequence === null || sequence >= state.sequence)) {
       state.sequence = sequence;
       state.expectedChunk = 0;
       state.skippedSequence = sequence;
+      state.linePrefix = '';
+      state.lineHasDate = false;
     }
     return { accepted: false, duplicate: false, gap: true, resetBuffer: true };
   }
@@ -52,19 +61,26 @@ export function acceptHistoryFragment(state, fragment) {
     state.gapCount++;
     return { accepted: false, duplicate: false, gap: true, resetBuffer: false };
   } else if (sequence > state.sequence) {
-    if (sequence !== state.sequence + 1 || chunkIndex !== 0) gap = true;
+    const missingTail = state.lineHasDate && state.expectedChunk < 50;
+    if (missingTail) {
+      gap = true;
+      state.gapCount++;
+    }
+    if (sequence !== state.sequence + 1 || chunkIndex !== 0) {
+      if (!gap) state.gapCount++;
+      gap = true;
+    }
     state.sequence = sequence;
     state.expectedChunk = 0;
     state.skippedSequence = null;
-    resetBuffer = gap;
+    state.linePrefix = '';
+    state.lineHasDate = false;
+    resetBuffer = gap || missingTail;
   }
 
-  if (gap) {
-    state.gapCount++;
-    if (chunkIndex !== 0) {
-      state.skippedSequence = sequence;
-      return { accepted: false, duplicate: false, gap: true, resetBuffer: true };
-    }
+  if (gap && chunkIndex !== 0) {
+    state.skippedSequence = sequence;
+    return { accepted: false, duplicate: false, gap: true, resetBuffer: true };
   }
 
   if (state.skippedSequence === sequence) {
@@ -79,6 +95,10 @@ export function acceptHistoryFragment(state, fragment) {
 
   state.fragments.set(key, payload);
   state.expectedChunk += 10;
+  if (state.linePrefix.length < 64) {
+    state.linePrefix = (state.linePrefix + payload).slice(0, 64);
+    state.lineHasDate = DATE_PREFIX.test(state.linePrefix);
+  }
   return { accepted: true, duplicate: false, gap, resetBuffer };
 }
 
@@ -98,8 +118,6 @@ export function markHistoryRows(records, complete) {
 /** Signale une notification d'historique tronquée dont les index ne sont pas lisibles. */
 export function markHistoryStreamInvalid(state) {
   state.gapCount++;
-  // Sans index lisible, on ne peut pas savoir quel fragment manque : abandonner
-  // toute la ligne courante et ignorer ses éventuels fragments restants.
   if (state.sequence !== null) state.skippedSequence = state.sequence;
   return { accepted: false, duplicate: false, gap: true, resetBuffer: true };
 }
