@@ -426,10 +426,9 @@ const historyDownloadController = createHistoryDownloadController({
  setClock, send, setCommandsDisabled, connected,
  markSync: () => { meta.lastSync = Date.now(); dbSet('meta', meta); renderFreshness(); },
  disconnectIntentionally: () => { intentionalDisconnect = true; if (dev && dev.gatt && dev.gatt.connected) dev.gatt.disconnect(); },
- showError, log, getAutoDone: () => autoDone, setAutoDone: value => { autoDone = value; }
+ showError, log, hasCommandChannel: () => !!chC, getAutoDone: () => autoDone, setAutoDone: value => { autoDone = value; }
 });
 const { parseDownloadLine, armTimer, finishDownload, startDownload, autoHistory } = historyDownloadController;
-$('dlh').onclick=()=>startDownload(false);
 
 /* Import CSV/Excel délégué au contrôleur dédié. */
 /* ---------- Export, sauvegarde et fraîcheur de l’historique ---------- */
