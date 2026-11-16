@@ -33,7 +33,8 @@ test('le module de conseils saisonniers est inclus dans le cache hors ligne', as
   assert.ok(sw.includes("'./js/modules/format-utils.js'"));
   assert.ok(sw.includes("'./js/modules/history-freshness.js'"));
   assert.ok(sw.includes("'./js/modules/history-freshness-view.js'"));
-  assert.ok(sw.includes('vmi-modulaire-v14-cache-24'));
+  assert.ok(sw.includes("'./js/modules/hygrometric-diagnosis.js'"));
+  assert.ok(sw.includes('vmi-modulaire-v14-cache-25'));
 });
 
 
