@@ -37,17 +37,6 @@ import { createHistoryExportController } from './modules/history-export-controll
 
 
 
-const importController = createImportController({
- $, showError, log, isCsvFile, parseCsvRows, findVmiHeaderRowIndex, getColumnMapping, recFrom, ingest
-});
-
-const historyExportController = createHistoryExportController({
- $, getState: () => ({ hist, live, meta, energyReadings }),
- setState: next => { hist = next.hist; live = next.live; meta = next.meta; energyReadings = next.energyReadings; },
- dbSetMany, createBackupSnapshot, mergeBackupData, pruneHistory, psychro, pad, localDay,
- minValid: MIN_VALID, maxHistory: HIST_MAX, render
-});
-
 const hygrometricRenderers = createHygrometricRenderers({
  $, fmt, formatDuration, analyzeHygrometricPeriods, summarizeDailyTrends, analyzeHourlyPatterns,
  detectRapidChanges, buildHygrometricDiagnosis, formatDiagnosisConfidence
@@ -669,6 +658,48 @@ function render(){
  historyInsightRenderers.renderRecommendation(analysisData);historyInsightRenderers.renderSeasonalAdvice(analysisData);hygrometricRenderers.renderHygrometricPeriods(analysisData);hygrometricRenderers.renderIntelligentDiagnosis(analysisData);
  hygrometricRenderers.renderTemporalAnalysis(analysisData);analyzeSpeeds(analysisData);energyRenderers.renderEnergyReadiness(analysisData);energyRenderers.renderFanEnergyEstimate(analysisData);energyRenderers.renderDailyEnergyClimateContext(analysisData);historyInsightRenderers.renderWeeklyDiagnostic(analysisData);renderFreshness();
 }
+/* Initialisation des contrôleurs après la création du store et de l'état applicatif. */
+createImportController({
+ $, showError, log, isCsvFile, parseCsvRows, findVmiHeaderRowIndex, getColumnMapping, recFrom, ingest
+});
+createHistoryExportController({
+ $, getState: () => ({ hist, live, meta, energyReadings }),
+ setState: next => { hist = next.hist; live = next.live; meta = next.meta; energyReadings = next.energyReadings; },
+ dbSetMany, createBackupSnapshot, mergeBackupData, pruneHistory, psychro, pad, localDay,
+ minValid: MIN_VALID, maxHistory: HIST_MAX, render
+});
+
+/* Les commandes qui modifient l'état restent dans app.js, propriétaire de cet état. */
+$('clearImport').onclick=async()=>{
+ if(confirm('Effacer tout l’historique importé ?')){
+  hist=[];await dbSet('hist',[]);$('importInfo').textContent='';render();
+ }
+};
+$('histBtn').onclick=()=>{source='hist';render()};
+$('liveBtn').onclick=()=>{source='live';render()};
+$('dayPicker').onchange=e=>{selectedDate=e.target.value||null;resetChartViews();render()};
+$('clearDay').onclick=()=>{selectedDate=null;$('dayPicker').value='';resetChartViews();render()};
+$('prev').onclick=()=>{selectedDate=shiftDay(selectedDate,-1);$('dayPicker').value=selectedDate;resetChartViews();render()};
+$('next').onclick=()=>{selectedDate=shiftDay(selectedDate,1);$('dayPicker').value=selectedDate;resetChartViews();render()};
+document.querySelectorAll('[data-days]').forEach(button=>button.onclick=()=>{
+ daysSetting=Number(button.dataset.days);selectedDate=null;$('dayPicker').value='';resetChartViews();render();
+});
+$('clearLive').onclick=async()=>{
+ if(confirm('Effacer les relevés en direct ?')){
+  live=[];await dbSet('live',[]);$('liveCount').textContent='0';render();
+ }
+};
+function downloadLiveText(content,name,type){
+ const blob=new Blob(['\\ufeff',content],{type});
+ const url=URL.createObjectURL(blob),anchor=document.createElement('a');
+ anchor.href=url;anchor.download=name;anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+$('csv').onclick=()=>{
+ const keys=['t','st','sh','t1','h1','te','he','rpm','fil','vit','boost','hol'];
+ const rows=[keys.join(';'),...live.map(row=>keys.map(key=>key==='t'?new Date(row.t).toISOString():(row[key]!=null?row[key]:'')).join(';'))];
+ downloadLiveText(rows.join('\\n'),'vmi-purevent-live.csv','text/csv;charset=utf-8');
+};
+
 $('targetRH').onchange=render;$('minSamples').onchange=render;
 
 setInterval(()=>{if(cur.sal_t!==undefined)updateLiveMetrics();else $('sampleAge').textContent=buildLiveFreshnessText(lastSeen)},5000);
