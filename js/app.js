@@ -508,16 +508,7 @@ $('energyMeterHistory').addEventListener('click',async event=>{
  energyReadings=nextReadings;
  energyRenderers.renderEnergyMeterTracking();
 });
-$('restoreFile').onchange=async e=>{
- const file=e.target.files&&e.target.files[0];if(!file)return;
- try{
-  const obj=JSON.parse(await file.text());
-  const {add,enriched,addL,addEnergy}=await restoreBackup(obj);
-  $('backupInfo').textContent='Sauvegarde restaurée : '+add+' relevés d’historique ajoutés, '+enriched+' complétés, '+addL+' relevés en direct et '+addEnergy+' index de compteur ajoutés.';
-  render();
- }catch(err){$('backupInfo').textContent='Restauration impossible : '+err.message}
- e.target.value='';
-};
+
 /* La VMI ne garde que ~800 relevés : on estime sa capacité en jours d'après le rythme réel des relevés
    et on prévient avant que des relevés non téléchargés soient écrasés. */
 function renderFreshness(){
