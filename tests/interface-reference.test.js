@@ -37,7 +37,7 @@ test('le module de conseils saisonniers est inclus dans le cache hors ligne', as
   assert.ok(sw.includes("'./js/modules/temporal-analysis.js'"));
   assert.ok(sw.includes("'./js/modules/statistics.js'"));
   assert.ok(sw.includes("'./js/modules/operating-reference.js'"));
-  assert.ok(sw.includes('vmi-modulaire-v14-cache-31'));
+  assert.ok(sw.includes('vmi-modulaire-v14-cache-32'));
 });
 
 
@@ -79,7 +79,7 @@ test('les rendus des bilans hebdomadaires et des conseils sont isolés du contr�
   assert.ok(!app.includes('function renderRecommendation(data)'));
   assert.ok(renderer.includes('export function createHistoryInsightRenderers'));
   assert.ok(sw.includes("'./js/modules/history-insight-renderers.js'"));
-  assert.ok(sw.includes('vmi-modulaire-v14-cache-31'));
+  assert.ok(sw.includes('vmi-modulaire-v14-cache-32'));
 });
 
 
@@ -94,7 +94,7 @@ test('les rendus énergétiques sont isolés du contrôleur principal et mis en 
   assert.ok(renderer.includes('function ' + name));
  }
  assert.ok(sw.includes("'./js/modules/energy-renderers.js'"));
- assert.ok(sw.includes('vmi-modulaire-v14-cache-31'));
+ assert.ok(sw.includes('vmi-modulaire-v14-cache-32'));
 });
 
 
@@ -109,5 +109,20 @@ test('les rendus hygrométriques et temporels sont isolés et disponibles hors l
   assert.ok(renderer.includes('function ' + name));
  }
  assert.ok(sw.includes("'./js/modules/hygrometric-renderers.js'"));
- assert.ok(sw.includes('vmi-modulaire-v14-cache-31'));
+ assert.ok(sw.includes('vmi-modulaire-v14-cache-32'));
+});
+
+
+test('le contrôleur d’import est isolé et inclus dans le cache hors ligne', async () => {
+ const app = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
+ const controller = await readFile(new URL('../js/modules/import-controller.js', import.meta.url), 'utf8');
+ const sw = await readFile(new URL('../sw.js', import.meta.url), 'utf8');
+ assert.ok(app.includes("from './modules/import-controller.js'"));
+ assert.ok(app.includes('createImportController({'));
+ assert.ok(!app.includes("$('fx').onchange="));
+ assert.ok(controller.includes("$('fx').onchange="));
+ assert.ok(controller.includes('findVmiHeaderRowIndex'));
+ assert.ok(controller.includes('parseCsvRows'));
+ assert.ok(sw.includes("'./js/modules/import-controller.js'"));
+ assert.ok(sw.includes('vmi-modulaire-v14-cache-32'));
 });
