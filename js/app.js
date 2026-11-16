@@ -7,6 +7,8 @@ import { fromOldRow } from './modules/legacy-migration.js';
 import { median, analyzeSpeedLevels, analyzeSpeedTimeContext, analyzeHygrometricPeriods, summarizeDailyTrends, analyzeHourlyPatterns, detectRapidChanges, summarizeEnergyReadiness, summarizeRawVmiSpeed, summarizeRawVmiMode, summarizeOperatingReference, compareOperatingPeriods, buildHygrometricDiagnosis, summarizeTemperatureLimit } from './modules/analysis.js';
 import { renderCharts, resetChartViews } from './modules/charts.js';
 import { SVC_C, CH_C, SVC_T, CH_T, frame, timeFrame, hex } from './modules/ble.js';
+import { decodeVmiNotification } from './modules/bluetooth-decoder.js';
+import { createBleWriteQueue } from './modules/bluetooth-write-queue.js';
 import { armDownloadTimeout } from './modules/sync.js';
 import { parseCell, recFrom, getColumnMapping, findVmiHeaderRowIndex, parseCsvRows, isCsvFile } from './modules/dataio.js';
 import { fixClock } from './modules/clock-correction.js';
@@ -51,13 +53,23 @@ window.addEventListener('unhandledrejection',e=>recordError('Promesse rejetée :
 
 
 let dev=null,chC=null,chT=null,pollTimer=null,snapTimer=null,reconnectTimer=null;
-let manualDisconnect=false,intentionalDisconnect=false,commandQueue=Promise.resolve(),manualCommandPending=false,polling=false,autoDone=false;
+let manualDisconnect=false,intentionalDisconnect=false,manualCommandPending=false,polling=false,autoDone=false;
 let meta={},cur={},lastSeen={},live=[],hist=[],energyReadings=[],source='hist',selectedDate=null,daysSetting=30;
 let logLines=[],dlFrames=0;
 let download={on:false,rows:[],buf:'',total:0,sigs:new Set(),got:false,lastPacket:0,timeout:null};
 const DB='VMI_PUREVENT_DB_TEST',STORE='data';
 const { get: dbGet, set: dbSet, setMany: dbSetMany } = createStore({ databaseName: DB, storeName: STORE, onError: message => log(message) });
 const connected=()=>!!(chC&&dev&&dev.gatt&&dev.gatt.connected);
+const bleWriteQueue=createBleWriteQueue({
+ isConnected:connected,
+ getCharacteristic:()=>chC,
+ sleep,
+ onSuccess:bytes=>log('> '+hex(bytes)),
+ onError:e=>{
+  showError('Échec de l’envoi Bluetooth : '+(e.message||e));
+  log('Erreur commande : '+(e.message||e));
+ }
+});
 
 function showError(e){$('err').textContent=e?String(e.message||e):''}
 function renderLog(){const p=$('log');p.textContent=logLines.slice(-70).join('\n');p.scrollTop=p.scrollHeight}
@@ -154,30 +166,7 @@ function pruneHist(){
 
 
 
-function writeFrame(bytes){
- const task=commandQueue.then(async()=>{
-  if(!connected())throw new Error('VMI non connectée');
-  if(chC.properties&&chC.properties.write&&typeof chC.writeValueWithResponse==='function'){
-   await chC.writeValueWithResponse(bytes);
-  }else if(chC.properties&&chC.properties.writeWithoutResponse&&typeof chC.writeValueWithoutResponse==='function'){
-   await chC.writeValueWithoutResponse(bytes);
-  }else if(typeof chC.writeValue==='function'){
-   await chC.writeValue(bytes);
-  }else{
-   throw new Error('Cette caractéristique Bluetooth ne permet pas l’écriture.');
-  }
-  log('> '+hex(bytes));
-  await sleep(350);
-  return true;
- });
- const result=task.catch(e=>{
-  showError('Échec de l’envoi Bluetooth : '+(e.message||e));
-  log('Erreur commande : '+(e.message||e));
-  return false;
- });
- commandQueue=result.then(()=>{},()=>{});
- return result;
-}
+function writeFrame(bytes){return bleWriteQueue.write(bytes)}
 const send=(reg,val)=>writeFrame(frame(reg,val));
 async function setClock(){if(!chC){showError('Connecte-toi d’abord à la VMI.');return false}const d=new Date();const ok=await writeFrame(timeFrame(d));$('dlp').textContent=ok?'Heure envoyée : '+d.toLocaleString('fr-FR'):'Heure non envoyée.';return ok}
 
@@ -187,41 +176,42 @@ function onNotification(ev){
 function handleNotification(ev){
  const v=ev.target.value;
  const a=new Uint8Array(v.buffer,v.byteOffset,v.byteLength);
- if(a.length<3||a[0]!==0xA5||a[1]!==0xB6)return;
- const type=a[2],now=Date.now();
- if(type===0x30){
+ const decoded=decodeVmiNotification(a);
+ if(!decoded)return;
+ const now=Date.now();
+ if(decoded.kind==='history'){
   if(!download.on)return;
-  if(a.length<14){log('Trame d’historique trop courte, ignorée.');return}
+  if(!decoded.valid){log('Trame d’historique trop courte, ignorée.');return}
   dlFrames++;if(dlFrames%200===1)log(`< trames d’historique reçues : ${dlFrames}`);
   download.got=true;download.lastPacket=now;
-  let end=14;while(end<a.length&&a[end]!==0)end++;
-  download.buf+=new TextDecoder('latin1').decode(a.slice(14,end));
+  download.buf+=new TextDecoder('latin1').decode(decoded.payload);
   const lines=download.buf.split('\n');download.buf=lines.pop();lines.forEach(parseDownloadLine);
   if(download.on){
-   $('dlp').textContent=`${download.rows.length} nouvelles lignes (${a[9]|(a[10]<<8)} / ${download.total||'?'} lues)`;
+   $('dlp').textContent=`${download.rows.length} nouvelles lignes (${decoded.received} / ${download.total||'?'} lues)`;
    armTimer();
-   if(a[13]===1){if(download.buf.trim())parseDownloadLine(download.buf);finishDownload(false)}
+   if(decoded.final){if(download.buf.trim())parseDownloadLine(download.buf);finishDownload(false)}
   }
   return;
  }
  log('< '+hex(a));
- if(type===1&&a.length>53){
-  cur.filtre=a[28];cur.jours=a[26];cur.vol=a[22]|(a[23]<<8);cur.tmax=a[38];
-  cur.vit=a[34]+1; // code brut VMI : ne jamais le traiter comme niveau manuel
-  cur.boost=a[44];cur.hol=a[43];cur.rpm=null;
+ if(decoded.kind==='state'){
+  cur.filtre=decoded.filter;cur.jours=decoded.days;cur.vol=decoded.volume;cur.tmax=decoded.maxTemperature;
+  cur.vit=decoded.rawSpeed+1; // code brut VMI : ne jamais le traiter comme niveau manuel
+  cur.boost=decoded.boost;cur.hol=decoded.holiday;cur.rpm=null;
   lastSeen.state=now;
   $('fi').textContent=cur.filtre;$('jf').textContent=cur.jours;$('vo').textContent=cur.vol;$('tm').textContent=cur.tmax;
   $('sp').textContent=cur.vit;$('bo').textContent=cur.boost?'Actif':'Arrêté';$('ho').textContent=cur.hol?'Actif':'Arrêté';
  }
- else if(type===2&&a.length>13){
-  cur.sal_t=a[11];cur.sal_h=a[13];lastSeen.salon=now;
+ else if(decoded.kind==='room'){
+  cur.sal_t=decoded.temperature;cur.sal_h=decoded.humidity;lastSeen.salon=now;
   $('tp').textContent=cur.sal_t;$('hp').textContent=cur.sal_h;
  }
- else if(type===3&&a.length>13){
-  cur.s1_t=a[6];cur.s1_h=a[8];cur.s2_t=a[11];cur.s2_h=a[13];lastSeen.probes=now;
+ else if(decoded.kind==='probes'){
+  cur.s1_t=decoded.firstTemperature;cur.s1_h=decoded.firstHumidity;
+  cur.s2_t=decoded.secondTemperature;cur.s2_h=decoded.secondHumidity;lastSeen.probes=now;
   $('ti').textContent=cur.s1_t;$('hi').textContent=cur.s1_h;$('t2').textContent=cur.s2_t;$('h2').textContent=cur.s2_h;
  }
- else if(type===4&&a.length>7){download.total=a[6]|(a[7]<<8);return}
+ else if(decoded.kind==='history-total'){download.total=decoded.total;return}
  else return;
  updateLiveMetrics();
 }
