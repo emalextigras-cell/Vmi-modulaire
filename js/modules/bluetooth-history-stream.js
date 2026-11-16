@@ -73,3 +73,16 @@ export function acceptHistoryFragment(state, fragment) {
   state.expectedChunk += 10;
   return { accepted: true, duplicate: false, gap, resetBuffer };
 }
+
+/** Les relevés issus d'un transfert incomplet ne peuvent pas servir de borne d'arrêt. */
+export function isHistorySyncBaseline(record) {
+  return !!record && record.syncPartial !== true;
+}
+
+/** Marque les lignes reçues selon que le transfert entier est certifié ou non. */
+export function markHistoryRows(records, complete) {
+  return (Array.isArray(records) ? records : []).map(record => ({
+    ...record,
+    syncPartial: !complete
+  }));
+}
