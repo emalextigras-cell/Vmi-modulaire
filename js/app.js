@@ -291,6 +291,8 @@ function cleanupConnection(){
  bleConnectionGeneration++;
  if(download.on)finishDownload(false,true,true);
  clearInterval(pollTimer);clearInterval(snapTimer);clearTimeout(reconnectTimer);
+ manualCommandPending=false;
+ document.querySelectorAll('[data-r]').forEach(control=>control.disabled=download.on);
  detachBleListeners();
  chC=null;chT=null;
 }
@@ -442,7 +444,7 @@ document.querySelectorAll('[data-r]').forEach(b=>b.addEventListener('click',asyn
  }catch(e){
   showError(e);result.textContent='Erreur pendant la commande.';
  }finally{
-  manualCommandPending=false;controls.forEach(x=>x.disabled=download.on);
+  if(commandToken===bleConnectionGeneration){manualCommandPending=false;controls.forEach(x=>x.disabled=download.on)}
  }
 }));
 const setCommandsDisabled=dis=>document.querySelectorAll('[data-r]').forEach(x=>x.disabled=dis);
