@@ -37,7 +37,7 @@ test('conserve les mesures de température et humidité aux offsets existants', 
   });
 });
 
-test('décode le compteur historique et le flux de données sans interpréter son contenu', () => {
+test('décode le compteur historique et conserve l’interprétation historique de l’octet de fin', () => {
   const total = frame(0x04, 8); total[6] = 0x34; total[7] = 0x12;
   assert.deepEqual(decodeVmiNotification(total), { kind: 'history-total', total: 0x1234 });
   const history = frame(0x30, 18);

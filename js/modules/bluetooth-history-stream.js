@@ -1,7 +1,8 @@
 /**
  * Contrôle l'ordre des fragments d'historique observés dans les notifications VMI.
- * Les captures montrent un index de ligne (octets 9-10), un index de fragment
- * (octet 12, par pas de 10) et un indicateur distinct de fin (octet 13).
+ * La capture confirme l'index de ligne (octets 9-10) et l'index de fragment
+ * (octet 12, par pas de 10). Le parseur historique interprète l'octet 13
+ * comme indicateur de fin, mais la capture fournie n'observe aucune valeur 1.
  * Cette garde détecte uniquement les répétitions, trous et désordres observés.
  */
 export function createHistoryStreamState() {
