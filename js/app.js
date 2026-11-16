@@ -21,6 +21,7 @@ import { buildLiveFreshnessText } from './modules/live-freshness.js';
 import { formatDiagnosisConfidence } from './modules/diagnostic-confidence.js';
 import { analyzeSeasonalVentilation } from './modules/seasonal-advice.js';
 import { renderVmiAssistant } from './modules/assistant-renderer.js';
+import { selectDataRange } from './modules/history-selection.js';
 
 
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{})}
@@ -630,15 +631,9 @@ $('diagCopy').onclick=async()=>{
 };
 
 /* ---------- Graphiques SVG ---------- */
-function selectDataRange(records){
- const data=(Array.isArray(records)?records:[]).filter(r=>r&&r.t>=MIN_VALID).sort((a,b)=>a.t-b.t);
- if(selectedDate){const start=dayStart(selectedDate),end=dayStart(shiftDay(selectedDate,1));return data.filter(r=>r.t>=start&&r.t<end)}
- if(daysSetting&&data.length){const end=data[data.length-1].t;return data.filter(r=>r.t>=end-daysSetting*86400000)}
- return data;
-}
 /* Le direct reste une vue facultative ; toutes les analyses utilisent l’historique importé/téléchargé. */
-function selectedData(){return selectDataRange(source==='live'?live:hist)}
-function selectedHistoricalData(){return selectDataRange(hist)}
+function selectedData(){return selectDataRange(source==='live'?live:hist,{selectedDate,daysSetting})}
+function selectedHistoricalData(){return selectDataRange(hist,{selectedDate,daysSetting})}
 function formatDuration(ms){
  const minutes=Math.round(ms/60000),hours=Math.floor(minutes/60),days=Math.floor(hours/24);
  if(days)return days+' j '+(hours%24)+' h';
