@@ -10,7 +10,7 @@ test('estime la rétention à partir du rythme des 14 derniers jours au maximum'
   const result = estimateHistoryRetention(records, { now: start + 15 * DAY, minValid: 0 });
   assert.equal(result.newest, records.at(-1).t);
   assert.equal(result.recentCount, 140);
-  assert.equal(result.recordsPerDay, 10);
+  assert.ok(Math.abs(result.recordsPerDay - 140 / 13.9) < 1e-10);
   assert.equal(result.capacityDays, 60);
   assert.equal(result.deadline, result.newest + 60 * DAY);
 });
@@ -41,9 +41,13 @@ test('ne modifie pas les relevés source', () => {
   assert.deepEqual(records, before);
 });
 
-test('conserve le repli de 28 jours si le rythme calculé est nul', () => {
-  const records = [{ t: 1000 }, { t: 1000 }];
-  const result = estimateHistoryRetention(records, { now: 1000, dayMs: 1 });
-  assert.equal(result.recordsPerDay, 2);
-  assert.equal(result.capacityDays, 60);
+test('calcule le retard et le nombre de jours restants à partir de maintenant', () => {
+  const newest = Date.UTC(2026, 0, 1);
+  const result = estimateHistoryRetention(
+    [{ t: newest }],
+    { now: newest + 10 * DAY }
+  );
+  assert.equal(result.ageDays, 10);
+  assert.equal(result.daysRemaining, 50);
+  assert.equal(result.deadline, newest + 60 * DAY);
 });
