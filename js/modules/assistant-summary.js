@@ -6,9 +6,6 @@
 import {
   median,
   analyzeHygrometricPeriods,
-  summarizeDailyTrends,
-  analyzeHourlyPatterns,
-  detectRapidChanges,
   analyzeSpeedLevels,
   analyzeSpeedTimeContext,
   summarizeEnergyReadiness,
@@ -18,6 +15,7 @@ import {
   summarizeTemperatureLimit
 } from './analysis.js';
 import { buildHygrometricDiagnosis } from './hygrometric-diagnosis.js';
+import { summarizeDailyTrends, analyzeHourlyPatterns, detectRapidChanges } from './temporal-analysis.js';
 import { summarizeDataQuality } from './data-quality.js';
 import { analyzeSeasonalVentilation } from './seasonal-advice.js';
 import {

@@ -1,4 +1,5 @@
-import { median, analyzeHygrometricPeriods, summarizeDailyTrends, analyzeHourlyPatterns } from './analysis.js';
+import { median, analyzeHygrometricPeriods } from './analysis.js';
+import { summarizeDailyTrends, analyzeHourlyPatterns } from './temporal-analysis.js';
 import { absoluteHumidity, dewPoint } from './psychrometry.js';
 import { isPlausibleHumidity, isPlausibleTemperature } from './data-quality.js';
 
