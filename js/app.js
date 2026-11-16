@@ -55,7 +55,8 @@ window.addEventListener('unhandledrejection',e=>recordError('Promesse rejetée :
 
 let dev=null,chC=null,chT=null,pollTimer=null,snapTimer=null,reconnectTimer=null;
 let bleConnectionGeneration=0;
-let manualDisconnect=false,intentionalDisconnect=false,manualCommandPending=false,polling=false,autoDone=false;
+let manualDisconnect=false,intentionalDisconnect=false,manualCommandPending=false,pollingSessionToken=null,autoDone=false;
+let bleNotificationHandler=null,bleDisconnectHandler=null;
 let meta={},cur={},lastSeen={},live=[],hist=[],energyReadings=[],source='hist',selectedDate=null,daysSetting=30;
 let logLines=[],dlFrames=0;
 let download={on:false,rows:[],buf:'',total:0,sigs:new Set(),got:false,lastPacket:0,timeout:null};
@@ -252,21 +253,47 @@ function takeSnapshot(){
  if(source==='live')render();
 }
 
-/* Scrutation : pas de chevauchement, arrêt dès que la connexion tombe */
+/* Scrutation : chaque boucle appartient à une session BLE précise. */
 async function poll(force=false){
- if(polling||!connected()||download.on||(manualCommandPending&&!force))return;
- polling=true;
- try{for(const r of [3,6,7]){if(!connected()||download.on)break;const ok=await send(r,0);if(!ok)break}}
- finally{polling=false}
+ const token=bleConnectionGeneration;
+ if(pollingSessionToken===token||!connected()||download.on||(manualCommandPending&&!force))return;
+ pollingSessionToken=token;
+ try{
+  for(const r of [3,6,7]){
+   if(token!==bleConnectionGeneration||!connected()||download.on)break;
+   const ok=await send(r,0);
+   if(!ok||token!==bleConnectionGeneration)break;
+  }
+ }finally{
+  if(pollingSessionToken===token)pollingSessionToken=null;
+ }
 }
 function startPolling(){
  clearInterval(pollTimer);clearInterval(snapTimer);
+ const token=bleConnectionGeneration;
  poll();
- pollTimer=setInterval(()=>poll(),12000);
- setTimeout(takeSnapshot,15000);
- snapTimer=setInterval(takeSnapshot,300000);
+ pollTimer=setInterval(()=>{if(token===bleConnectionGeneration)poll()},12000);
+ setTimeout(()=>{if(token===bleConnectionGeneration&&connected())takeSnapshot()},15000);
+ snapTimer=setInterval(()=>{if(token===bleConnectionGeneration&&connected())takeSnapshot()},300000);
 }
-function cleanupConnection(){bleConnectionGeneration++;if(download.on)finishDownload(false,true,true);clearInterval(pollTimer);clearInterval(snapTimer);chC=null;chT=null}
+function detachBleListeners(){
+ if(bleNotificationHandler){
+  if(chT)chT.removeEventListener('characteristicvaluechanged',bleNotificationHandler);
+  if(chC)chC.removeEventListener('characteristicvaluechanged',bleNotificationHandler);
+  bleNotificationHandler=null;
+ }
+ if(dev&&bleDisconnectHandler){
+  dev.removeEventListener('gattserverdisconnected',bleDisconnectHandler);
+  bleDisconnectHandler=null;
+ }
+}
+function cleanupConnection(){
+ bleConnectionGeneration++;
+ if(download.on)finishDownload(false,true,true);
+ clearInterval(pollTimer);clearInterval(snapTimer);clearTimeout(reconnectTimer);
+ detachBleListeners();
+ chC=null;chT=null;
+}
 function onDisconnect(){
  const wasIntentional=intentionalDisconnect;
  intentionalDisconnect=false;
@@ -275,13 +302,36 @@ function onDisconnect(){
  setStatus('Déconnecté.');
  if(!manualDisconnect&&dev){setStatus('Connexion perdue, tentative de reconnexion…');clearTimeout(reconnectTimer);reconnectTimer=setTimeout(reconnect,4000)}
 }
-async function connectCharacteristics(server){
+function sessionIsCurrent(token,device){
+ return token===bleConnectionGeneration&&dev===device;
+}
+async function connectCharacteristics(server,token,device){
  const serviceC=await server.getPrimaryService(SVC_C);
- chC=await serviceC.getCharacteristic(CH_C);
+ if(!sessionIsCurrent(token,device))return false;
+ const characteristicC=await serviceC.getCharacteristic(CH_C);
+ if(!sessionIsCurrent(token,device))return false;
  const serviceT=await server.getPrimaryService(SVC_T);
- chT=await serviceT.getCharacteristic(CH_T);
- await chT.startNotifications();chT.removeEventListener('characteristicvaluechanged',onNotification);chT.addEventListener('characteristicvaluechanged',onNotification);
- try{await chC.startNotifications();chC.removeEventListener('characteristicvaluechanged',onNotification);chC.addEventListener('characteristicvaluechanged',onNotification)}catch(e){log('Notifications canal commande non disponibles : '+e.message)}
+ if(!sessionIsCurrent(token,device))return false;
+ const characteristicT=await serviceT.getCharacteristic(CH_T);
+ if(!sessionIsCurrent(token,device))return false;
+ await characteristicT.startNotifications();
+ if(!sessionIsCurrent(token,device))return false;
+ try{
+  await characteristicC.startNotifications();
+ }catch(e){
+  if(!sessionIsCurrent(token,device))return false;
+  log('Notifications canal commande non disponibles : '+e.message);
+ }
+ if(!sessionIsCurrent(token,device))return false;
+ chC=characteristicC;chT=characteristicT;
+ bleNotificationHandler=ev=>{
+  if(!sessionIsCurrent(token,device)||!connected())return;
+  if(ev.target!==chT&&ev.target!==chC)return;
+  onNotification(ev);
+ };
+ chT.addEventListener('characteristicvaluechanged',bleNotificationHandler);
+ chC.addEventListener('characteristicvaluechanged',bleNotificationHandler);
+ return true;
 }
 function preferredBluetoothDeviceId(){
  try{return localStorage.getItem('vmi_bluetooth_device_id')||''}catch(e){return ''}
@@ -292,16 +342,31 @@ function rememberBluetoothDevice(device){
 async function connectDevice(device){
  if(!device||!device.gatt)throw new Error('Appareil Bluetooth invalide.');
  bleConnectionGeneration++;
+ const token=bleConnectionGeneration;
+ clearTimeout(reconnectTimer);
+ detachBleListeners();
+ chC=null;chT=null;
  dev=device;manualDisconnect=false;
- dev.removeEventListener('gattserverdisconnected',onDisconnect);
- dev.addEventListener('gattserverdisconnected',onDisconnect);
+ bleDisconnectHandler=()=>{
+  if(!sessionIsCurrent(token,device))return;
+  onDisconnect();
+ };
+ dev.addEventListener('gattserverdisconnected',bleDisconnectHandler);
  setStatus('Connexion à '+(dev.name||'la VMI')+'…');
- const server=await dev.gatt.connect();
- await connectCharacteristics(server);
- setStatus('Connecté à '+(dev.name||'la VMI')+'. Synchronisation des données…',true);
- startPolling();
- // Une reconnexion ne doit pas relancer la synchronisation automatique déjà effectuée.
- setTimeout(autoHistory,3000);
+ try{
+  const server=await dev.gatt.connect();
+  if(!sessionIsCurrent(token,device))return false;
+  const characteristicsReady=await connectCharacteristics(server,token,device);
+  if(!characteristicsReady||!sessionIsCurrent(token,device))return false;
+  setStatus('Connecté à '+(dev.name||'la VMI')+'. Synchronisation des données…',true);
+  startPolling();
+  // Une reconnexion ne doit pas relancer la synchronisation automatique déjà effectuée.
+  setTimeout(()=>{if(sessionIsCurrent(token,device)&&connected())autoHistory()},3000);
+  return true;
+ }catch(e){
+  if(!sessionIsCurrent(token,device))return false;
+  throw e;
+ }
 }
 async function connectBLE(){
  // Un clic explicite démarre une nouvelle session et autorise une synchronisation initiale.
@@ -339,7 +404,7 @@ async function reconnect(){
  catch(e){log('Reconnexion échouée : '+e.message);clearTimeout(reconnectTimer);reconnectTimer=setTimeout(reconnect,7000)}
 }
 $('conn').onclick=connectBLE;
-$('disc').onclick=()=>{manualDisconnect=true;clearTimeout(reconnectTimer);cleanupConnection();if(dev&&dev.gatt&&dev.gatt.connected)dev.gatt.disconnect();setStatus('Déconnexion demandée.')};
+$('disc').onclick=()=>{manualDisconnect=true;cleanupConnection();if(dev&&dev.gatt&&dev.gatt.connected)dev.gatt.disconnect();setStatus('Déconnexion demandée.')};
 
 /* Boutons de commande : une commande à la fois, avec vérification de l'état renvoyé par la VMI */
 const EXPECT={24:v=>['vit',v+1,'Vitesse '+(v+1)],25:v=>['boost',v,'Boost '+(v?'activé':'arrêté')],26:v=>['hol',v,'Mode vacances '+(v?'activé':'arrêté')]};
