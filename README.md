@@ -290,6 +290,7 @@ Le moteur Bluetooth est progressivement isolé en modules testables :
 - `bluetooth-decoder.js` extrait le décodage des notifications dans une fonction pure. Les offsets, longueurs minimales et valeurs brutes reprennent exactement le traitement existant ; les champs inconnus ne sont pas réinterprétés.
 - `bluetooth-write-queue.js` centralise les écritures et les sérialise. Il conserve la priorité à `writeValueWithResponse`, le repli historique et le délai de 350 ms. Un échec est signalé et n'empêche pas la file de traiter une opération ultérieure.
 - `bluetooth-session.js` empêche une séquence de synchronisation de continuer après une déconnexion ou un changement de session ; les données partielles reçues sont conservées sans être marquées comme synchronisation terminée.
+- Les scrutations, notifications, temporisations de snapshot et reconnexions sont rattachées à leur session : les événements tardifs d'une ancienne connexion sont ignorés et une scrutation ne peut pas reprendre sur une nouvelle session.
 - `app.js` conserve la gestion de connexion, les commandes, la synchronisation et l'interface ; il délègue désormais le décodage et les écritures à ces modules.
 - Le service worker précharge les modules Bluetooth et son cache est incrémenté à chaque évolution de ces ressources.
 
