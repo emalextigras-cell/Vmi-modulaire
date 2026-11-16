@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHistoryDownloadController } from '../js/modules/history-download-controller.js';
 
-function setup(overrides = {}) {
- let download = { on: true, rows: [], buf: '', total: 0, sigs: new Set(), got: false, timeout: null };
+function setup(overrides = {}, initialDownload = { on: true, rows: [], buf: '', total: 0, sigs: new Set(), got: false, timeout: null }) {
+ let download = initialDownload;
  let autoDone = false;
  const calls = [];
  const elements = { dlh: { disabled: false }, dlp: { textContent: '' } };
@@ -16,7 +16,7 @@ function setup(overrides = {}) {
   setCommandsDisabled: value => calls.push(['disabled', value]), connected: () => true,
   markSync: () => calls.push(['sync']), disconnectIntentionally: () => calls.push(['disconnect']),
   showError: value => calls.push(['error', value]), log: value => calls.push(['log', value]),
-  getAutoDone: () => autoDone, setAutoDone: value => { autoDone = value; },
+  hasCommandChannel: () => true, getAutoDone: () => autoDone, setAutoDone: value => { autoDone = value; },
   ...overrides
  };
  return { controller: createHistoryDownloadController(deps), calls, elements, getDownload: () => download, getAutoDone: () => autoDone };
@@ -36,11 +36,11 @@ test('un relevé déjà connu arrête le téléchargement et déconnecte volonta
  controller.parseDownloadLine('16/11/2026 12:00:00;1;2;3;4;5;6;7;8;9;10;11');
  assert.equal(getDownload().on, false);
  assert.ok(calls.some(call => call[0] === 'disconnect'));
- assert.ok(calls.some(call => call[0] === 'ingest' && call[1] === 0));
+ assert.equal(calls.some(call => call[0] === 'ingest'), false);
 });
 
 test('le démarrage conserve les trois registres de lancement et arme le délai', async () => {
- const { controller, calls, elements, getDownload } = setup({ getDownload: () => ({ on: false, rows: [], sigs: new Set() }) });
+ const { controller, calls, elements, getDownload } = setup({}, { on: false, rows: [], buf: '', total: 0, sigs: new Set(), got: false, timeout: null });
  await controller.startDownload(false);
  assert.deepEqual(calls.filter(call => call[0] === 'send'), [['send', 0x2c, 0], ['send', 0x20, 0], ['send', 0x22, 0]]);
  assert.ok(calls.some(call => call[0] === 'timer'));
