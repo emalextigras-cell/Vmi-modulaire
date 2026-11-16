@@ -6,7 +6,8 @@ const source = await readFile(new URL('../js/app.js', import.meta.url), 'utf8');
 
 test('la fin de synchronisation marque la déconnexion comme volontaire avant disconnect()', () => {
   const finish = source.slice(source.indexOf('function finishDownload('), source.indexOf('async function startDownload('));
-  assert.match(finish, /if\(reachedCut&&dev&&dev\.gatt&&dev\.gatt\.connected\)\s*\{[\s\S]*?intentionalDisconnect=true;[\s\S]*?dev\.gatt\.disconnect\(\);/);
+  assert.ok(finish.includes('if((reachedCut||reachedTotal)&&dev&&dev.gatt&&dev.gatt.connected){'));
+  assert.ok(finish.indexOf('intentionalDisconnect=true;') < finish.indexOf('dev.gatt.disconnect();'));
 });
 
 test('onDisconnect absorbe une déconnexion volontaire sans programmer de reconnexion', () => {
@@ -20,7 +21,7 @@ test('onDisconnect absorbe une déconnexion volontaire sans programmer de reconn
 test('une reconnexion ne réinitialise pas la synchronisation automatique', () => {
   const connect = source.slice(source.indexOf('async function connectDevice('), source.indexOf('async function connectBLE('));
   assert.doesNotMatch(connect, /autoDone=false/);
-  assert.match(connect, /setTimeout\(autoHistory,3000\)/);
+  assert.match(connect, /setTimeout\(\(\)=>\{if\(sessionIsCurrent\(token,device\)&&connected\(\)\)autoHistory\(\)\},3000\)/);
 });
 
 test('un nouveau clic utilisateur autorise une nouvelle synchronisation initiale', () => {
