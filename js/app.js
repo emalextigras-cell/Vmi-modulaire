@@ -427,7 +427,8 @@ async function autoConnectAuthorizedDevice(){
  }
 }
 async function reconnect(){
- if(manualDisconnect||!dev)return;
+ // Une reconnexion automatique ne doit jamais démarrer pendant le sélecteur manuel.
+ if(manualDisconnect||!dev||connectionRequestPending)return;
  try{await connectDevice(dev)}
  catch(e){log('Reconnexion échouée : '+e.message);clearTimeout(reconnectTimer);reconnectTimer=setTimeout(reconnect,7000)}
 }

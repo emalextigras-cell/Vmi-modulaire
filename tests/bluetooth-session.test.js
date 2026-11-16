@@ -77,3 +77,11 @@ test('installe les écouteurs de notification avant d’activer les notification
   assert.ok(connection.indexOf("addEventListener('characteristicvaluechanged'") < connection.indexOf('await characteristicT.startNotifications()'));
   assert.ok(connection.indexOf("addEventListener('characteristicvaluechanged'") < connection.indexOf('await characteristicC.startNotifications()'));
 });
+
+
+test('une reconnexion automatique en attente ne démarre pas pendant le sélecteur manuel', async () => {
+  const start = source.indexOf('async function reconnect()');
+  const end = source.indexOf("$('conn').onclick=connectBLE", start);
+  const reconnect = source.slice(start, end);
+  assert.match(reconnect, /if\(manualDisconnect\|\|!dev\|\|connectionRequestPending\)return/);
+});
