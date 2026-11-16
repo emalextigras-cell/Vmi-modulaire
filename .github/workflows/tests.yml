@@ -3,6 +3,7 @@ name: Tests JavaScript
 on:
   push:
     branches:
+      - main
       - work/modularisation-phase-1
   pull_request:
     branches:
