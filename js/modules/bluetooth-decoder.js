@@ -21,7 +21,7 @@ export function decodeVmiNotification(input) {
       valid: true,
       payload: bytes.slice(14, end),
       sequence: bytes[9] | (bytes[10] << 8),
-      chunkIndex: bytes[12] | (bytes[13] << 8),
+      chunkIndex: bytes[12],
       received: bytes[9] | (bytes[10] << 8),
       final: bytes[13] === 1
     };
