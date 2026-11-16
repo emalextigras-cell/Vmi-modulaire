@@ -365,6 +365,7 @@ async function connectDevice(device){
   return true;
  }catch(e){
   if(!sessionIsCurrent(token,device))return false;
+  cleanupConnection();
   throw e;
  }
 }
@@ -412,6 +413,8 @@ document.querySelectorAll('[data-r]').forEach(b=>b.addEventListener('click',asyn
  if(manualCommandPending||download.on)return;
  if(!connected()){showError('VMI non connectée.');$('cmdResult').textContent='';return}
  manualCommandPending=true;
+ const commandToken=bleConnectionGeneration,commandDevice=dev;
+ const commandIsCurrent=()=>sessionIsCurrent(commandToken,commandDevice)&&connected();
  const controls=[...document.querySelectorAll('[data-r]')];
  controls.forEach(x=>x.disabled=true);
  showError('');
@@ -421,10 +424,17 @@ document.querySelectorAll('[data-r]').forEach(b=>b.addEventListener('click',asyn
   result.textContent='Envoi de la commande à la VMI…';
   const t0=Date.now();
   const sent=await send(reg,value);
+  if(!commandIsCurrent()){result.textContent='Connexion interrompue : l’état de la commande n’a pas pu être vérifié.';return}
   if(!sent){result.textContent='La commande n’a pas pu être envoyée (voir le journal Bluetooth).';return}
   result.textContent='Commande envoyée, vérification de l’état…';
-  for(let i=0;i<10&&!((lastSeen.state||0)>t0);i++)await sleep(200);
-  if(!((lastSeen.state||0)>t0)){await send(3,0);for(let i=0;i<10&&!((lastSeen.state||0)>t0);i++)await sleep(200)}
+  for(let i=0;i<10&&commandIsCurrent()&&!((lastSeen.state||0)>t0);i++)await sleep(200);
+  if(!commandIsCurrent()){result.textContent='Connexion interrompue : l’état de la commande n’a pas pu être vérifié.';return}
+  if(!((lastSeen.state||0)>t0)){
+   const readSent=await send(3,0);
+   if(!commandIsCurrent()){result.textContent='Connexion interrompue : l’état de la commande n’a pas pu être vérifié.';return}
+   if(readSent)for(let i=0;i<10&&commandIsCurrent()&&!((lastSeen.state||0)>t0);i++)await sleep(200);
+  }
+  if(!commandIsCurrent()){result.textContent='Connexion interrompue : l’état de la commande n’a pas pu être vérifié.';return}
   if((lastSeen.state||0)>t0&&cur[key]===expected)result.textContent='✓ Confirmé par la VMI : '+label+'.';
   else if((lastSeen.state||0)>t0)result.textContent='⚠ La VMI a répondu mais l’état affiché n’est pas '+label.toLowerCase()+'. Vérifie sur la VMI ou dans VMI+.';
   else result.textContent='⚠ Commande envoyée mais aucune réponse de la VMI : l’état n’a pas pu être vérifié.';
@@ -432,7 +442,7 @@ document.querySelectorAll('[data-r]').forEach(b=>b.addEventListener('click',asyn
  }catch(e){
   showError(e);result.textContent='Erreur pendant la commande.';
  }finally{
-  manualCommandPending=false;controls.forEach(x=>x.disabled=false);
+  manualCommandPending=false;controls.forEach(x=>x.disabled=download.on);
  }
 }));
 const setCommandsDisabled=dis=>document.querySelectorAll('[data-r]').forEach(x=>x.disabled=dis);
