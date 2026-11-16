@@ -32,12 +32,20 @@ import { createHygrometricRenderers } from './modules/hygrometric-renderers.js';
 import { summarizeWeeklyDiagnostic } from './modules/weekly-diagnostic.js';
 import { analyzeSeasonalVentilation } from './modules/seasonal-advice.js';
 import { createImportController } from './modules/import-controller.js';
+import { createHistoryExportController } from './modules/history-export-controller.js';
 
 
 
 
 const importController = createImportController({
  $, showError, log, isCsvFile, parseCsvRows, findVmiHeaderRowIndex, getColumnMapping, recFrom, ingest
+});
+
+const historyExportController = createHistoryExportController({
+ $, getState: () => ({ hist, live, meta, energyReadings }),
+ setState: next => { hist = next.hist; live = next.live; meta = next.meta; energyReadings = next.energyReadings; },
+ dbSetMany, createBackupSnapshot, mergeBackupData, pruneHistory, psychro, pad, localDay,
+ minValid: MIN_VALID, maxHistory: HIST_MAX, render
 });
 
 const hygrometricRenderers = createHygrometricRenderers({
@@ -452,11 +460,6 @@ function autoHistory(){
 }
 
 /* Import CSV/Excel délégué au contrôleur dédié. */
-function downloadText(content,name,type,bom=true){
- const blob=new Blob(bom?['\ufeff',content]:[content],{type}),url=URL.createObjectURL(blob),a=document.createElement('a');
- a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
-}
-
 /* ---------- Export, sauvegarde et fraîcheur de l’historique ---------- */
 const fmtLocal=t=>{const d=new Date(t);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`};
 const fmtShort=t=>{const d=new Date(t);return `${pad(d.getDate())}/${pad(d.getMonth()+1)} ${pad(d.getHours())}:${pad(d.getMinutes())}`};
@@ -473,37 +476,7 @@ const historyInsightRenderers = createHistoryInsightRenderers({
  $, fmt, fmtShort, median, absoluteHumidity, isPlausibleHumidity, isPlausibleTemperature,
  summarizeWeeklyDiagnostic, analyzeSeasonalVentilation
 });
-const decFr=v=>(v==null||!Number.isFinite(v))?'':String(Math.round(v*100)/100).replace('.',',');
-function histToCsv(rows){
- const head=['date_heure','salon_temp_C','salon_HR_pct','temperature_exterieure_vmi_plus_C','salon_HA_calculee_g_m3','salon_rosee_C','sonde1_temp_C','sonde1_HR_pct','vmi_plus_P0_Hum_abs_brute','air_entrant_temp_C','air_entrant_HR_pct','vmi_plus_P1_Hum_abs_brute','air_entrant_HA_calculee_g_m3','regime_tr_min','etat_filtre_brut','indice_encrassement_pct','duree_fonctionnement_j','debit_vmi_plus_brut','vitesse_vmi_plus_code_brut','pwm_vmi_plus_brut','mode_vmi_plus_brut','volume_vmi_plus_m3_brut','cons_dp_vmi_plus_brut'];
- const lines=[head.join(';')];
- for(const r of rows){
-  const p=psychro({st:r.st,sh:r.sh,te:r.te,he:r.he});
-  lines.push([fmtLocal(r.t),decFr(r.st),decFr(r.sh),decFr(r.tExt),decFr(p.haIn),decFr(p.dewIn),decFr(r.t1),decFr(r.h1),decFr(r.vmiAbsP0),decFr(r.te),decFr(r.he),decFr(r.vmiAbsP1),decFr(p.haOut),decFr(r.rpm),decFr(r.fil),decFr(r.filterIndexPct),decFr(r.d),decFr(r.debit),decFr(r.vmiSpeedRaw),decFr(r.vmiPwmRaw),decFr(r.vmiModeRaw),decFr(r.volumeRaw),decFr(r.consDpRaw)].join(';'));
- }
- return lines.join('\r\n');
-}
-function makeBackup(){return createBackupSnapshot({hist,live,meta,energyReadings})}
-async function restoreBackup(obj){
- const result=mergeBackupData({backup:obj,currentHist:hist,currentLive:live,currentMeta:meta,currentEnergyReadings:energyReadings,minValid:MIN_VALID});
- const nextHist=pruneHistory(result.hist,HIST_MAX).records;
- const entries=[['hist',nextHist],['live',result.live],['energyReadings',result.energyReadings]];
- if(result.meta.lastSync!==meta.lastSync)entries.push(['meta',result.meta]);
- // Ne modifier l'état en mémoire qu'après validation atomique du stockage local.
- await dbSetMany(entries);
- hist=nextHist;live=result.live;meta=result.meta;energyReadings=result.energyReadings;
- return {add:result.addedHistory,enriched:result.enrichedHistory,addL:result.addedLive,addEnergy:result.addedEnergyReadings};
-}
-$('expHist').onclick=()=>{
- const rows=hist.filter(r=>r.t>=MIN_VALID);
- if(!rows.length){$('backupInfo').textContent='Aucun historique à exporter.';return}
- downloadText(histToCsv(rows),`vmi-historique-${localDay()}.csv`,'text/csv;charset=utf-8');
- $('backupInfo').textContent=`${rows.length} relevés exportés (séparateur « ; », virgule décimale, prêt pour Excel).`;
-};
-$('expBackup').onclick=()=>{
- downloadText(JSON.stringify(makeBackup()),`vmi-sauvegarde-${localDay()}.json`,'application/json',false);
- $('backupInfo').textContent=`Sauvegarde créée : ${hist.length} relevés d’historique, ${live.length} relevés en direct.`;
-};
+/* Export CSV et sauvegarde/restauration délégués au contrôleur dédié. */
 $('energyMeterForm').addEventListener('submit',async event=>{
  event.preventDefault();
  const meterType=$('energyMeterType').value;
@@ -535,16 +508,7 @@ $('energyMeterHistory').addEventListener('click',async event=>{
  energyReadings=nextReadings;
  energyRenderers.renderEnergyMeterTracking();
 });
-$('restoreFile').onchange=async e=>{
- const file=e.target.files&&e.target.files[0];if(!file)return;
- try{
-  const obj=JSON.parse(await file.text());
-  const {add,enriched,addL,addEnergy}=await restoreBackup(obj);
-  $('backupInfo').textContent='Sauvegarde restaurée : '+add+' relevés d’historique ajoutés, '+enriched+' complétés, '+addL+' relevés en direct et '+addEnergy+' index de compteur ajoutés.';
-  render();
- }catch(err){$('backupInfo').textContent='Restauration impossible : '+err.message}
- e.target.value='';
-};
+
 /* La VMI ne garde que ~800 relevés : on estime sa capacité en jours d'après le rythme réel des relevés
    et on prévient avant que des relevés non téléchargés soient écrasés. */
 function renderFreshness(){
