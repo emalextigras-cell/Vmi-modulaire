@@ -523,13 +523,13 @@ setInterval(renderFreshness,60000);
 
 /* ---------- Diagnostic ---------- */
 function buildDiagnostic(){
- const chartPaths = Object.fromEntries(['chartRH','chartHA','chartTemp','chartRPM'].map(id => [id, (($($(id).innerHTML.match(/<path/g))||[]).length)]));
+ const chartPaths = Object.fromEntries(['chartRH','chartHA','chartTemp','chartRPM'].map(id => [id, ((($(id).innerHTML.match(/<path/g))||[]).length)]));
  return buildDiagnosticReport({
   appVersion: APP_VERSION, now: Date.now(), userAgent: navigator.userAgent,
   bluetoothAvailable: !!navigator.bluetooth, connected: connected(),
   serviceWorkerStatus: !('serviceWorker' in navigator) ? 'absent' : (navigator.serviceWorker.controller ? 'actif' : 'non actif'),
   sheetJsLoaded: !!window.XLSX, hist, live, minValid: MIN_VALID, fmtLocal, fmtShort,
-  absoluteHumidity, lastSeen, source, selectedDate, daysSetting, chartPaths,
+  absoluteHumidity, lastSeen, lastSync: meta.lastSync, source, selectedDate, daysSetting, chartPaths,
   downloadOn: download.on, downloadProgress: $('dlp').textContent || '—',
   commandResult: $('cmdResult').textContent || '—', errors, logLines
  });
