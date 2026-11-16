@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { acceptHistoryFragment, createHistoryStreamState } from '../js/modules/bluetooth-history-stream.js';
+import { acceptHistoryFragment, createHistoryStreamState, isCurrentHistoryRecordComplete } from '../js/modules/bluetooth-history-stream.js';
 
 test('accepte les fragments ordonnés d’une même ligne puis la ligne suivante', () => {
   const state = createHistoryStreamState();
@@ -123,4 +123,37 @@ test('un index de fragment invalide condamne toute la ligne identifiable', () =>
   assert.equal(sameLine.accepted, false);
   assert.equal(nextLine.accepted, true);
   assert.equal(state.gapCount, 1);
+});
+
+test('détecte un fragment final manquant au passage à la ligne suivante', () => {
+  const state = createHistoryStreamState();
+  acceptHistoryFragment(state, { sequence: 0, chunkIndex: 0, payload: 'metadata' });
+  acceptHistoryFragment(state, { sequence: 1, chunkIndex: 0, payload: '\\n10/11/2026 16:43:57;' });
+  acceptHistoryFragment(state, { sequence: 1, chunkIndex: 10, payload: 'fragment10' });
+  acceptHistoryFragment(state, { sequence: 1, chunkIndex: 20, payload: 'fragment20' });
+  acceptHistoryFragment(state, { sequence: 1, chunkIndex: 30, payload: 'fragment30' });
+  const next = acceptHistoryFragment(state, { sequence: 2, chunkIndex: 0, payload: '\\n10/11/2026 16:43:13;' });
+  assert.equal(next.accepted, true);
+  assert.equal(next.gap, true);
+  assert.equal(next.resetBuffer, true);
+  assert.equal(state.gapCount, 1);
+});
+
+test('certifie une ligne datée seulement après le fragment 40', () => {
+  const state = createHistoryStreamState();
+  const payloads = ['\\n10/11/2026 16:43:57;', 'fragment10', 'fragment20', 'fragment30', 'fragment40'];
+  payloads.forEach((payload, index) => {
+    acceptHistoryFragment(state, { sequence: 0, chunkIndex: index * 10, payload });
+    assert.equal(isCurrentHistoryRecordComplete(state), index === 4);
+  });
+  assert.equal(state.gapCount, 0);
+});
+
+test('ne confond pas les blocs de métadonnées à un fragment avec des lignes tronquées', () => {
+  const state = createHistoryStreamState();
+  acceptHistoryFragment(state, { sequence: 0, chunkIndex: 0, payload: 'metadata-0' });
+  const next = acceptHistoryFragment(state, { sequence: 1, chunkIndex: 0, payload: 'metadata-1' });
+  assert.equal(next.gap, false);
+  assert.equal(next.resetBuffer, false);
+  assert.equal(state.gapCount, 0);
 });
